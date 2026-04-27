@@ -1,0 +1,62 @@
+:root {
+  color: #1f2937;
+  background-color: #edf2f7;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 1280px;
+  background:
+    radial-gradient(circle at top left, rgba(31, 94, 255, 0.08), transparent 28%),
+    linear-gradient(180deg, #f7f9fc 0%, #edf2f7 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-root {
+  min-height: 100vh;
+}
+
+.shell-content-panel {
+  min-height: calc(100vh - 112px);
+  border: 1px solid #d9e2ec;
+  border-radius: 18px;
+  background: #f7f9fc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.page-section {
+  padding: 28px 32px;
+}
+
+.page-heading {
+  margin: 0 0 8px;
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.page-subheading {
+  margin: 0;
+  color: #526071;
+  font-size: 14px;
+}
