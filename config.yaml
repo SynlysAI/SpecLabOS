@@ -1,0 +1,20 @@
+app:
+  name: SpecLabOS
+  host: 127.0.0.1
+  port: 8000
+
+mongo:
+  uri: mongodb://localhost:27017
+  database: spec_labos
+
+runtime:
+  sim_mode: true
+  status_poll_interval_seconds: 10
+  runner_interval_seconds: 1
+
+devices:
+  enabled_keys:
+    - nmr_2278
+    - gpc_2278
+    - resin_2278
+    - pi_2278
