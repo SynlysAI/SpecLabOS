@@ -34,7 +34,6 @@ class WorkflowDefinitionRecord(WorkflowDefinitionCreate):
     """持久化后的工作流定义记录。"""
 
     workflow_id: str
-    workflow_name: str
     created_at: datetime
 
 
@@ -93,7 +92,7 @@ class WorkflowRunRecord(BaseModel):
         return WorkflowRunRecord(
             run_id=str(uuid4()),
             workflow_id=definition.workflow_id,
-            workflow_name=definition.workflow_name,
+            workflow_name=definition.name,
             status=WorkflowRunStatus.PENDING,
             current_step_index=0,
             total_steps=len(definition.steps),

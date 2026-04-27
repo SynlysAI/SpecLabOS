@@ -36,7 +36,6 @@ class WorkflowRepository:
         """
         record = WorkflowDefinitionRecord(
             workflow_id=str(uuid4()),
-            workflow_name=definition.name,
             created_at=datetime.now(timezone.utc),
             **definition.model_dump(),
         )
