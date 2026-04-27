@@ -45,6 +45,21 @@ class Settings(BaseModel):
     devices: DeviceSettings
 
 
+def get_default_config_path(current_file: str | Path | None = None) -> Path:
+    """解析默认配置文件路径。
+
+    Args:
+        current_file: 当前模块文件路径，默认使用当前文件。
+
+    Returns:
+        项目根目录下的配置文件路径。
+    """
+    config_module_file = Path(current_file or __file__).resolve()
+    backend_root = config_module_file.parents[2]
+    project_root = backend_root.parent
+    return project_root / "config.yaml"
+
+
 def load_settings(config_path: str | Path) -> Settings:
     """从 YAML 文件加载系统配置。
 
@@ -62,5 +77,4 @@ def load_settings(config_path: str | Path) -> Settings:
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """读取并缓存项目根目录下的默认配置。"""
-    project_root = Path(__file__).resolve().parents[3]
-    return load_settings(project_root / "config.yaml")
+    return load_settings(get_default_config_path())
