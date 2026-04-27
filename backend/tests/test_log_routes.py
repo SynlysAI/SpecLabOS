@@ -1,15 +1,15 @@
-"""设备路由测试。"""
+"""日志路由测试。"""
 
 from fastapi.testclient import TestClient
 
 from main import app
 
 
-def test_list_devices_returns_items():
-    """验证设备列表接口返回精确的空列表响应。"""
+def test_list_logs_returns_items():
+    """验证日志列表接口返回精确的空列表响应。"""
     client = TestClient(app)
 
-    response = client.get("/api/devices")
+    response = client.get("/api/logs")
 
     assert response.status_code == 200
     assert response.json() == {"items": []}
