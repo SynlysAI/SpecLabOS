@@ -17,6 +17,8 @@ class DeviceRegistry:
         Args:
             device: 待注册的设备实例。
         """
+        if device.key in self._devices:
+            raise ValueError(f"设备已注册，不能重复注册: {device.key}")
         self._devices[device.key] = device
 
     def get_device(self, device_key: str) -> BaseDevice:

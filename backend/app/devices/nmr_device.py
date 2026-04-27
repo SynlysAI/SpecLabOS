@@ -23,7 +23,7 @@ def _start_task(params: dict[str, Any], _context: dict[str, Any]) -> dict[str, A
     """
     return {
         "status": "submitted",
-        "task_code": params.get("task_code", "demo-task"),
+        "task_code": params["task_code"],
     }
 
 
