@@ -6,6 +6,10 @@ from app.domain.enums import StepRunStatus
 from app.runners.device_lock_manager import DeviceLockManager
 
 
+class DeviceActionExecutionError(RuntimeError):
+    """设备动作执行失败异常。"""
+
+
 class WorkflowRunner:
     """按步骤顺序执行工作流。"""
 
@@ -41,18 +45,21 @@ class WorkflowRunner:
             步骤执行状态与执行结果。
         """
         device_key = step["device_key"]
+        action_key = step["action_key"]
+        context = {"run_id": run_id, "step_id": step["step_id"]}
+
         if not self._lock_manager.acquire(device_key, run_id):
             return StepRunStatus.WAITING_DEVICE, {}
 
+        device = self._registry.get_device(device_key)
         try:
-            device = self._registry.get_device(device_key)
             result = device.execute_action(
-                step["action_key"],
+                action_key,
                 step.get("params", {}),
-                {"run_id": run_id, "step_id": step["step_id"]},
+                context,
             )
             return StepRunStatus.SUCCESS, result
-        except Exception as exc:
+        except DeviceActionExecutionError as exc:
             return StepRunStatus.FAILED, {"error": str(exc)}
         finally:
             self._lock_manager.release(device_key, run_id)

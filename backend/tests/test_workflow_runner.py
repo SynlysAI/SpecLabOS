@@ -1,8 +1,13 @@
 """工作流运行器测试。"""
 
+import pytest
+
 from app.domain.enums import StepRunStatus
 from app.runners.device_lock_manager import DeviceLockManager
-from app.runners.workflow_runner import WorkflowRunner
+from app.runners.workflow_runner import (
+    DeviceActionExecutionError,
+    WorkflowRunner,
+)
 
 
 class FakeDevice:
@@ -82,7 +87,9 @@ def test_run_step_returns_success_when_device_action_succeeds() -> None:
 def test_run_step_returns_failed_when_device_action_raises() -> None:
     """验证运行器在设备动作失败时返回失败状态。"""
     runner = WorkflowRunner(
-        registry=FakeRegistry(FakeDevice(error=RuntimeError("device offline"))),
+        registry=FakeRegistry(
+            FakeDevice(error=DeviceActionExecutionError("device offline"))
+        ),
         workflow_repository=None,
         lock_manager=DeviceLockManager(),
     )
@@ -97,3 +104,66 @@ def test_run_step_returns_failed_when_device_action_raises() -> None:
 
     assert status == StepRunStatus.FAILED
     assert payload == {"error": "device offline"}
+
+
+def test_run_step_returns_waiting_when_device_is_held_by_another_run() -> None:
+    """验证设备被其他运行占用时返回等待状态。"""
+    lock_manager = DeviceLockManager()
+    runner = WorkflowRunner(
+        registry=FakeRegistry(FakeDevice(result={"result": "ok"})),
+        workflow_repository=None,
+        lock_manager=lock_manager,
+    )
+    step = {
+        "step_id": "step-1",
+        "device_key": "nmr_2278",
+        "action_key": "nmr.check_status",
+        "params": {},
+    }
+    lock_manager.acquire("nmr_2278", "run-1")
+
+    status, payload = runner.run_step("run-2", step)
+
+    assert status == StepRunStatus.WAITING_DEVICE
+    assert payload == {}
+
+
+def test_run_step_releases_lock_after_device_action_failure() -> None:
+    """验证设备动作失败后锁会被释放。"""
+    lock_manager = DeviceLockManager()
+    runner = WorkflowRunner(
+        registry=FakeRegistry(
+            FakeDevice(error=DeviceActionExecutionError("device offline"))
+        ),
+        workflow_repository=None,
+        lock_manager=lock_manager,
+    )
+    step = {
+        "step_id": "step-1",
+        "device_key": "nmr_2278",
+        "action_key": "nmr.check_status",
+        "params": {},
+    }
+
+    status, payload = runner.run_step("run-1", step)
+
+    assert status == StepRunStatus.FAILED
+    assert payload == {"error": "device offline"}
+    assert lock_manager.acquire("nmr_2278", "run-2") is True
+
+
+def test_run_step_does_not_swallow_programming_errors() -> None:
+    """验证明显的程序错误不会被静默转成失败状态。"""
+    runner = WorkflowRunner(
+        registry=FakeRegistry(FakeDevice(result={"result": "ok"})),
+        workflow_repository=None,
+        lock_manager=DeviceLockManager(),
+    )
+    step = {
+        "device_key": "nmr_2278",
+        "action_key": "nmr.check_status",
+        "params": {},
+    }
+
+    with pytest.raises(KeyError):
+        runner.run_step("run-1", step)
