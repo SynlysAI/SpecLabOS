@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Row, Space, Table } from "antd";
+import { Alert, Button, Card, Col, Row, Space, Table } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
@@ -95,6 +95,7 @@ export default function DeviceMonitorPage() {
   const [loading, setLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [usingFallbackData, setUsingFallbackData] = useState(true);
 
   /**
    * 加载设备列表。
@@ -107,8 +108,10 @@ export default function DeviceMonitorPage() {
     try {
       const items = await fetchDevices();
       setDevices(normalizeDevices(items));
+      setUsingFallbackData(false);
     } catch (error) {
       setDevices(normalizeDevices(FALLBACK_DEVICES));
+      setUsingFallbackData(true);
     } finally {
       setLoading(false);
     }
@@ -150,6 +153,14 @@ export default function DeviceMonitorPage() {
           </Button>
         }
       />
+      {usingFallbackData ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="当前接口不可用，页面展示的是示例设备数据。"
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
           <Card size="small" title="设备总数">
@@ -169,7 +180,13 @@ export default function DeviceMonitorPage() {
       </Row>
       <Card
         title="设备状态列表"
-        extra={<Space><StatusTag status="online" label="实时更新" /></Space>}
+        extra={
+          !usingFallbackData ? (
+            <Space>
+              <StatusTag status="online" label="实时更新" />
+            </Space>
+          ) : null
+        }
       >
         <Table
           rowKey="key"

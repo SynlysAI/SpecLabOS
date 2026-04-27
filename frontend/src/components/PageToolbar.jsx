@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Space, Typography } from "antd";
+import { Space, Typography } from "antd";
 
 const { Text, Title } = Typography;
 
@@ -35,10 +35,7 @@ export default function PageToolbar({ title, subtitle, extra }) {
           </Text>
         ) : null}
       </div>
-      <Space>
-        {extra}
-        <Button type="default">导出视图</Button>
-      </Space>
+      {extra ? <Space>{extra}</Space> : null}
     </div>
   );
 }
