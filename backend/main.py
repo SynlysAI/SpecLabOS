@@ -2,14 +2,13 @@
 
 from fastapi import FastAPI
 
+from app.api.app_factory import create_app as build_app
 from app.core.config import get_settings
 
 
 def create_app() -> FastAPI:
-    """创建并返回 FastAPI 应用实例。"""
-    settings = get_settings()
-    application = FastAPI(title=settings.app.name)
-    return application
+    """创建并返回后端应用实例。"""
+    return build_app(settings_factory=get_settings)
 
 
 app = create_app()
