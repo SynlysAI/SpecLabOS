@@ -22,6 +22,7 @@ def create_app(
     settings = settings_factory()
     application = FastAPI(title=settings.app.name)
     application.include_router(devices.router)
+    application.include_router(devices.device_images_router)
     application.include_router(workflows.router)
     application.include_router(workflows.workflow_runs_router)
     application.include_router(logs.router)

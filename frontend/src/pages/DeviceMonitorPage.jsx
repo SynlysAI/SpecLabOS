@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Row, Space, Table } from "antd";
+import { Alert, Button, Card, Col, Image, Row, Space, Table } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { fetchDevices } from "../services/deviceApi";
+import { fetchDevices, resolveDeviceImageUrl } from "../services/deviceApi";
 
 const FALLBACK_DEVICES = [
   {
-    key: "nmr-01",
-    name: "NMR-600",
-    category: "波谱仪",
+    key: "nmr_2278",
+    name: "nmr_2278",
+    category: "核磁共振仪",
+    device_type: "NMRSpectrometer",
+    image_url: "/api/device-images/NMRSpectrometer",
     enabled: true,
     location: "A-203",
     status_snapshot: {
@@ -20,22 +22,26 @@ const FALLBACK_DEVICES = [
     }
   },
   {
-    key: "lc-02",
-    name: "LC-MS-02",
-    category: "质谱联用",
+    key: "gpc_2278",
+    name: "gpc_2278",
+    category: "凝胶渗透色谱仪",
+    device_type: "GPCAnalyzer",
+    image_url: "/api/device-images/GPCAnalyzer",
     enabled: true,
-    location: "B-105",
+    location: "A-105",
     status_snapshot: {
       state: "running",
       updated_at: "2026-04-27 17:36"
     }
   },
   {
-    key: "ir-03",
-    name: "FTIR-03",
-    category: "红外光谱",
+    key: "resin_2278",
+    name: "resin_2278",
+    category: "树脂工作站",
+    device_type: "ResinWorkstation",
+    image_url: "/api/device-images/ResinWorkstation",
     enabled: false,
-    location: "C-011",
+    location: "B-201",
     status_snapshot: {
       state: "offline",
       updated_at: "2026-04-27 16:58"
@@ -45,9 +51,26 @@ const FALLBACK_DEVICES = [
 
 const columns = [
   {
-    title: "设备名称",
-    dataIndex: "name",
-    key: "name"
+    title: "设备",
+    key: "device",
+    render: (_, record) => (
+      <Space size={12}>
+        {record.image_url ? (
+          <Image
+            src={resolveDeviceImageUrl(record.image_url)}
+            alt={record.name}
+            width={44}
+            height={44}
+            style={{ borderRadius: 8, objectFit: "cover" }}
+            preview={false}
+          />
+        ) : null}
+        <Space direction="vertical" size={0}>
+          <strong>{record.name}</strong>
+          <span style={{ color: "#667085", fontSize: 12 }}>{record.device_type}</span>
+        </Space>
+      </Space>
+    )
   },
   {
     title: "分类",

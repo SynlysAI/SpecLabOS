@@ -13,8 +13,10 @@ def build_pi_device(sim_mode: bool) -> BaseDevice:
         预留后续扩展的 PI 设备实例。
     """
     return BaseDevice(
-        key="pi_001",
-        name="PI Controller 001",
-        category="pi",
+        key="pi_2278",
+        name="pi_2278",
+        category="PI 合成系统",
+        device_type="PISynthesisSystem",
+        location="A-301",
         sim_mode=sim_mode,
     )

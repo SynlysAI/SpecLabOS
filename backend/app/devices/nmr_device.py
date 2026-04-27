@@ -38,8 +38,10 @@ def build_nmr_device(sim_mode: bool) -> BaseDevice:
     """
     return BaseDevice(
         key="nmr_2278",
-        name="NMR 2278",
-        category="nmr",
+        name="nmr_2278",
+        category="核磁共振仪",
+        device_type="NMRSpectrometer",
+        location="A-203",
         sim_mode=sim_mode,
         actions=[
             ActionSpec(

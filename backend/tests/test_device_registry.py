@@ -38,7 +38,8 @@ def test_build_device_returns_registered_category_device():
     device = build_device("nmr", sim_mode=False)
 
     assert device.key == "nmr_2278"
-    assert device.category == "nmr"
+    assert device.category == "核磁共振仪"
+    assert device.device_type == "NMRSpectrometer"
     assert device.sim_mode is False
 
 

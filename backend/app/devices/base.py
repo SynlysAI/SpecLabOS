@@ -22,6 +22,8 @@ class BaseDevice:
     key: str
     name: str
     category: str
+    device_type: str = ""
+    location: str = ""
     enabled: bool = True
     sim_mode: bool = True
     connection: dict[str, Any] = field(default_factory=dict)

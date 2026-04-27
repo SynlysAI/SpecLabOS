@@ -13,8 +13,10 @@ def build_gpc_device(sim_mode: bool) -> BaseDevice:
         预留后续扩展的 GPC 设备实例。
     """
     return BaseDevice(
-        key="gpc_101",
-        name="GPC 101",
-        category="gpc",
+        key="gpc_2278",
+        name="gpc_2278",
+        category="凝胶渗透色谱仪",
+        device_type="GPCAnalyzer",
+        location="A-105",
         sim_mode=sim_mode,
     )
