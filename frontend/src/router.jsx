@@ -6,6 +6,7 @@ import AppShell from "./layout/AppShell";
 const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
 const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
 const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage"));
+const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage"));
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
 
 /**
@@ -42,6 +43,10 @@ export const router = createBrowserRouter([
         element: withSuspense(<WorkflowBuilderPage />)
       },
       { path: "runs", element: withSuspense(<WorkflowRunsPage />) },
+      {
+        path: "runs/:runId",
+        element: withSuspense(<WorkflowRunDetailPage />)
+      },
       { path: "logs", element: withSuspense(<SystemLogsPage />) }
     ]
   }

@@ -1,15 +1,50 @@
 # SpecLabOS
 
-SpecLabOS 是用于后续任务开发的最小项目骨架。
+SpecLabOS 用于统一管理实验设备、工作流编排与任务运行。
 
-## 本地配置
+## 本地运行
 
-项目根目录使用 `config.yaml` 管理运行参数。
+1. 创建并激活环境
 
-## 后端测试
+```powershell
+conda create -n SpecLabOS python=3.12 -y
+conda activate SpecLabOS
+```
 
-进入 `backend/` 目录后执行：
+2. 安装后端依赖
 
-```bash
-pytest tests/test_config.py -v
+```powershell
+cd E:\xx_project\SpecLabOS\backend
+pip install -r requirements.txt
+```
+
+3. 启动后端服务
+
+```powershell
+cd E:\xx_project\SpecLabOS\backend
+uvicorn main:app --reload
+```
+
+4. 安装并启动前端
+
+```powershell
+cd E:\xx_project\SpecLabOS\frontend
+npm install
+npm run dev
+```
+
+## 基础验证
+
+后端测试：
+
+```powershell
+cd E:\xx_project\SpecLabOS\backend
+pytest -v
+```
+
+前端构建：
+
+```powershell
+cd E:\xx_project\SpecLabOS\frontend
+npm run build
 ```
