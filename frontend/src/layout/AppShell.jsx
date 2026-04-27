@@ -15,29 +15,15 @@ const { Sider, Header, Content } = Layout;
  */
 export default function AppShell() {
   return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Sider
-        width={240}
-        theme="light"
-        style={{
-          borderRight: "1px solid #d9e2ec",
-          background: "#f8fafc"
-        }}
-      >
+    <Layout className="app-shell">
+      <Sider width={240} theme="light" className="app-shell-sider">
         <AppSidebar />
       </Sider>
       <Layout>
-        <Header
-          style={{
-            height: 72,
-            padding: "0 28px",
-            borderBottom: "1px solid #d9e2ec",
-            background: "rgba(248, 250, 252, 0.94)"
-          }}
-        >
+        <Header className="app-shell-header">
           <AppHeader />
         </Header>
-        <Content style={{ padding: 20, background: "transparent" }}>
+        <Content className="app-shell-content">
           <div className="shell-content-panel">
             <Outlet />
           </div>

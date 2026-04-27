@@ -21,7 +21,6 @@ body,
 }
 
 body {
-  min-width: 1280px;
   background:
     radial-gradient(circle at top left, rgba(31, 94, 255, 0.08), transparent 28%),
     linear-gradient(180deg, #f7f9fc 0%, #edf2f7 100%);
@@ -36,12 +35,34 @@ a {
   min-height: 100vh;
 }
 
+.app-shell {
+  min-height: 100vh;
+}
+
+.app-shell-sider {
+  border-right: 1px solid #d9e2ec;
+  background: #f8fafc;
+}
+
+.app-shell-header {
+  height: 72px;
+  padding: 0 28px;
+  border-bottom: 1px solid #d9e2ec;
+  background: rgba(248, 250, 252, 0.94);
+}
+
+.app-shell-content {
+  padding: 20px;
+  background: transparent;
+}
+
 .shell-content-panel {
   min-height: calc(100vh - 112px);
   border: 1px solid #d9e2ec;
   border-radius: 18px;
   background: #f7f9fc;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  overflow-x: auto;
 }
 
 .page-section {

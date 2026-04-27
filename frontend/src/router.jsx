@@ -1,21 +1,48 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
 
 import AppShell from "./layout/AppShell";
-import DeviceMonitorPage from "./pages/DeviceMonitorPage";
-import WorkflowBuilderPage from "./pages/WorkflowBuilderPage";
-import WorkflowRunsPage from "./pages/WorkflowRunsPage";
-import SystemLogsPage from "./pages/SystemLogsPage";
+
+const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
+const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
+const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage"));
+const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
+
+/**
+ * 页面懒加载包装组件。
+ *
+ * Args:
+ *     children: 需要在路由中渲染的页面组件。
+ *
+ * Returns:
+ *     带有最小加载占位的页面内容。
+ */
+function withSuspense(children) {
+  return (
+    <Suspense
+      fallback={
+        <section className="page-section">
+          <p className="page-subheading">页面加载中...</p>
+        </section>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DeviceMonitorPage /> },
-      { path: "workflows/new", element: <WorkflowBuilderPage /> },
-      { path: "runs", element: <WorkflowRunsPage /> },
-      { path: "logs", element: <SystemLogsPage /> }
+      { index: true, element: withSuspense(<DeviceMonitorPage />) },
+      {
+        path: "workflows/new",
+        element: withSuspense(<WorkflowBuilderPage />)
+      },
+      { path: "runs", element: withSuspense(<WorkflowRunsPage />) },
+      { path: "logs", element: withSuspense(<SystemLogsPage />) }
     ]
   }
 ]);
