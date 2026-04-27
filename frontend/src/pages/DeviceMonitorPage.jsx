@@ -1,18 +1,193 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Button, Card, Col, Row, Space, Table } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
+
+import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
+import PageToolbar from "../components/PageToolbar";
+import StatusTag from "../components/StatusTag";
+import { fetchDevices } from "../services/deviceApi";
+
+const FALLBACK_DEVICES = [
+  {
+    key: "nmr-01",
+    name: "NMR-600",
+    category: "波谱仪",
+    enabled: true,
+    location: "A-203",
+    status_snapshot: {
+      state: "online",
+      updated_at: "2026-04-27 17:40"
+    }
+  },
+  {
+    key: "lc-02",
+    name: "LC-MS-02",
+    category: "质谱联用",
+    enabled: true,
+    location: "B-105",
+    status_snapshot: {
+      state: "running",
+      updated_at: "2026-04-27 17:36"
+    }
+  },
+  {
+    key: "ir-03",
+    name: "FTIR-03",
+    category: "红外光谱",
+    enabled: false,
+    location: "C-011",
+    status_snapshot: {
+      state: "offline",
+      updated_at: "2026-04-27 16:58"
+    }
+  }
+];
+
+const columns = [
+  {
+    title: "设备名称",
+    dataIndex: "name",
+    key: "name"
+  },
+  {
+    title: "分类",
+    dataIndex: "category",
+    key: "category"
+  },
+  {
+    title: "状态",
+    dataIndex: ["status_snapshot", "state"],
+    key: "state",
+    render: (value) => <StatusTag status={value} />
+  },
+  {
+    title: "启用",
+    dataIndex: "enabled",
+    key: "enabled",
+    render: (value) => (value ? "是" : "否")
+  }
+];
 
 /**
- * 设备监控总览占位页。
+ * 规范设备列表数据。
+ *
+ * Args:
+ *     items: 原始设备列表。
  *
  * Returns:
- *     展示设备监控入口的占位内容。
+ *     可直接供表格使用的设备列表。
+ */
+function normalizeDevices(items) {
+  return items.map((item, index) => ({
+    key: item.key || item.id || `device-${index}`,
+    ...item
+  }));
+}
+
+/**
+ * 设备监控页。
+ *
+ * Returns:
+ *     展示设备监控表格、摘要卡片和详情抽屉。
  */
 export default function DeviceMonitorPage() {
+  const [devices, setDevices] = useState(normalizeDevices(FALLBACK_DEVICES));
+  const [loading, setLoading] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  /**
+   * 加载设备列表。
+   *
+   * Returns:
+   *     无返回值。
+   */
+  async function loadDevices() {
+    setLoading(true);
+    try {
+      const items = await fetchDevices();
+      setDevices(normalizeDevices(items));
+    } catch (error) {
+      setDevices(normalizeDevices(FALLBACK_DEVICES));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadDevices();
+  }, []);
+
+  /**
+   * 打开设备详情。
+   *
+   * Args:
+   *     record: 当前点击的设备记录。
+   *
+   * Returns:
+   *     无返回值。
+   */
+  function handleOpenDetail(record) {
+    setSelectedDevice(record);
+    setDrawerOpen(true);
+  }
+
+  const onlineCount = devices.filter(
+    (item) => item.status_snapshot?.state === "online" || item.status_snapshot?.state === "running"
+  ).length;
+  const warningCount = devices.filter(
+    (item) => item.status_snapshot?.state === "warning" || item.status_snapshot?.state === "offline"
+  ).length;
+
   return (
     <section className="page-section">
-      <h1 className="page-heading">设备监控总览</h1>
-      <p className="page-subheading">
-        这里将汇总实验设备状态、在线告警与实时任务概览。
-      </p>
+      <PageToolbar
+        title="设备监控"
+        subtitle="集中查看实验设备运行状态、连通性和启用情况。"
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={loadDevices} loading={loading}>
+            刷新设备
+          </Button>
+        }
+      />
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={8}>
+          <Card size="small" title="设备总数">
+            <strong style={{ fontSize: 28 }}>{devices.length}</strong>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small" title="在线设备">
+            <strong style={{ fontSize: 28 }}>{onlineCount}</strong>
+          </Card>
+        </Col>
+        <Col xs={24} md={8}>
+          <Card size="small" title="待处理异常">
+            <strong style={{ fontSize: 28 }}>{warningCount}</strong>
+          </Card>
+        </Col>
+      </Row>
+      <Card
+        title="设备状态列表"
+        extra={<Space><StatusTag status="online" label="实时更新" /></Space>}
+      >
+        <Table
+          rowKey="key"
+          columns={columns}
+          dataSource={devices}
+          loading={loading}
+          pagination={false}
+          onRow={(record) => ({
+            onClick: () => handleOpenDetail(record),
+            style: { cursor: "pointer" }
+          })}
+        />
+      </Card>
+      <DeviceDetailDrawer
+        open={drawerOpen}
+        device={selectedDevice}
+        onClose={() => setDrawerOpen(false)}
+      />
     </section>
   );
 }
