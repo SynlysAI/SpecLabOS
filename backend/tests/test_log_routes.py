@@ -12,4 +12,7 @@ def test_list_logs_returns_items():
     response = client.get("/api/logs")
 
     assert response.status_code == 200
-    assert response.json() == {"items": []}
+    data = response.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
+    assert data["items"][0]["id"] == "LOG-001"
