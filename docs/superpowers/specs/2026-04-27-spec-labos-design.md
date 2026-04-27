@@ -140,7 +140,7 @@ E:\xx_project\SpecLabOS
 
 ### 5.1 后端
 
-- Python 3.11
+- Python 3.12
 - FastAPI
 - Pydantic
 - PyMongo
