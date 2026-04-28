@@ -63,7 +63,7 @@ export default function AppSidebar() {
           SPECLABOS
         </Text>
         <Title level={5} style={{ margin: "8px 0 4px" }}>
-          企业后台
+          嘉庚实验室
         </Title>
         <Text type="secondary" className="sidebar-brand-text">
           统一管理实验设备与自动化流程

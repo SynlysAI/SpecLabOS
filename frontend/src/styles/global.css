@@ -63,10 +63,14 @@ a {
 }
 
 .app-shell-header {
-  height: 72px;
-  padding: 0 28px;
+  min-height: 72px;
+  height: auto;
+  padding: 14px 28px;
   border-bottom: 1px solid #d9e2ec;
   background: rgba(248, 250, 252, 0.94);
+  line-height: normal;
+  display: flex;
+  align-items: center;
 }
 
 .app-shell-content {
@@ -98,4 +102,44 @@ a {
   margin: 0;
   color: #526071;
   font-size: 14px;
+}
+
+.app-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.app-header-copy {
+  min-width: 0;
+}
+
+.app-header-title {
+  margin: 0 !important;
+  font-size: 18px !important;
+}
+
+.app-header-subtitle {
+  display: block;
+  margin-top: 4px;
+}
+
+.app-header-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.app-header-user {
+  align-items: center;
+}
+
+.app-header-user-meta {
+  line-height: 1.2;
+}
+
+.app-header-user-name {
+  display: block;
 }
