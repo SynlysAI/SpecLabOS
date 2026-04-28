@@ -17,3 +17,16 @@ def test_list_devices_returns_items():
     assert len(data["items"]) == 12
     assert data["items"][0]["key"] == "nmr_2278"
     assert data["items"][0]["image_url"] == "/api/device-images/NMRSpectrometer"
+
+
+def test_list_device_actions_returns_items():
+    """验证设备动作目录接口返回真实动作列表。"""
+    client = TestClient(app)
+
+    response = client.get("/api/devices/nmr_2278/actions")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
+    assert data["items"][0]["action_key"] == "nmr.check_status"

@@ -44,6 +44,24 @@ a {
   background: #f8fafc;
 }
 
+.sidebar-root {
+  height: 100%;
+  padding: 20px 16px 16px;
+}
+
+.sidebar-brand {
+  padding: 4px 12px 20px;
+  min-width: 0;
+}
+
+.sidebar-brand-text {
+  display: block;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .app-shell-header {
   height: 72px;
   padding: 0 28px;

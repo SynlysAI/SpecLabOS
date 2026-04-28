@@ -1,16 +1,16 @@
-import React, { useState } from "react";
-import { Button, Card, Col, Form, Row, Space, message } from "antd";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Button, Card, Col, Empty, Form, Row, Space, message } from "antd";
 
 import PageToolbar from "../components/PageToolbar";
 import WorkflowStepForm from "../components/WorkflowStepForm";
 import WorkflowStepList from "../components/WorkflowStepList";
-import { createWorkflow } from "../services/workflowApi";
-
-const STEP_TYPE_LABELS = {
-  collect: "采集",
-  analyze: "分析",
-  export: "导出"
-};
+import { fetchDevices } from "../services/deviceApi";
+import {
+  createWorkflow,
+  fetchDeviceActions,
+  fetchWorkflowDrafts,
+  normalizeWorkflowDrafts,
+} from "../services/workflowApi";
 
 /**
  * 工作流编排页。
@@ -20,17 +20,57 @@ const STEP_TYPE_LABELS = {
  */
 export default function WorkflowBuilderPage() {
   const [form] = Form.useForm();
-  const [steps, setSteps] = useState([
-    {
-      key: "step-seed-1",
-      name: "样品预检",
-      type: "collect",
-      typeLabel: "采集",
-      description: "确认样品编号、条码和接收状态。"
-    }
-  ]);
+  const [steps, setSteps] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [actionOptions, setActionOptions] = useState([]);
+  const [selectedDeviceKey, setSelectedDeviceKey] = useState("");
+  const [workflows, setWorkflows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+  const [loadingActions, setLoadingActions] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const [usingActionFallback, setUsingActionFallback] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  const deviceOptions = useMemo(
+    () =>
+      devices.map((device) => ({
+        label: `${device.name} · ${device.device_type}`,
+        value: device.key
+      })),
+    [devices]
+  );
+
+  useEffect(() => {
+    async function loadDevices() {
+      setLoadingDevices(true);
+      try {
+        const items = await fetchDevices();
+        setDevices(items);
+        setLoadFailed(false);
+      } catch (error) {
+        setDevices([]);
+        setLoadFailed(true);
+        messageApi.error("设备目录接口不可用，暂时无法编排真实动作。");
+      } finally {
+        setLoadingDevices(false);
+      }
+    }
+
+    loadDevices();
+  }, []);
+
+  useEffect(() => {
+    async function loadWorkflowDrafts() {
+      try {
+        const items = await fetchWorkflowDrafts();
+        setWorkflows(normalizeWorkflowDrafts(items));
+      } catch (error) {
+        setWorkflows([]);
+      }
+    }
+    loadWorkflowDrafts();
+  }, []);
 
   /**
    * 添加工作流步骤。
@@ -42,15 +82,21 @@ export default function WorkflowBuilderPage() {
    *     无返回值。
    */
   function handleAddStep(values) {
+    const selectedAction = actionOptions.find((item) => item.value === values.action_key);
     setSteps((currentSteps) => [
       ...currentSteps,
       {
         key: `step-${Date.now()}`,
-        ...values,
-        typeLabel: STEP_TYPE_LABELS[values.type] || values.type
+        name: values.name,
+        actionKey: values.action_key,
+        deviceKey: values.device_key,
+        typeLabel: selectedAction?.label || values.action_key,
+        description: values.description
       }
     ]);
     form.resetFields();
+    setSelectedDeviceKey("");
+    setActionOptions([]);
   }
 
   /**
@@ -76,19 +122,49 @@ export default function WorkflowBuilderPage() {
     setSubmitting(true);
     try {
       await createWorkflow({
-        name: "新建工作流草稿",
+        name: `workflow_${Date.now()}`,
         steps: steps.map((item, index) => ({
-          order: index + 1,
-          name: item.name,
-          type: item.type,
-          description: item.description
+          step_id: item.key,
+          device_key: item.deviceKey,
+          action_key: item.actionKey,
+          display_name: item.name,
+          params: {
+            description: item.description,
+            order: index + 1,
+          },
+          confirm_params: {},
         }))
       });
-      messageApi.success("工作流草稿提交成功");
+      messageApi.success("工作流已创建并生成运行记录");
+      setSteps([]);
+      const items = await fetchWorkflowDrafts();
+      setWorkflows(normalizeWorkflowDrafts(items));
     } catch (error) {
-      messageApi.info("接口未就绪，已保留本地编排结果");
+      messageApi.error("工作流提交失败，请检查后端接口状态");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDeviceChange(deviceKey) {
+    form.setFieldValue("action_key", undefined);
+    setSelectedDeviceKey(deviceKey);
+    setLoadingActions(true);
+    try {
+      const items = await fetchDeviceActions(deviceKey);
+      setActionOptions(
+        items.map((item) => ({
+          label: item.name,
+          value: item.action_key,
+        }))
+      );
+      setUsingActionFallback(false);
+    } catch (error) {
+      setActionOptions([]);
+      setUsingActionFallback(true);
+      messageApi.error("设备动作目录接口不可用");
+    } finally {
+      setLoadingActions(false);
     }
   }
 
@@ -97,7 +173,7 @@ export default function WorkflowBuilderPage() {
       {contextHolder}
       <PageToolbar
         title="工作流编排"
-        subtitle="左侧配置步骤内容，右侧维护顺序列表。"
+        subtitle="基于真实设备实例和设备动作目录编排顺序工作流。"
         extra={
           <Space>
             <Button onClick={() => form.resetFields()}>重置表单</Button>
@@ -112,14 +188,46 @@ export default function WorkflowBuilderPage() {
           </Space>
         }
       />
+      {usingActionFallback ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="设备动作目录暂不可用，请先确认后端设备动作接口已启动。"
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
+      {loadFailed ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="设备目录接口暂不可用，当前无法配置真实工作流步骤。"
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={10}>
           <Card title="步骤配置" bordered={false}>
-            <WorkflowStepForm form={form} onSubmit={handleAddStep} />
+            {devices.length ? (
+              <WorkflowStepForm
+                form={form}
+                onSubmit={handleAddStep}
+                deviceOptions={deviceOptions}
+                actionOptions={actionOptions}
+                selectedDeviceKey={selectedDeviceKey}
+                onDeviceChange={handleDeviceChange}
+                loadingDevices={loadingDevices}
+                loadingActions={loadingActions}
+              />
+            ) : (
+              <Empty description="当前没有可用设备目录" />
+            )}
           </Card>
         </Col>
         <Col xs={24} xl={14}>
-          <Card title="当前工作流步骤" bordered={false}>
+          <Card
+            title={`当前工作流步骤${workflows.length ? ` · 已保存 ${workflows.length} 条定义` : ""}`}
+            bordered={false}
+          >
             <WorkflowStepList steps={steps} onRemove={handleRemoveStep} />
           </Card>
         </Col>

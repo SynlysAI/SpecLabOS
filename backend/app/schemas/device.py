@@ -29,3 +29,27 @@ class DeviceListResponse(BaseModel):
     """设备列表响应。"""
 
     items: list[DeviceItem] = Field(default_factory=list)
+
+
+class DeviceActionField(BaseModel):
+    """设备动作字段定义。"""
+
+    name: str
+    type: str = "string"
+    required: bool = False
+
+
+class DeviceActionItem(BaseModel):
+    """设备动作列表项。"""
+
+    action_key: str
+    name: str
+    description: str
+    step_mode: str = "single_step"
+    parameter_schema: list[DeviceActionField] = Field(default_factory=list)
+
+
+class DeviceActionListResponse(BaseModel):
+    """设备动作列表响应。"""
+
+    items: list[DeviceActionItem] = Field(default_factory=list)

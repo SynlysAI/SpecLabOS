@@ -1,38 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Input, Select, Space, Table } from "antd";
+import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { http } from "../services/http";
-
-const FALLBACK_RUNS = [
-  {
-    run_id: "RUN-20260427-001",
-    workflow_name: "样品全流程分析",
-    status: "running",
-    current_step_index: 2,
-    total_steps: 4,
-    started_at: "2026-04-27 10:15"
-  },
-  {
-    run_id: "RUN-20260427-002",
-    workflow_name: "核磁复测任务",
-    status: "warning",
-    current_step_index: 3,
-    total_steps: 3,
-    started_at: "2026-04-27 09:40"
-  },
-  {
-    run_id: "RUN-20260426-008",
-    workflow_name: "红外谱图导出",
-    status: "online",
-    current_step_index: 3,
-    total_steps: 3,
-    started_at: "2026-04-26 18:05"
-  }
-];
+import { fetchWorkflowRuns } from "../services/workflowApi";
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
@@ -59,34 +32,6 @@ const columns = [
   { title: "启动时间", dataIndex: "started_at", key: "started_at" }
 ];
 
-/**
- * 获取运行记录列表。
- *
- * Args:
- *     filters: 页面筛选条件。
- *
- * Returns:
- *     运行记录列表。
- */
-async function fetchWorkflowRuns(filters) {
-  const response = await http.get("/api/workflow-runs", {
-    params: {
-      keyword: filters.keyword || undefined,
-      status: filters.status && filters.status !== "all" ? filters.status : undefined
-    }
-  });
-  return response.data.items || [];
-}
-
-/**
- * 规范运行记录列表数据。
- *
- * Args:
- *     items: 原始运行记录列表。
- *
- * Returns:
- *     可直接供表格使用的运行记录。
- */
 function normalizeRuns(items) {
   return items.map((item, index) => ({
     run_id: item.run_id || item.id || `run-${index}`,
@@ -107,9 +52,9 @@ function normalizeRuns(items) {
 export default function WorkflowRunsPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [runs, setRuns] = useState(normalizeRuns(FALLBACK_RUNS));
+  const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [usingFallbackData, setUsingFallbackData] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   /**
    * 加载运行记录列表。
@@ -125,10 +70,10 @@ export default function WorkflowRunsPage() {
     try {
       const items = await fetchWorkflowRuns(filters);
       setRuns(normalizeRuns(items));
-      setUsingFallbackData(false);
+      setLoadFailed(false);
     } catch (error) {
-      setRuns(normalizeRuns(FALLBACK_RUNS));
-      setUsingFallbackData(true);
+      setRuns([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -149,21 +94,13 @@ export default function WorkflowRunsPage() {
     <section className="page-section">
       <PageToolbar
         title="任务运行"
-        subtitle="查看工作流执行进度、当前步骤和最近运行状态。"
+        subtitle="查看真实工作流执行进度、当前步骤和最近运行状态。"
         extra={
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRuns()}>
             刷新列表
           </Button>
         }
       />
-      {usingFallbackData ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="运行记录接口暂不可用，当前展示示例数据。"
-          style={{ marginBottom: 16 }}
-        />
-      ) : null}
       <Card
         title="运行记录列表"
         extra={
@@ -199,6 +136,13 @@ export default function WorkflowRunsPage() {
           dataSource={runs}
           loading={loading}
           pagination={{ pageSize: 8, showSizeChanger: false }}
+          locale={{
+            emptyText: loadFailed ? (
+              <Empty description="运行记录接口暂不可用" />
+            ) : (
+              <Empty description="暂无任务运行记录" />
+            ),
+          }}
           onRow={(record) => ({
             onClick: () => navigate(`/runs/${record.run_id}`),
             style: { cursor: "pointer" }

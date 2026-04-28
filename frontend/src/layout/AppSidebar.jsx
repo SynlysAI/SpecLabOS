@@ -12,17 +12,17 @@ const MENU_ITEMS = [
   {
     key: "/",
     icon: <DashboardOutlined />,
-    label: "设备监控总览"
+    label: "设备监控"
   },
   {
     key: "/workflows/new",
     icon: <ClusterOutlined />,
-    label: "新建工作流"
+    label: "工作流编排"
   },
   {
     key: "/runs",
     icon: <AppstoreOutlined />,
-    label: "运行记录"
+    label: "任务运行"
   },
   {
     key: "/logs",
@@ -49,8 +49,8 @@ export default function AppSidebar() {
   )?.key;
 
   return (
-    <div style={{ height: "100%", padding: "20px 16px 16px" }}>
-      <div style={{ padding: "4px 12px 20px" }}>
+    <div className="sidebar-root">
+      <div className="sidebar-brand">
         <Text
           style={{
             display: "block",
@@ -65,7 +65,9 @@ export default function AppSidebar() {
         <Title level={5} style={{ margin: "8px 0 4px" }}>
           企业后台
         </Title>
-        <Text type="secondary">统一管理实验设备与自动化流程</Text>
+        <Text type="secondary" className="sidebar-brand-text">
+          统一管理实验设备与自动化流程
+        </Text>
       </div>
       <Menu
         mode="inline"

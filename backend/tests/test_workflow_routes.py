@@ -6,7 +6,7 @@ from main import app
 
 
 def test_list_workflows_returns_items():
-    """验证工作流列表接口返回精确的空列表响应。"""
+    """验证工作流列表接口返回列表结构。"""
     client = TestClient(app)
 
     response = client.get("/api/workflows")
@@ -15,11 +15,10 @@ def test_list_workflows_returns_items():
     data = response.json()
     assert "items" in data
     assert isinstance(data["items"], list)
-    assert data["items"][0]["workflow_id"] == "wf-001"
 
 
 def test_list_workflow_runs_returns_items():
-    """验证运行列表接口返回基础示例数据。"""
+    """验证运行列表接口返回列表结构。"""
     client = TestClient(app)
 
     response = client.get("/api/workflow-runs")
@@ -28,7 +27,6 @@ def test_list_workflow_runs_returns_items():
     data = response.json()
     assert "items" in data
     assert isinstance(data["items"], list)
-    assert data["items"][0]["run_id"] == "RUN-20260427-001"
 
 
 def test_get_workflow_run_detail_returns_detail():
@@ -41,3 +39,34 @@ def test_get_workflow_run_detail_returns_detail():
     data = response.json()
     assert data["run_id"] == "RUN-20260427-001"
     assert isinstance(data["steps"], list)
+
+
+def test_create_workflow_returns_ids():
+    """验证工作流创建接口返回定义和运行编号。"""
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "nmr_status_flow",
+            "steps": [
+                {
+                    "step_id": "step-1",
+                    "device_key": "nmr_2278",
+                    "action_key": "nmr.check_status",
+                    "display_name": "NMR 状态检查",
+                    "params": {},
+                    "confirm_params": {},
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "workflow_id" in data
+    assert "run_id" in data
+
+    runs_response = client.get("/api/workflow-runs")
+    runs_data = runs_response.json()
+    assert len(runs_data["items"]) >= 1

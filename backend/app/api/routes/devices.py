@@ -7,7 +7,13 @@ from fastapi.responses import FileResponse
 
 from app.devices.factories import build_default_devices
 from app.devices.registry import DeviceRegistry
-from app.schemas.device import DeviceItem, DeviceListResponse
+from app.schemas.device import (
+    DeviceActionField,
+    DeviceActionItem,
+    DeviceActionListResponse,
+    DeviceItem,
+    DeviceListResponse,
+)
 from app.services.device_service import DeviceService
 
 
@@ -65,6 +71,30 @@ def get_device_detail(device_key: str) -> DeviceItem:
                 f"/api/device-images/{serialized_device['device_type']}"
             )
         return DeviceItem(**serialized_device)
+    raise HTTPException(status_code=404, detail="设备不存在")
+
+
+@router.get("/{device_key}/actions", response_model=DeviceActionListResponse)
+def list_device_actions(device_key: str) -> DeviceActionListResponse:
+    """返回指定设备支持的动作声明。"""
+    device_service = _build_device_service()
+    for device in device_service.list_devices():
+        if device.key != device_key:
+            continue
+        items = []
+        for action in device.list_actions():
+            items.append(
+                DeviceActionItem(
+                    action_key=action.action_key,
+                    name=action.name,
+                    description=action.description,
+                    step_mode=action.step_mode,
+                    parameter_schema=[
+                        DeviceActionField(**field) for field in action.parameter_schema
+                    ],
+                )
+            )
+        return DeviceActionListResponse(items=items)
     raise HTTPException(status_code=404, detail="设备不存在")
 
 

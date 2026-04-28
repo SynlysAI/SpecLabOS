@@ -1,34 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Form, Input, Select, Space, Table } from "antd";
+import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import { fetchSystemLogs } from "../services/logApi";
-
-const FALLBACK_LOGS = [
-  {
-    id: "LOG-001",
-    level: "warning",
-    service_name: "workflow-engine",
-    message: "步骤三执行超时，系统已发起重试。",
-    created_at: "2026-04-27 11:06"
-  },
-  {
-    id: "LOG-002",
-    level: "online",
-    service_name: "device-gateway",
-    message: "LC-MS-02 心跳恢复正常。",
-    created_at: "2026-04-27 10:58"
-  },
-  {
-    id: "LOG-003",
-    level: "running",
-    service_name: "scheduler",
-    message: "已调度新一批自动分析任务。",
-    created_at: "2026-04-27 10:40"
-  }
-];
 
 const LEVEL_OPTIONS = [
   { label: "全部级别", value: "all" },
@@ -77,9 +53,9 @@ function normalizeLogs(items) {
  */
 export default function SystemLogsPage() {
   const [form] = Form.useForm();
-  const [logs, setLogs] = useState(normalizeLogs(FALLBACK_LOGS));
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [usingFallbackData, setUsingFallbackData] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   /**
    * 加载系统日志。
@@ -95,10 +71,10 @@ export default function SystemLogsPage() {
     try {
       const items = await fetchSystemLogs(filters);
       setLogs(normalizeLogs(items));
-      setUsingFallbackData(false);
+      setLoadFailed(false);
     } catch (error) {
-      setLogs(normalizeLogs(FALLBACK_LOGS));
-      setUsingFallbackData(true);
+      setLogs([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -126,14 +102,6 @@ export default function SystemLogsPage() {
           </Button>
         }
       />
-      {usingFallbackData ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="日志接口暂不可用，当前展示示例日志。"
-          style={{ marginBottom: 16 }}
-        />
-      ) : null}
       <Card title="日志检索">
         <Form form={form} layout="inline" onFinish={loadLogs} style={{ marginBottom: 16 }}>
           <Form.Item name="keyword" style={{ marginBottom: 0 }}>
@@ -165,6 +133,13 @@ export default function SystemLogsPage() {
           dataSource={logs}
           loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false }}
+          locale={{
+            emptyText: loadFailed ? (
+              <Empty description="日志接口暂不可用" />
+            ) : (
+              <Empty description="暂无系统日志" />
+            ),
+          }}
         />
       </Card>
     </section>

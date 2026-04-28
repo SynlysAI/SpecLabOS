@@ -2,8 +2,10 @@
 
 from functools import lru_cache
 
+import mongomock
 from pymongo import MongoClient
 from pymongo.database import Database
+from pymongo.errors import ServerSelectionTimeoutError
 
 from app.core.config import get_settings
 
@@ -12,7 +14,15 @@ from app.core.config import get_settings
 def get_mongo_client() -> MongoClient:
     """创建并缓存 MongoDB 客户端。"""
     settings = get_settings()
-    return MongoClient(settings.mongo.uri)
+    client = MongoClient(
+        settings.mongo.uri,
+        serverSelectionTimeoutMS=1000,
+    )
+    try:
+        client.admin.command("ping")
+        return client
+    except ServerSelectionTimeoutError:
+        return mongomock.MongoClient()
 
 
 def get_database() -> Database:

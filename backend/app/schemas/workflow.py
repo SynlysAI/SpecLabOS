@@ -17,6 +17,27 @@ class WorkflowListResponse(BaseModel):
     items: list[WorkflowItem] = Field(default_factory=list)
 
 
+class WorkflowStepCreateRequest(BaseModel):
+    """工作流步骤创建请求。"""
+
+    step_id: str
+    device_key: str
+    action_key: str
+    display_name: str
+    params: dict = Field(default_factory=dict)
+    confirm_params: dict = Field(default_factory=dict)
+
+
+class WorkflowCreateRequest(BaseModel):
+    """工作流创建请求。"""
+
+    name: str
+    description: str = ""
+    created_by: str = "system"
+    source: str = "manual"
+    steps: list[WorkflowStepCreateRequest] = Field(default_factory=list)
+
+
 class WorkflowRunItem(BaseModel):
     """工作流运行列表项。"""
 
@@ -57,3 +78,10 @@ class WorkflowRunDetailResponse(BaseModel):
     trigger_source: str = "manual"
     operator_name: str = "system"
     steps: list[WorkflowRunStepItem] = Field(default_factory=list)
+
+
+class WorkflowCreateResponse(BaseModel):
+    """工作流创建响应。"""
+
+    workflow_id: str
+    run_id: str
