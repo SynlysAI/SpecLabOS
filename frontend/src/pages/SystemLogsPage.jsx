@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
@@ -93,14 +92,10 @@ export default function SystemLogsPage() {
 
   return (
     <section className="page-section">
-      <PageToolbar
-        extra={
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadLogs()}>
-            刷新日志
-          </Button>
-        }
-      />
-      <Card title="日志检索">
+      <PageToolbar />
+      <Card
+        title="日志检索"
+      >
         <Form form={form} layout="inline" onFinish={loadLogs} style={{ marginBottom: 16 }}>
           <Form.Item name="keyword" style={{ marginBottom: 0 }}>
             <Input allowClear placeholder="关键字搜索" style={{ width: 240 }} />

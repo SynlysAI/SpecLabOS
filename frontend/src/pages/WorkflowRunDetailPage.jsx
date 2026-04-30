@@ -47,18 +47,7 @@ export default function WorkflowRunDetailPage() {
 
   return (
     <section className="page-section">
-      <PageToolbar
-        extra={
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/runs")}>
-              返回列表
-            </Button>
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadDetail}>
-              刷新详情
-            </Button>
-          </Space>
-        }
-      />
+      <PageToolbar />
       {!detail && !loading ? (
         <Empty
           description={loadFailed ? "运行详情接口暂不可用" : "未找到对应运行记录"}
@@ -91,7 +80,20 @@ export default function WorkflowRunDetailPage() {
           </Card>
         </Col>
         <Col xs={24} xl={14}>
-          <Card title="步骤执行时间线" loading={loading}>
+          <Card
+            title="步骤执行时间线"
+            loading={loading}
+            extra={
+              <Space>
+                <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/runs")}>
+                  返回列表
+                </Button>
+                <Button icon={<ReloadOutlined />} loading={loading} onClick={loadDetail}>
+                  刷新详情
+                </Button>
+              </Space>
+            }
+          >
             <RunStepTimeline steps={detail?.steps || []} />
           </Card>
         </Col>

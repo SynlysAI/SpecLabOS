@@ -17,39 +17,31 @@ const { Text, Title } = Typography;
 export default function PageToolbar({ title, subtitle, extra }) {
   if (!title && !subtitle) {
     return extra ? (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: 16
-        }}
-      >
-        <Space>{extra}</Space>
+      <div className="page-toolbar page-toolbar-actions-only">
+        <div className="page-toolbar-actions">
+          <Space wrap>{extra}</Space>
+        </div>
       </div>
     ) : null;
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: 16,
-        marginBottom: 20
-      }}
-    >
-      <div>
-        <Title level={3} style={{ margin: 0, fontSize: 22 }}>
+    <div className="page-toolbar">
+      <div className="page-toolbar-copy">
+        <Title level={3} className="page-toolbar-title">
           {title}
         </Title>
         {subtitle ? (
-          <Text type="secondary" style={{ display: "block", marginTop: 6 }}>
+          <Text type="secondary" className="page-toolbar-subtitle">
             {subtitle}
           </Text>
         ) : null}
       </div>
-      {extra ? <Space>{extra}</Space> : null}
+      {extra ? (
+        <div className="page-toolbar-actions">
+          <Space wrap>{extra}</Space>
+        </div>
+      ) : null}
     </div>
   );
 }

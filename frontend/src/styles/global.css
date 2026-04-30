@@ -174,23 +174,18 @@ a {
 }
 
 .app-shell-content {
-  padding: 20px;
+  padding: 24px 26px 30px;
   background: transparent;
 }
 
-.shell-content-panel {
-  min-height: calc(100vh - 112px);
-  border: 1px solid #deE7f0;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f7f9fc 100%);
-  box-shadow:
-    0 12px 32px rgba(15, 23, 42, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
-  overflow-x: auto;
+.shell-content-layout {
+  min-height: calc(100vh - 120px);
+  max-width: 1480px;
+  margin: 0 auto;
 }
 
 .page-section {
-  padding: 24px 28px 28px;
+  padding: 0;
 }
 
 .page-heading {
@@ -204,6 +199,50 @@ a {
   margin: 0;
   color: #526071;
   font-size: 14px;
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.page-toolbar-actions-only {
+  justify-content: flex-start;
+  margin-bottom: 18px;
+}
+
+.page-toolbar-copy {
+  min-width: 0;
+}
+
+.page-toolbar-title {
+  margin: 0 !important;
+  font-size: 22px !important;
+  color: #10233f !important;
+}
+
+.page-toolbar-subtitle {
+  display: block;
+  margin-top: 6px;
+  color: #6a7d91 !important;
+}
+
+.page-toolbar-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #e4ebf3;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.page-toolbar-actions-only .page-toolbar-actions {
+  justify-content: flex-start;
 }
 
 .app-header {
@@ -248,4 +287,32 @@ a {
 
 .app-header-user-name {
   display: block;
+}
+
+.ant-card {
+  border: 1px solid #deE7f0 !important;
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%) !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+}
+
+.ant-card .ant-card-head {
+  min-height: 64px;
+  padding: 0 22px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.ant-card .ant-card-head-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #10233f;
+}
+
+.ant-card .ant-card-body {
+  padding: 22px;
+}
+
+.ant-table-wrapper,
+.ant-empty {
+  width: 100%;
 }

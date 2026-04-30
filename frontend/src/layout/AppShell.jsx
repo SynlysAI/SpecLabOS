@@ -36,7 +36,7 @@ export default function AppShell() {
           <AppHeader />
         </Header>
         <Content className="app-shell-content">
-          <div className="shell-content-panel">
+          <div className="shell-content-layout">
             <Outlet />
           </div>
         </Content>

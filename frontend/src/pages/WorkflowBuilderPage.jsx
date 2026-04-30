@@ -201,32 +201,7 @@ export default function WorkflowBuilderPage() {
   return (
     <section className="page-section">
       {contextHolder}
-      <PageToolbar
-        extra={
-          <Space>
-            <Button
-              onClick={() => {
-                form.resetFields();
-                workflowForm.resetFields();
-                setSteps([]);
-                setSelectedDeviceKey("");
-                setActionOptions([]);
-                setActionSchemas({});
-              }}
-            >
-              重置表单
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleSubmitWorkflow}
-              loading={submitting}
-              disabled={!steps.length || !selectedDeviceKey}
-            >
-              提交运行
-            </Button>
-          </Space>
-        }
-      />
+      <PageToolbar />
       {usingActionFallback ? (
         <Alert
           type="warning"
@@ -292,6 +267,30 @@ export default function WorkflowBuilderPage() {
         <Col xs={24} xl={14}>
           <Card
             title="当前工作流步骤"
+            extra={
+              <Space>
+                <Button
+                  onClick={() => {
+                    form.resetFields();
+                    workflowForm.resetFields();
+                    setSteps([]);
+                    setSelectedDeviceKey("");
+                    setActionOptions([]);
+                    setActionSchemas({});
+                  }}
+                >
+                  重置表单
+                </Button>
+                <Button
+                  type="primary"
+                  onClick={handleSubmitWorkflow}
+                  loading={submitting}
+                  disabled={!steps.length || !selectedDeviceKey}
+                >
+                  提交运行
+                </Button>
+              </Space>
+            }
             bordered={false}
           >
             <WorkflowStepList steps={steps} onRemove={handleRemoveStep} />

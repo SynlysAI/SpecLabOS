@@ -167,13 +167,7 @@ export default function DeviceMonitorPage() {
 
   return (
     <section className="page-section">
-      <PageToolbar
-        extra={
-          <Button icon={<ReloadOutlined />} onClick={loadDevices} loading={loading}>
-            刷新设备
-          </Button>
-        }
-      />
+      <PageToolbar />
       {usingFallbackData ? (
         <Alert
           type="warning"
@@ -202,11 +196,11 @@ export default function DeviceMonitorPage() {
       <Card
         title="设备状态列表"
         extra={
-          !usingFallbackData ? (
-            <Space>
-              <StatusTag status="online" label="实时更新" />
-            </Space>
-          ) : null
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadDevices} loading={loading}>
+              刷新设备
+            </Button>
+          </Space>
         }
       >
         <Table

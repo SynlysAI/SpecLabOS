@@ -99,13 +99,7 @@ export default function WorkflowRunsPage() {
 
   return (
     <section className="page-section">
-      <PageToolbar
-        extra={
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRuns()}>
-            刷新列表
-          </Button>
-        }
-      />
+      <PageToolbar />
       <Card
         title="运行记录列表"
         extra={
