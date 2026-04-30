@@ -18,6 +18,12 @@ const columns = [
   { title: "运行编号", dataIndex: "run_id", key: "run_id" },
   { title: "工作流名称", dataIndex: "workflow_name", key: "workflow_name" },
   {
+    title: "目标设备",
+    dataIndex: "device_key",
+    key: "device_key",
+    render: (value) => value || "--"
+  },
+  {
     title: "状态",
     dataIndex: "status",
     key: "status",
@@ -36,6 +42,7 @@ function normalizeRuns(items) {
   return items.map((item, index) => ({
     run_id: item.run_id || item.id || `run-${index}`,
     workflow_name: item.workflow_name || item.workflow?.name || "未命名工作流",
+    device_key: item.device_key || item.device?.key || "--",
     status: item.status || "idle",
     current_step_index: item.current_step_index || 0,
     total_steps: item.total_steps || item.steps?.length || 0,
@@ -93,8 +100,6 @@ export default function WorkflowRunsPage() {
   return (
     <section className="page-section">
       <PageToolbar
-        title="任务运行"
-        subtitle="查看真实工作流执行进度、当前步骤和最近运行状态。"
         extra={
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRuns()}>
             刷新列表

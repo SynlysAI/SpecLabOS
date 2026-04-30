@@ -20,6 +20,55 @@ class MongoSettings(BaseModel):
 
     uri: str
     database: str = "spec_labos"
+    completed_uri: str = ""
+    completed_database: str = ""
+
+
+class RabbitMQSettings(BaseModel):
+    """RabbitMQ 连接配置。"""
+
+    host: str = "127.0.0.1"
+    port: int = 5672
+    username: str = "guest"
+    password: str = "guest"
+
+
+class DeviceImagesSettings(BaseModel):
+    """设备图片目录配置。"""
+
+    image_dir: str = ""
+
+
+class ApiEndpointSettings(BaseModel):
+    """通用接口地址配置。"""
+
+    base_url: str = ""
+    timeout: int = 30
+
+
+class ResinApiSettings(ApiEndpointSettings):
+    """Resin 接口配置。"""
+
+    devices: dict[str, str] = Field(default_factory=dict)
+
+
+class RamanApiSettings(BaseModel):
+    """Raman 接口配置。"""
+
+    capture_base_url: str = ""
+    result_base_url: str = ""
+    timeout: int = 60
+
+
+class ApiSettings(BaseModel):
+    """外部设备接口配置。"""
+
+    gpc: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
+    resin: ResinApiSettings = Field(default_factory=ResinApiSettings)
+    station: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
+    pi: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
+    nmr: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
+    raman: RamanApiSettings = Field(default_factory=RamanApiSettings)
 
 
 class RuntimeSettings(BaseModel):
@@ -41,6 +90,9 @@ class Settings(BaseModel):
 
     app: AppSettings
     mongo: MongoSettings
+    rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
+    device_images: DeviceImagesSettings = Field(default_factory=DeviceImagesSettings)
+    apis: ApiSettings = Field(default_factory=ApiSettings)
     runtime: RuntimeSettings
     devices: DeviceSettings
 

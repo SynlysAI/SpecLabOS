@@ -20,6 +20,35 @@ app:
 mongo:
   uri: mongodb://localhost:27017
   database: spec_labos
+  completed_uri: mongodb://admin:password123@100.84.59.58:27018
+  completed_database: spectrum_alab_completed
+rabbitmq:
+  host: 100.84.59.58
+  port: 5672
+  username: admin
+  password: password123
+device_images:
+  image_dir: E:/github_project/SpecLabOS/examples/spectrum_alab/alabos_project/images
+apis:
+  gpc:
+    base_url: http://100.74.253.59:8001
+  resin:
+    base_url: http://47.113.220.254:7000
+    devices:
+      resin_2278: http://47.113.220.254:7000
+      resin_2278_2: http://47.113.220.254:7000
+      resin_1438: http://47.113.220.254:7000
+  station:
+    base_url: http://47.113.220.254:7001
+  pi:
+    base_url: http://47.113.220.254:6667
+  nmr:
+    base_url: http://127.0.0.1:18080
+    timeout: 60
+  raman:
+    capture_base_url: http://47.113.220.254:7001
+    result_base_url: http://47.113.220.254:7002
+    timeout: 60
 runtime:
   sim_mode: true
   status_poll_interval_seconds: 10
@@ -34,6 +63,12 @@ devices:
 
     assert isinstance(settings, Settings)
     assert settings.mongo.database == "spec_labos"
+    assert settings.mongo.completed_uri == "mongodb://admin:password123@100.84.59.58:27018"
+    assert settings.mongo.completed_database == "spectrum_alab_completed"
+    assert settings.rabbitmq.host == "100.84.59.58"
+    assert settings.apis.nmr.base_url == "http://127.0.0.1:18080"
+    assert settings.apis.raman.result_base_url == "http://47.113.220.254:7002"
+    assert settings.device_images.image_dir.endswith("examples/spectrum_alab/alabos_project/images")
     assert settings.runtime.sim_mode is True
     assert settings.devices.enabled_keys == ["nmr_2278"]
 
@@ -59,6 +94,34 @@ def test_create_app_uses_settings_title(monkeypatch: pytest.MonkeyPatch) -> None
             "mongo": {
                 "uri": "mongodb://localhost:27017",
                 "database": "spec_labos",
+                "completed_uri": "mongodb://admin:password123@100.84.59.58:27018",
+                "completed_database": "spectrum_alab_completed",
+            },
+            "rabbitmq": {
+                "host": "100.84.59.58",
+                "port": 5672,
+                "username": "admin",
+                "password": "password123",
+            },
+            "device_images": {
+                "image_dir": "E:/github_project/SpecLabOS/examples/spectrum_alab/alabos_project/images",
+            },
+            "apis": {
+                "gpc": {"base_url": "http://100.74.253.59:8001"},
+                "resin": {
+                    "base_url": "http://47.113.220.254:7000",
+                    "devices": {
+                        "resin_2278": "http://47.113.220.254:7000",
+                    },
+                },
+                "station": {"base_url": "http://47.113.220.254:7001"},
+                "pi": {"base_url": "http://47.113.220.254:6667"},
+                "nmr": {"base_url": "http://127.0.0.1:18080", "timeout": 60},
+                "raman": {
+                    "capture_base_url": "http://47.113.220.254:7001",
+                    "result_base_url": "http://47.113.220.254:7002",
+                    "timeout": 60,
+                },
             },
             "runtime": {
                 "sim_mode": True,

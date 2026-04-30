@@ -94,8 +94,6 @@ export default function SystemLogsPage() {
   return (
     <section className="page-section">
       <PageToolbar
-        title="系统日志"
-        subtitle="检索平台服务事件、任务异常和关键操作记录。"
         extra={
           <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadLogs()}>
             刷新日志

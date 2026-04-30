@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Layout } from "antd";
 import { Outlet } from "react-router-dom";
 
@@ -14,10 +14,22 @@ const { Sider, Header, Content } = Layout;
  *     提供后台侧栏、顶部操作区和主内容区布局。
  */
 export default function AppShell() {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <Layout className="app-shell">
-      <Sider width={240} theme="light" className="app-shell-sider">
-        <AppSidebar />
+      <Sider
+        width={256}
+        collapsed={collapsed}
+        collapsedWidth={92}
+        trigger={null}
+        theme="light"
+        className="app-shell-sider"
+      >
+        <AppSidebar
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((current) => !current)}
+        />
       </Sider>
       <Layout>
         <Header className="app-shell-header">

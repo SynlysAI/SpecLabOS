@@ -22,6 +22,7 @@ class DeviceItem(BaseModel):
     sim_mode: bool = True
     location: str = ""
     image_url: str | None = None
+    connection: dict = Field(default_factory=dict)
     status_snapshot: DeviceStatusSnapshot = Field(default_factory=DeviceStatusSnapshot)
 
 
@@ -37,6 +38,7 @@ class DeviceActionField(BaseModel):
     name: str
     type: str = "string"
     required: bool = False
+    description: str = ""
 
 
 class DeviceActionItem(BaseModel):

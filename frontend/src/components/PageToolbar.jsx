@@ -15,6 +15,20 @@ const { Text, Title } = Typography;
  *     页面头部标题与操作栏。
  */
 export default function PageToolbar({ title, subtitle, extra }) {
+  if (!title && !subtitle) {
+    return extra ? (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 16
+        }}
+      >
+        <Space>{extra}</Space>
+      </div>
+    ) : null;
+  }
+
   return (
     <div
       style={{

@@ -1,5 +1,7 @@
 """工作流相关 Schema。"""
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -32,6 +34,7 @@ class WorkflowCreateRequest(BaseModel):
     """工作流创建请求。"""
 
     name: str
+    device_key: str
     description: str = ""
     created_by: str = "system"
     source: str = "manual"
@@ -43,6 +46,7 @@ class WorkflowRunItem(BaseModel):
 
     run_id: str
     workflow_name: str
+    device_key: str = ""
     status: str = "pending"
     current_step_index: int = 0
     total_steps: int = 0
@@ -63,6 +67,7 @@ class WorkflowRunStepItem(BaseModel):
     started_at: str = ""
     finished_at: str = ""
     description: str = ""
+    result: Any = None
 
 
 class WorkflowRunDetailResponse(BaseModel):

@@ -1,10 +1,12 @@
 import React from "react";
-import { Menu, Typography } from "antd";
+import { Button, Menu, Typography } from "antd";
 import {
   AppstoreOutlined,
   ClusterOutlined,
   DashboardOutlined,
-  FileSearchOutlined
+  FileSearchOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -39,41 +41,48 @@ const { Text, Title } = Typography;
  * Returns:
  *     提供核心模块导航入口。
  */
-export default function AppSidebar() {
+export default function AppSidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedKey = MENU_ITEMS.find((item) =>
-    location.pathname === "/"
-      ? item.key === "/"
-      : location.pathname.startsWith(item.key)
-  )?.key;
+  const selectedKey =
+    MENU_ITEMS.find(
+      (item) => item.key !== "/" && location.pathname.startsWith(item.key)
+    )?.key ||
+    (location.pathname === "/" ? "/" : undefined);
 
   return (
     <div className="sidebar-root">
-      <div className="sidebar-brand">
-        <Text
-          style={{
-            display: "block",
-            color: "#1f5eff",
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: "0.08em"
-          }}
-        >
-          SPECLABOS
-        </Text>
-        <Title level={5} style={{ margin: "8px 0 4px" }}>
-          嘉庚实验室
-        </Title>
-        <Text type="secondary" className="sidebar-brand-text">
-          统一管理实验设备与自动化流程
-        </Text>
+      <div className="sidebar-topbar">
+        <div className={`sidebar-brand ${collapsed ? "is-collapsed" : ""}`}>
+          <div className="sidebar-brand-mark">S</div>
+          {!collapsed ? (
+            <div className="sidebar-brand-copy">
+              <Text className="sidebar-brand-product">SpecLabOS</Text>
+              <Title level={5} className="sidebar-brand-title">
+                嘉庚实验室
+              </Title>
+              <Text type="secondary" className="sidebar-brand-text">
+                实验设备、流程编排与运行监控的一体化工作台
+              </Text>
+            </div>
+          ) : null}
+        </div>
+        <Button
+          type="text"
+          shape="circle"
+          icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+          onClick={onToggle}
+          className="sidebar-toggle"
+          aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+        />
       </div>
       <Menu
         mode="inline"
+        inlineCollapsed={collapsed}
         selectedKeys={selectedKey ? [selectedKey] : []}
         items={MENU_ITEMS}
         onClick={({ key }) => navigate(key)}
+        className="sidebar-menu"
         style={{ borderInlineEnd: "none", background: "transparent" }}
       />
     </div>

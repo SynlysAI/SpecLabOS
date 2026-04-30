@@ -1,6 +1,7 @@
 """设备基类定义。"""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from app.domain.device_action import ActionSpec
@@ -31,7 +32,11 @@ class BaseDevice:
 
     def get_status(self) -> DeviceStatus:
         """返回设备当前状态。"""
-        return DeviceStatus(state="idle", message="simulated")
+        return DeviceStatus(
+            state="idle",
+            message="simulated" if self.sim_mode else "configured",
+            updated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        )
 
     def list_actions(self) -> list[ActionSpec]:
         """列出设备支持的动作声明。"""

@@ -1,13 +1,10 @@
 """工作流接口路由。"""
 
-from datetime import datetime
-
-from app.core.mongo import get_database
 from app.domain.enums import WorkflowRunStatus
 from app.domain.models import WorkflowDefinitionCreate, WorkflowStepDefinition
-from app.repositories.workflow_repository import WorkflowRepository
+from app.runtime import get_workflow_repository
 from app.services.workflow_service import WorkflowService
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.workflow import (
     WorkflowCreateRequest,
@@ -25,16 +22,31 @@ workflow_runs_router = APIRouter(prefix="/api/workflow-runs", tags=["workflow-ru
 
 def _get_workflow_service() -> WorkflowService:
     """构建工作流服务。"""
-    repository = WorkflowRepository(get_database())
-    return WorkflowService(repository)
+    return WorkflowService(get_workflow_repository())
+
+
+def _format_datetime(value) -> str:
+    """格式化运行时间字段。
+
+    Args:
+        value: 原始时间值。
+
+    Returns:
+        格式化后的时间字符串。
+    """
+    if value is None:
+        return "--"
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d %H:%M")
+    return str(value)
 
 
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows() -> WorkflowListResponse:
     """返回工作流列表数据。"""
-    database = get_database()
+    repository = get_workflow_repository()
     items = []
-    for item in database["workflow_definitions"].find().sort("created_at", -1):
+    for item in repository.list_definitions():
         items.append(
             {
                 "workflow_id": item["workflow_id"],
@@ -48,6 +60,12 @@ def list_workflows() -> WorkflowListResponse:
 @router.post("", response_model=WorkflowCreateResponse)
 def create_workflow(payload: WorkflowCreateRequest) -> WorkflowCreateResponse:
     """创建工作流定义并生成初始运行记录。"""
+    invalid_steps = [
+        step for step in payload.steps if step.device_key != payload.device_key
+    ]
+    if invalid_steps:
+        raise HTTPException(status_code=400, detail="当前仅支持单设备工作流编排")
+
     workflow_service = _get_workflow_service()
     definition_payload = WorkflowDefinitionCreate(
         name=payload.name,
@@ -67,21 +85,6 @@ def create_workflow(payload: WorkflowCreateRequest) -> WorkflowCreateResponse:
         ],
     )
     definition, run = workflow_service.submit_definition(definition_payload)
-    database = get_database()
-    database["workflow_runs"].update_one(
-        {"run_id": run.run_id},
-        {
-            "$set": {
-                "status": WorkflowRunStatus.RUNNING.value,
-                "current_step_index": 1 if run.total_steps else 0,
-                "started_at": datetime.utcnow(),
-                "step_runs.0.status": "running" if run.total_steps else "pending",
-                "step_runs.0.started_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-                if run.total_steps
-                else "",
-            }
-        },
-    )
     return WorkflowCreateResponse(
         workflow_id=definition.workflow_id,
         run_id=run.run_id,
@@ -94,21 +97,33 @@ def list_workflow_runs(
     status: str | None = Query(default=None),
 ) -> WorkflowRunListResponse:
     """返回工作流运行列表数据。"""
-    database = get_database()
+    repository = get_workflow_repository()
     filtered_items = []
-    for item in database["workflow_runs"].find().sort("created_at", -1):
+    for item in repository.list_runs_by_status(
+        [
+            WorkflowRunStatus.PENDING.value,
+            WorkflowRunStatus.QUEUED.value,
+            WorkflowRunStatus.RUNNING.value,
+            WorkflowRunStatus.SUCCESS.value,
+            WorkflowRunStatus.FAILED.value,
+            WorkflowRunStatus.CANCELLED.value,
+        ]
+    )[::-1]:
         filtered_items.append(
             {
                 "run_id": item["run_id"],
                 "workflow_name": item["workflow_name"],
+                "device_key": (
+                    item.get("step_runs", [{}])[0].get("device_key", "")
+                    if item.get("step_runs")
+                    else ""
+                ),
                 "status": item["status"],
                 "current_step_index": item.get("current_step_index", 0),
                 "total_steps": item.get("total_steps", 0),
-                "started_at": (
+                "started_at": _format_datetime(
                     item.get("started_at") or item.get("created_at")
-                ).strftime("%Y-%m-%d %H:%M")
-                if item.get("created_at") or item.get("started_at")
-                else "--",
+                ),
             }
         )
     if keyword:
@@ -126,8 +141,7 @@ def list_workflow_runs(
 @workflow_runs_router.get("/{run_id}", response_model=WorkflowRunDetailResponse)
 def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
     """返回单次工作流运行详情。"""
-    database = get_database()
-    item = database["workflow_runs"].find_one({"run_id": run_id})
+    item = get_workflow_repository().get_run(run_id)
     if item is None:
         return WorkflowRunDetailResponse(
             run_id=run_id,
@@ -146,12 +160,8 @@ def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
         status=item["status"],
         current_step_index=item.get("current_step_index", 0),
         total_steps=item.get("total_steps", 0),
-        started_at=(
-            item.get("started_at") or item.get("created_at")
-        ).strftime("%Y-%m-%d %H:%M")
-        if item.get("created_at") or item.get("started_at")
-        else "--",
-        finished_at=item.get("finished_at", "") or "",
+        started_at=_format_datetime(item.get("started_at") or item.get("created_at")),
+        finished_at=_format_datetime(item.get("finished_at")) if item.get("finished_at") else "",
         trigger_source=item.get("trigger_source", "manual"),
         operator_name=item.get("created_by", "system"),
         steps=[
@@ -161,6 +171,7 @@ def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
                 "started_at": step.get("started_at", "") or "",
                 "finished_at": step.get("finished_at", "") or "",
                 "description": step.get("params", {}).get("description", ""),
+                "result": step.get("result"),
             }
             for step in item.get("step_runs", [])
         ],

@@ -4,8 +4,40 @@ app:
   port: 8000
 
 mongo:
-  uri: mongodb://localhost:27017
-  database: spec_labos
+  uri: mongodb://admin:password123@100.84.59.58:27018
+  database: spectrum_alab
+  completed_uri: mongodb://admin:password123@100.84.59.58:27018
+  completed_database: spectrum_alab_completed
+
+rabbitmq:
+  host: 100.84.59.58
+  port: 5672
+  username: admin
+  password: password123
+
+device_images:
+  image_dir: E:/xx_project/SpecLabOS/images
+
+apis:
+  gpc:
+    base_url: http://100.74.253.59:8001
+  resin:
+    base_url: http://47.113.220.254:7004
+    devices:
+      resin_2278: http://47.113.220.254:7004
+      resin_2278_2: http://47.113.220.254:7004
+      resin_1438: http://47.113.220.254:7004
+  station:
+    base_url: http://47.113.220.254:7005
+  pi:
+    base_url: http://47.113.220.254:7006
+  nmr:
+    base_url: http://47.113.220.254:7003
+    timeout: 60
+  raman:
+    capture_base_url: http://47.113.220.254:7001
+    result_base_url: http://47.113.220.254:7002
+    timeout: 60
 
 runtime:
   sim_mode: true

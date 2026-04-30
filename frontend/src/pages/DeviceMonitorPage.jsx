@@ -168,8 +168,6 @@ export default function DeviceMonitorPage() {
   return (
     <section className="page-section">
       <PageToolbar
-        title="设备监控"
-        subtitle="集中查看实验设备运行状态、连通性和启用情况。"
         extra={
           <Button icon={<ReloadOutlined />} onClick={loadDevices} loading={loading}>
             刷新设备

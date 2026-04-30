@@ -17,7 +17,7 @@ const { Paragraph, Text } = Typography;
  */
 export default function WorkflowStepList({ steps, onRemove }) {
   if (!steps.length) {
-    return <Empty description="尚未添加步骤" />;
+    return <Empty description="当前工作流还没有步骤" />;
   }
 
   return (
@@ -37,8 +37,13 @@ export default function WorkflowStepList({ steps, onRemove }) {
               <StatusTag status="draft" label={step.typeLabel} />
             </Space>
             <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-              {step.description || "未填写执行说明"}
+              {step.description || `${step.deviceKey} / ${step.actionKey}`}
             </Paragraph>
+            {step.paramsSummary ? (
+              <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+                {step.paramsSummary}
+              </Paragraph>
+            ) : null}
           </Space>
         </List.Item>
       )}

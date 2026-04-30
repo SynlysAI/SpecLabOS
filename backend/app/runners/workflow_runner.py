@@ -1,6 +1,7 @@
 """顺序工作流运行器。"""
 
 from typing import Any
+from traceback import format_exc
 
 from app.domain.enums import StepRunStatus
 from app.runners.device_lock_manager import DeviceLockManager
@@ -61,5 +62,11 @@ class WorkflowRunner:
             return StepRunStatus.SUCCESS, result
         except DeviceActionExecutionError as exc:
             return StepRunStatus.FAILED, {"error": str(exc)}
+        except Exception as exc:  # noqa: BLE001
+            return StepRunStatus.FAILED, {
+                "error": str(exc),
+                "error_type": exc.__class__.__name__,
+                "traceback": format_exc(),
+            }
         finally:
             self._lock_manager.release(device_key, run_id)

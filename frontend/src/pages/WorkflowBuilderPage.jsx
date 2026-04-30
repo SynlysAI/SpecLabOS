@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Form, Row, Space, message } from "antd";
+import { Alert, Button, Card, Col, Empty, Form, Input, Row, Select, Space, message } from "antd";
 
 import PageToolbar from "../components/PageToolbar";
 import WorkflowStepForm from "../components/WorkflowStepForm";
@@ -20,9 +20,11 @@ import {
  */
 export default function WorkflowBuilderPage() {
   const [form] = Form.useForm();
+  const [workflowForm] = Form.useForm();
   const [steps, setSteps] = useState([]);
   const [devices, setDevices] = useState([]);
   const [actionOptions, setActionOptions] = useState([]);
+  const [actionSchemas, setActionSchemas] = useState({});
   const [selectedDeviceKey, setSelectedDeviceKey] = useState("");
   const [workflows, setWorkflows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -83,20 +85,34 @@ export default function WorkflowBuilderPage() {
    */
   function handleAddStep(values) {
     const selectedAction = actionOptions.find((item) => item.value === values.action_key);
+    const selectedSchema = actionSchemas[values.action_key] || [];
+    const rawParams = values.action_params || {};
+    const normalizedParams = selectedSchema.reduce((result, field) => {
+      const rawValue = rawParams[field.name];
+      if (rawValue === undefined || rawValue === "") {
+        return result;
+      }
+      result[field.name] = field.type === "json" ? JSON.parse(rawValue) : rawValue;
+      return result;
+    }, {});
+
     setSteps((currentSteps) => [
       ...currentSteps,
       {
         key: `step-${Date.now()}`,
         name: values.name,
         actionKey: values.action_key,
-        deviceKey: values.device_key,
+        deviceKey: selectedDeviceKey,
         typeLabel: selectedAction?.label || values.action_key,
-        description: values.description
+        description: values.description,
+        params: normalizedParams,
+        paramsSummary:
+          Object.keys(normalizedParams).length > 0
+            ? `参数: ${JSON.stringify(normalizedParams)}`
+            : "",
       }
     ]);
-    form.resetFields();
-    setSelectedDeviceKey("");
-    setActionOptions([]);
+    form.resetFields(["name", "action_key", "action_params", "description"]);
   }
 
   /**
@@ -119,24 +135,30 @@ export default function WorkflowBuilderPage() {
    *     无返回值。
    */
   async function handleSubmitWorkflow() {
+    const workflowValues = await workflowForm.validateFields();
     setSubmitting(true);
     try {
       await createWorkflow({
-        name: `workflow_${Date.now()}`,
+        name: workflowValues.name,
+        created_by: workflowValues.created_by,
+        device_key: selectedDeviceKey,
         steps: steps.map((item, index) => ({
           step_id: item.key,
           device_key: item.deviceKey,
           action_key: item.actionKey,
           display_name: item.name,
           params: {
+            ...item.params,
             description: item.description,
             order: index + 1,
           },
           confirm_params: {},
         }))
       });
-      messageApi.success("工作流已创建并生成运行记录");
+      messageApi.success("工作流已提交，正在排队执行");
       setSteps([]);
+      form.resetFields();
+      workflowForm.resetFields(["name"]);
       const items = await fetchWorkflowDrafts();
       setWorkflows(normalizeWorkflowDrafts(items));
     } catch (error) {
@@ -148,6 +170,7 @@ export default function WorkflowBuilderPage() {
 
   async function handleDeviceChange(deviceKey) {
     form.setFieldValue("action_key", undefined);
+    form.setFieldValue("action_params", {});
     setSelectedDeviceKey(deviceKey);
     setLoadingActions(true);
     try {
@@ -158,9 +181,16 @@ export default function WorkflowBuilderPage() {
           value: item.action_key,
         }))
       );
+      setActionSchemas(
+        items.reduce((result, item) => {
+          result[item.action_key] = item.parameter_schema || [];
+          return result;
+        }, {})
+      );
       setUsingActionFallback(false);
     } catch (error) {
       setActionOptions([]);
+      setActionSchemas({});
       setUsingActionFallback(true);
       messageApi.error("设备动作目录接口不可用");
     } finally {
@@ -172,18 +202,27 @@ export default function WorkflowBuilderPage() {
     <section className="page-section">
       {contextHolder}
       <PageToolbar
-        title="工作流编排"
-        subtitle="基于真实设备实例和设备动作目录编排顺序工作流。"
         extra={
           <Space>
-            <Button onClick={() => form.resetFields()}>重置表单</Button>
+            <Button
+              onClick={() => {
+                form.resetFields();
+                workflowForm.resetFields();
+                setSteps([]);
+                setSelectedDeviceKey("");
+                setActionOptions([]);
+                setActionSchemas({});
+              }}
+            >
+              重置表单
+            </Button>
             <Button
               type="primary"
               onClick={handleSubmitWorkflow}
               loading={submitting}
-              disabled={!steps.length}
+              disabled={!steps.length || !selectedDeviceKey}
             >
-              保存草稿
+              提交运行
             </Button>
           </Space>
         }
@@ -206,17 +245,44 @@ export default function WorkflowBuilderPage() {
       ) : null}
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={10}>
+          <Card title="工作流信息" bordered={false} style={{ marginBottom: 16 }}>
+            <Form form={workflowForm} layout="vertical" initialValues={{ created_by: "system" }}>
+              <Form.Item
+                label="工作流名称"
+                name="name"
+                rules={[{ required: true, message: "请输入工作流名称" }]}
+              >
+                <Input placeholder="例如：Raman 连续采集流程" />
+              </Form.Item>
+              <Form.Item
+                label="创建人"
+                name="created_by"
+                rules={[{ required: true, message: "请输入创建人" }]}
+              >
+                <Input placeholder="例如：admin" />
+              </Form.Item>
+              <Form.Item
+                label="目标设备"
+                name="device_key"
+                rules={[{ required: true, message: "请选择目标设备" }]}
+              >
+                <Select
+                  options={deviceOptions}
+                  placeholder="选择设备实例"
+                  onChange={handleDeviceChange}
+                  loading={loadingDevices}
+                />
+              </Form.Item>
+            </Form>
+          </Card>
           <Card title="步骤配置" bordered={false}>
             {devices.length ? (
               <WorkflowStepForm
                 form={form}
                 onSubmit={handleAddStep}
-                deviceOptions={deviceOptions}
                 actionOptions={actionOptions}
+                actionSchemas={actionSchemas}
                 selectedDeviceKey={selectedDeviceKey}
-                onDeviceChange={handleDeviceChange}
-                loadingDevices={loadingDevices}
-                loadingActions={loadingActions}
               />
             ) : (
               <Empty description="当前没有可用设备目录" />
@@ -225,7 +291,7 @@ export default function WorkflowBuilderPage() {
         </Col>
         <Col xs={24} xl={14}>
           <Card
-            title={`当前工作流步骤${workflows.length ? ` · 已保存 ${workflows.length} 条定义` : ""}`}
+            title="当前工作流步骤"
             bordered={false}
           >
             <WorkflowStepList steps={steps} onRemove={handleRemoveStep} />

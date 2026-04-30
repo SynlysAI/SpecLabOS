@@ -49,13 +49,14 @@ def test_create_workflow_returns_ids():
         "/api/workflows",
         json={
             "name": "nmr_status_flow",
+            "device_key": "nmr_2278",
             "steps": [
                 {
                     "step_id": "step-1",
                     "device_key": "nmr_2278",
-                    "action_key": "nmr.check_status",
-                    "display_name": "NMR 状态检查",
-                    "params": {},
+                    "action_key": "nmr.upload_task_info",
+                    "display_name": "NMR 参数下发",
+                    "params": {"task_info": [{"sample_id": "S-001"}]},
                     "confirm_params": {},
                 }
             ],
@@ -70,3 +71,37 @@ def test_create_workflow_returns_ids():
     runs_response = client.get("/api/workflow-runs")
     runs_data = runs_response.json()
     assert len(runs_data["items"]) >= 1
+
+
+def test_create_workflow_rejects_multiple_devices():
+    """验证工作流创建接口拒绝多设备混排。"""
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "mixed_flow",
+            "device_key": "nmr_2278",
+            "steps": [
+                {
+                    "step_id": "step-1",
+                    "device_key": "nmr_2278",
+                    "action_key": "nmr.upload_task_info",
+                    "display_name": "NMR 参数下发",
+                    "params": {"task_info": [{"sample_id": "S-001"}]},
+                    "confirm_params": {},
+                },
+                {
+                    "step_id": "step-2",
+                    "device_key": "gpc_2278",
+                    "action_key": "gpc.initialize",
+                    "display_name": "GPC 初始化",
+                    "params": {},
+                    "confirm_params": {},
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "当前仅支持单设备工作流编排"

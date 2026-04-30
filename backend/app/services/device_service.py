@@ -56,6 +56,7 @@ class DeviceService:
             "enabled": device.enabled,
             "sim_mode": device.sim_mode,
             "location": device.location,
+            "connection": device.connection,
             "status_snapshot": {
                 "state": status.state,
                 "message": status.message,

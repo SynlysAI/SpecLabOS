@@ -48,8 +48,6 @@ export default function WorkflowRunDetailPage() {
   return (
     <section className="page-section">
       <PageToolbar
-        title="运行详情"
-        subtitle="查看单次真实工作流运行状态、发起信息和各步骤执行结果。"
         extra={
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/runs")}>

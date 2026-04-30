@@ -1,0 +1,59 @@
+"""应用运行时共享对象。"""
+
+from functools import lru_cache
+
+from app.core.mongo import get_database
+from app.devices.factories import build_default_devices
+from app.devices.registry import DeviceRegistry
+from app.repositories.workflow_repository import WorkflowRepository
+from app.runners.device_lock_manager import DeviceLockManager
+from app.runners.workflow_dispatcher import WorkflowDispatcher
+from app.runners.workflow_runner import WorkflowRunner
+from app.services.device_service import DeviceService
+
+
+@lru_cache(maxsize=1)
+def get_device_registry() -> DeviceRegistry:
+    """构建并缓存全局设备注册表。"""
+    registry = DeviceRegistry()
+    for device in build_default_devices():
+        registry.register(device)
+    return registry
+
+
+@lru_cache(maxsize=1)
+def get_device_service() -> DeviceService:
+    """构建并缓存全局设备服务。"""
+    return DeviceService(get_device_registry())
+
+
+@lru_cache(maxsize=1)
+def get_workflow_repository() -> WorkflowRepository:
+    """构建并缓存全局工作流仓储。"""
+    return WorkflowRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_lock_manager() -> DeviceLockManager:
+    """构建并缓存全局设备锁管理器。"""
+    return DeviceLockManager()
+
+
+@lru_cache(maxsize=1)
+def get_workflow_runner() -> WorkflowRunner:
+    """构建并缓存全局工作流运行器。"""
+    return WorkflowRunner(
+        registry=get_device_registry(),
+        workflow_repository=get_workflow_repository(),
+        lock_manager=get_lock_manager(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_workflow_dispatcher() -> WorkflowDispatcher:
+    """构建并缓存全局工作流调度器。"""
+    return WorkflowDispatcher(
+        workflow_repository=get_workflow_repository(),
+        workflow_runner=get_workflow_runner(),
+        lock_manager=get_lock_manager(),
+    )
