@@ -55,3 +55,11 @@ class DeviceActionListResponse(BaseModel):
     """设备动作列表响应。"""
 
     items: list[DeviceActionItem] = Field(default_factory=list)
+
+
+class CameraFocusRequest(BaseModel):
+    """镜头对焦请求参数。"""
+
+    rt: int = 8000
+    rb: int = 5000
+    s: int = 3

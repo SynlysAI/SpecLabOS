@@ -75,6 +75,42 @@ def build_raman_device(sim_mode: bool) -> BaseDevice:
                 ),
             ),
             ActionSpec(
+                action_key="raman.camera_focus",
+                name="镜头对焦",
+                description="自动对焦 Raman 设备镜头",
+                parameter_schema=[
+                    {
+                        "name": "rt",
+                        "type": "number",
+                        "required": True,
+                        "description": "上限",
+                    },
+                    {
+                        "name": "rb",
+                        "type": "number",
+                        "required": True,
+                        "description": "下限",
+                    },
+                    {
+                        "name": "s",
+                        "type": "number",
+                        "required": True,
+                        "description": "步长",
+                    },
+                ],
+                executor=lambda params, _context: _request_raman(
+                    "POST",
+                    settings.apis.raman.capture_base_url,
+                    "/raman/jy/camera",
+                    payload={
+                        "rt": params.get("rt", 8000),
+                        "rb": params.get("rb", 5000),
+                        "s": params.get("s", 3),
+                        "method": 0,
+                    },
+                ),
+            ),
+            ActionSpec(
                 action_key="raman.get_result",
                 name="查询任务结果",
                 description="查询 Raman 采集任务状态或结果",

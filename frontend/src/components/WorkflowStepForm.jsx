@@ -1,8 +1,17 @@
-import React, { useEffect } from "react";
-import { Button, Col, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Switch } from "antd";
+import React, { useEffect, useState } from "react";
+import { Button, Col, Empty, Form, Input, InputNumber, Row, Segmented, Select, Space, Switch, Alert } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+import { executeCameraFocus } from "../services/deviceApi";
 
 const RAMAN_CAPTURE_ACTION_KEY = "raman.capture";
+const RAMAN_CAMERA_FOCUS_ACTION_KEY = "raman.camera_focus";
 const RAMAN_CAPTURE_CALLBACK_URL = "http://127.0.0.1:8099/raman/jy/callback";
+
+const CAMERA_FOCUS_DEFAULTS = {
+  rt: 8000,
+  rb: 5000,
+  s: 3,
+};
 const RAMAN_CAPTURE_DEFAULTS = {
   explore_time: 5,
   integer: 1,
@@ -23,6 +32,19 @@ const RAMAN_CAPTURE_DEFAULTS = {
  */
 function isRamanCaptureAction(actionKey) {
   return actionKey === RAMAN_CAPTURE_ACTION_KEY;
+}
+
+/**
+ * 判断当前动作是否为 Raman 镜头对焦。
+ *
+ * Args:
+ *     actionKey: 当前选中的动作标识。
+ *
+ * Returns:
+ *     是否为镜头对焦动作。
+ */
+function isRamanCameraFocusAction(actionKey) {
+  return actionKey === RAMAN_CAMERA_FOCUS_ACTION_KEY;
 }
 
 /**
@@ -226,6 +248,116 @@ function renderRamanCaptureFields(form) {
 }
 
 /**
+ * Raman 镜头对焦表单组件。
+ *
+ * Args:
+ *     form: 表单实例。
+ *     selectedDeviceKey: 当前选中的设备标识。
+ *
+ * Returns:
+ *     镜头对焦参数输入区域。
+ */
+function RamanCameraFocusFields({ form, selectedDeviceKey }) {
+  const [focusing, setFocusing] = useState(false);
+  const [focusResult, setFocusResult] = useState(null);
+
+  /**
+   * 执行镜头对焦操作。
+   */
+  async function handleStartFocus() {
+    const values = form.getFieldsValue();
+    const focusForm = values.focus_form || {};
+    const params = {
+      rt: focusForm.rt ?? CAMERA_FOCUS_DEFAULTS.rt,
+      rb: focusForm.rb ?? CAMERA_FOCUS_DEFAULTS.rb,
+      s: focusForm.s ?? CAMERA_FOCUS_DEFAULTS.s,
+    };
+
+    setFocusing(true);
+    setFocusResult(null);
+    try {
+      const result = await executeCameraFocus(selectedDeviceKey, params);
+      setFocusResult(result);
+    } catch (error) {
+      setFocusResult({
+        code: -1,
+        msg: error?.response?.data?.detail || error.message || "对焦请求失败",
+      });
+    } finally {
+      setFocusing(false);
+    }
+  }
+
+  return (
+    <>
+      <div style={{ marginBottom: 8, color: "rgba(0, 0, 0, 0.88)" }}>
+        <span style={{ color: "#ff4d4f", marginRight: 4 }}>*</span>
+        对焦参数配置
+      </div>
+      <div
+        style={{
+          marginBottom: 24,
+          padding: 16,
+          border: "1px solid #d9e2f1",
+          borderRadius: 12,
+          background: "#f8fbff",
+        }}
+      >
+        <Row gutter={[16, 0]}>
+          <Col xs={24} md={8}>
+            <Form.Item
+              label="上限 (rt)"
+              name={["focus_form", "rt"]}
+              initialValue={CAMERA_FOCUS_DEFAULTS.rt}
+              rules={[{ required: true, message: "请输入上限" }]}
+            >
+              <InputNumber style={{ width: "100%" }} min={1} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={8}>
+            <Form.Item
+              label="下限 (rb)"
+              name={["focus_form", "rb"]}
+              initialValue={CAMERA_FOCUS_DEFAULTS.rb}
+              rules={[{ required: true, message: "请输入下限" }]}
+            >
+              <InputNumber style={{ width: "100%" }} min={1} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={8}>
+            <Form.Item
+              label="步长 (s)"
+              name={["focus_form", "s"]}
+              initialValue={CAMERA_FOCUS_DEFAULTS.s}
+              rules={[{ required: true, message: "请输入步长" }]}
+            >
+              <InputNumber style={{ width: "100%" }} min={1} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Button
+          type="primary"
+          icon={focusing ? <LoadingOutlined /> : null}
+          disabled={focusing || !selectedDeviceKey}
+          onClick={handleStartFocus}
+          style={{ marginBottom: focusResult ? 12 : 0 }}
+        >
+          {focusing ? "对焦中..." : "开始对焦"}
+        </Button>
+        {focusResult && (
+          <Alert
+            type={focusResult.code === 0 ? "success" : "error"}
+            message={focusResult.msg}
+            showIcon
+            style={{ marginTop: 12 }}
+          />
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
  * 工作流步骤表单组件。
  *
  * Args:
@@ -245,6 +377,7 @@ export default function WorkflowStepForm({
   const selectedActionKey = Form.useWatch("action_key", form);
   const currentSchema = actionSchemas[selectedActionKey] || [];
   const isRamanCapture = isRamanCaptureAction(selectedActionKey);
+  const isCameraFocus = isRamanCameraFocusAction(selectedActionKey);
 
   /**
    * 处理步骤表单提交。
@@ -256,8 +389,21 @@ export default function WorkflowStepForm({
    *     无返回值。
    */
   function handleFinish(values) {
-    if (!isRamanCapture) {
+    if (!isRamanCapture && !isCameraFocus) {
       onSubmit(values);
+      return;
+    }
+
+    if (isCameraFocus) {
+      const focusForm = values.focus_form || {};
+      onSubmit({
+        ...values,
+        action_params: {
+          rt: focusForm.rt ?? CAMERA_FOCUS_DEFAULTS.rt,
+          rb: focusForm.rb ?? CAMERA_FOCUS_DEFAULTS.rb,
+          s: focusForm.s ?? CAMERA_FOCUS_DEFAULTS.s,
+        },
+      });
       return;
     }
 
@@ -281,16 +427,23 @@ export default function WorkflowStepForm({
   }
 
   useEffect(() => {
-    if (!isRamanCapture) {
+    if (!isRamanCapture && !isCameraFocus) {
       form.setFieldValue("capture_input_mode", undefined);
       form.setFieldValue("capture_form", undefined);
+      form.setFieldValue("focus_form", undefined);
       return;
     }
 
-    form.setFieldValue("capture_input_mode", "form");
-    form.setFieldValue("capture_form", buildRamanCaptureDefaults());
-    form.setFieldValue(["action_params", "capture"], undefined);
-  }, [form, isRamanCapture, selectedActionKey]);
+    if (isRamanCapture) {
+      form.setFieldValue("capture_input_mode", "form");
+      form.setFieldValue("capture_form", buildRamanCaptureDefaults());
+      form.setFieldValue(["action_params", "capture"], undefined);
+    }
+
+    if (isCameraFocus) {
+      form.setFieldValue("focus_form", { ...CAMERA_FOCUS_DEFAULTS });
+    }
+  }, [form, isRamanCapture, isCameraFocus, selectedActionKey]);
 
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish}>
@@ -305,7 +458,8 @@ export default function WorkflowStepForm({
           disabled={!selectedDeviceKey}
         />
       </Form.Item>
-      {currentSchema.map((field) => {
+      {isCameraFocus && <RamanCameraFocusFields form={form} selectedDeviceKey={selectedDeviceKey} />}
+      {!isCameraFocus && currentSchema.map((field) => {
         if (isRamanCapture && field.name === "capture") {
           return <React.Fragment key={field.name}>{renderRamanCaptureFields(form)}</React.Fragment>;
         }

@@ -43,3 +43,22 @@ export function resolveDeviceImageUrl(imageUrl) {
     (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
   return `${baseUrl}${imageUrl}`;
 }
+
+/**
+ * 执行 Raman 设备镜头自动对焦。
+ *
+ * Args:
+ *     deviceKey: 设备唯一标识。
+ *     params: 对焦参数 { rt, rb, s }。
+ *
+ * Returns:
+ *     对焦结果数据。
+ */
+export async function executeCameraFocus(deviceKey, params) {
+  const response = await http.post(
+    `/api/devices/${deviceKey}/camera-focus`,
+    params,
+    { timeout: 60000 }
+  );
+  return response.data;
+}

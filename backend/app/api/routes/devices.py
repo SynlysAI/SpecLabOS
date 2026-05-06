@@ -6,8 +6,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
+from app.devices.raman_device import _request_raman
 from app.runtime import get_device_service
 from app.schemas.device import (
+    CameraFocusRequest,
     DeviceActionField,
     DeviceActionItem,
     DeviceActionListResponse,
@@ -85,6 +87,26 @@ def list_device_actions(device_key: str) -> DeviceActionListResponse:
             )
         return DeviceActionListResponse(items=items)
     raise HTTPException(status_code=404, detail="设备不存在")
+
+
+@router.post("/{device_key}/camera-focus")
+def execute_camera_focus(device_key: str, payload: CameraFocusRequest):
+    """执行 Raman 设备镜头自动对焦。"""
+    settings = get_settings()
+    try:
+        return _request_raman(
+            "POST",
+            settings.apis.raman.capture_base_url,
+            "/raman/jy/camera",
+            payload={
+                "rt": payload.rt,
+                "rb": payload.rb,
+                "s": payload.s,
+                "method": 0,
+            },
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"镜头对焦请求失败: {exc}")
 
 
 @device_images_router.get("/{device_type}")
