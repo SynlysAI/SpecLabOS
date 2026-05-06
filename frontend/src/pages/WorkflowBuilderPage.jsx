@@ -75,6 +75,21 @@ export default function WorkflowBuilderPage() {
   }, []);
 
   /**
+   * 根据动作选项生成步骤显示名称。
+   *
+   * Args:
+   *     actionKey: 设备动作唯一标识。
+   *     options: 当前设备动作选项列表。
+   *
+   * Returns:
+   *     优先返回设备动作名称，不存在时返回动作标识。
+   */
+  function buildStepName(actionKey, options) {
+    const selectedAction = options.find((item) => item.value === actionKey);
+    return selectedAction?.label || actionKey;
+  }
+
+  /**
    * 添加工作流步骤。
    *
    * Args:
@@ -84,7 +99,7 @@ export default function WorkflowBuilderPage() {
    *     无返回值。
    */
   function handleAddStep(values) {
-    const selectedAction = actionOptions.find((item) => item.value === values.action_key);
+    const stepName = buildStepName(values.action_key, actionOptions);
     const selectedSchema = actionSchemas[values.action_key] || [];
     const rawParams = values.action_params || {};
     const normalizedParams = selectedSchema.reduce((result, field) => {
@@ -92,7 +107,11 @@ export default function WorkflowBuilderPage() {
       if (rawValue === undefined || rawValue === "") {
         return result;
       }
-      result[field.name] = field.type === "json" ? JSON.parse(rawValue) : rawValue;
+      if (field.type === "json") {
+        result[field.name] = typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
+        return result;
+      }
+      result[field.name] = rawValue;
       return result;
     }, {});
 
@@ -100,10 +119,10 @@ export default function WorkflowBuilderPage() {
       ...currentSteps,
       {
         key: `step-${Date.now()}`,
-        name: values.name,
+        name: stepName,
         actionKey: values.action_key,
         deviceKey: selectedDeviceKey,
-        typeLabel: selectedAction?.label || values.action_key,
+        typeLabel: stepName,
         description: values.description,
         params: normalizedParams,
         paramsSummary:
@@ -112,7 +131,6 @@ export default function WorkflowBuilderPage() {
             : "",
       }
     ]);
-    form.resetFields(["name", "action_key", "action_params", "description"]);
   }
 
   /**
@@ -219,37 +237,50 @@ export default function WorkflowBuilderPage() {
         />
       ) : null}
       <Row gutter={[16, 16]}>
-        <Col xs={24} xl={10}>
-          <Card title="工作流信息" bordered={false} style={{ marginBottom: 16 }}>
+        <Col span={24}>
+          <Card title="工作流信息" bordered={false}>
             <Form form={workflowForm} layout="vertical" initialValues={{ created_by: "system" }}>
-              <Form.Item
-                label="工作流名称"
-                name="name"
-                rules={[{ required: true, message: "请输入工作流名称" }]}
-              >
-                <Input placeholder="例如：Raman 连续采集流程" />
-              </Form.Item>
-              <Form.Item
-                label="创建人"
-                name="created_by"
-                rules={[{ required: true, message: "请输入创建人" }]}
-              >
-                <Input placeholder="例如：admin" />
-              </Form.Item>
-              <Form.Item
-                label="目标设备"
-                name="device_key"
-                rules={[{ required: true, message: "请选择目标设备" }]}
-              >
-                <Select
-                  options={deviceOptions}
-                  placeholder="选择设备实例"
-                  onChange={handleDeviceChange}
-                  loading={loadingDevices}
-                />
-              </Form.Item>
+              <Row gutter={[16, 0]}>
+                <Col xs={24} md={8}>
+                  <Form.Item
+                    label="目标设备"
+                    name="device_key"
+                    rules={[{ required: true, message: "请选择目标设备" }]}
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Select
+                      options={deviceOptions}
+                      placeholder="选择设备实例"
+                      onChange={handleDeviceChange}
+                      loading={loadingDevices}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item
+                    label="工作流名称"
+                    name="name"
+                    rules={[{ required: true, message: "请输入工作流名称" }]}
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Input placeholder="例如：Raman 连续采集流程" />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} md={8}>
+                  <Form.Item
+                    label="创建人"
+                    name="created_by"
+                    rules={[{ required: true, message: "请输入创建人" }]}
+                    style={{ marginBottom: 12 }}
+                  >
+                    <Input placeholder="例如：admin" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </Form>
           </Card>
+        </Col>
+        <Col xs={24} xl={10}>
           <Card title="步骤配置" bordered={false}>
             {devices.length ? (
               <WorkflowStepForm
@@ -271,12 +302,7 @@ export default function WorkflowBuilderPage() {
               <Space>
                 <Button
                   onClick={() => {
-                    form.resetFields();
-                    workflowForm.resetFields();
                     setSteps([]);
-                    setSelectedDeviceKey("");
-                    setActionOptions([]);
-                    setActionSchemas({});
                   }}
                 >
                   重置表单

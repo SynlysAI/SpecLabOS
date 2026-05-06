@@ -23,6 +23,7 @@ apis:
     base_url: http://100.74.253.59:8001
   resin:
     base_url: http://47.113.220.254:7004
+    timeout: 60
     devices:
       resin_2278: http://47.113.220.254:7004
       resin_2278_2: http://47.113.220.254:7004

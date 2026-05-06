@@ -40,6 +40,7 @@ function formatStepResult(value) {
  */
 export default function RunStepTimeline({ steps }) {
   const [selectedStep, setSelectedStep] = useState(null);
+  const [modalType, setModalType] = useState("result");
 
   if (!steps?.length) {
     return <Empty description="暂无步骤执行记录" />;
@@ -64,7 +65,20 @@ export default function RunStepTimeline({ steps }) {
                   <Button
                     type="link"
                     size="small"
-                    onClick={() => setSelectedStep({ ...step, index: index + 1 })}
+                    onClick={() => {
+                      setModalType("params");
+                      setSelectedStep({ ...step, index: index + 1 });
+                    }}
+                  >
+                    查看参数
+                  </Button>
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setModalType("result");
+                      setSelectedStep({ ...step, index: index + 1 });
+                    }}
                   >
                     查看响应
                   </Button>
@@ -79,11 +93,18 @@ export default function RunStepTimeline({ steps }) {
       />
       <Modal
         title={
-          selectedStep ? `步骤 ${selectedStep.index}: ${selectedStep.name} 响应结果` : "步骤响应结果"
+          selectedStep
+            ? `步骤 ${selectedStep.index}: ${selectedStep.name}${modalType === "params" ? " 输入参数" : " 响应结果"}`
+            : modalType === "params"
+              ? "步骤输入参数"
+              : "步骤响应结果"
         }
         open={Boolean(selectedStep)}
         footer={null}
-        onCancel={() => setSelectedStep(null)}
+        onCancel={() => {
+          setSelectedStep(null);
+          setModalType("result");
+        }}
         width={720}
       >
         <pre
@@ -99,7 +120,7 @@ export default function RunStepTimeline({ steps }) {
             lineHeight: 1.6,
           }}
         >
-          {formatStepResult(selectedStep?.result)}
+          {formatStepResult(modalType === "params" ? selectedStep?.params : selectedStep?.result)}
         </pre>
       </Modal>
     </>

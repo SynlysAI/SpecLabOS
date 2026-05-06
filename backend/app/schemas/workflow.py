@@ -67,6 +67,7 @@ class WorkflowRunStepItem(BaseModel):
     started_at: str = ""
     finished_at: str = ""
     description: str = ""
+    params: dict = Field(default_factory=dict)
     result: Any = None
 
 

@@ -58,9 +58,6 @@ export default function AppSidebar({ collapsed, onToggle }) {
           {!collapsed ? (
             <div className="sidebar-brand-copy">
               <Text className="sidebar-brand-product">SpecLabOS</Text>
-              <Title level={5} className="sidebar-brand-title">
-                嘉庚实验室
-              </Title>
               <Text type="secondary" className="sidebar-brand-text">
                 实验设备、流程编排与运行监控的一体化工作台
               </Text>

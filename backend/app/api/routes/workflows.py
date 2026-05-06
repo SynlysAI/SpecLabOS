@@ -171,6 +171,7 @@ def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
                 "started_at": step.get("started_at", "") or "",
                 "finished_at": step.get("finished_at", "") or "",
                 "description": step.get("params", {}).get("description", ""),
+                "params": step.get("params", {}),
                 "result": step.get("result"),
             }
             for step in item.get("step_runs", [])

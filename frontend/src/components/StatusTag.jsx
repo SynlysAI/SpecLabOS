@@ -3,6 +3,10 @@ import { Tag } from "antd";
 
 const STATUS_COLOR_MAP = {
   running: "processing",
+  success: "success",
+  failed: "error",
+  error: "error",
+  pending: "warning",
   online: "success",
   idle: "default",
   offline: "error",
@@ -12,6 +16,10 @@ const STATUS_COLOR_MAP = {
 
 const STATUS_LABEL_MAP = {
   running: "运行中",
+  success: "成功",
+  failed: "失败",
+  error: "错误",
+  pending: "等待中",
   online: "在线",
   idle: "空闲",
   offline: "离线",
