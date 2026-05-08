@@ -1,13 +1,17 @@
 """FastAPI 应用工厂。"""
 
 from collections.abc import Callable
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import devices, logs, workflows
 from app.core.config import Settings, get_settings
 from app.runtime import get_workflow_dispatcher
+
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
 
 
 def create_app(
@@ -49,5 +53,11 @@ def create_app(
     def _stop_workflow_dispatcher() -> None:
         """停止工作流后台调度器。"""
         get_workflow_dispatcher().stop()
+
+    # 生产模式：托管前端静态文件
+    if _FRONTEND_DIST.is_dir():
+        application.mount(
+            "/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend"
+        )
 
     return application
