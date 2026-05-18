@@ -39,6 +39,8 @@ apis:
     capture_base_url: http://47.113.220.254:7001
     result_base_url: http://47.113.220.254:7002
     timeout: 60
+  lcms:
+    base_url: http://100.74.253.59:8001
 
 runtime:
   sim_mode: true
