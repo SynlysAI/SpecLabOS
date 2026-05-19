@@ -36,10 +36,14 @@ a {
 }
 
 .app-shell {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-shell-sider {
+  height: 100vh;
+  position: sticky;
+  top: 0;
   border-right: 1px solid #d9e2ec;
   background:
     linear-gradient(180deg, #fbfdff 0%, #f4f8fc 100%);
@@ -184,6 +188,8 @@ a {
 .app-shell-content {
   padding: 24px 26px 30px;
   background: transparent;
+  overflow-y: auto;
+  flex: 1 1 auto;
 }
 
 .shell-content-layout {
