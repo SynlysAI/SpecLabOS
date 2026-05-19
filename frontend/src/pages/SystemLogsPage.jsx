@@ -172,7 +172,7 @@ export default function SystemLogsPage() {
             emptyText: loadFailed ? (
               <Empty description="日志接口暂不可用" />
             ) : (
-              <Empty description="暂无系统日志" />
+              <Empty description="暂无设备日志" />
             ),
           }}
         />

@@ -28,7 +28,7 @@ const HEADER_META = [
   },
   {
     match: (pathname) => pathname.startsWith("/logs"),
-    title: "系统日志",
+    title: "设备日志",
     subtitle: "检索平台事件、错误信息与关键操作记录。"
   }
 ];

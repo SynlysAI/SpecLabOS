@@ -29,7 +29,7 @@ const MENU_ITEMS = [
   {
     key: "/logs",
     icon: <FileSearchOutlined />,
-    label: "系统日志"
+    label: "设备日志"
   }
 ];
 
