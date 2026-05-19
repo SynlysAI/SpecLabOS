@@ -3,9 +3,12 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
 from app.api.routes import devices, logs, workflows
 from app.core.config import Settings, get_settings
@@ -56,8 +59,59 @@ def create_app(
 
     # 生产模式：托管前端静态文件
     if _FRONTEND_DIST.is_dir():
+        application.add_middleware(
+            _NoCacheMiddleware,
+            static_path=str(_FRONTEND_DIST),
+        )
         application.mount(
-            "/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend"
+            "/", _SPAStaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend"
         )
 
     return application
+
+
+class _NoCacheMiddleware(BaseHTTPMiddleware):
+    """为前端静态文件添加禁用缓存的响应头。"""
+
+    def __init__(self, app, static_path: str) -> None:
+        super().__init__(app)
+        self._static_path = static_path
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        # 仅对 index.html 禁用缓存，带 hash 的 JS/CSS 资源应长期缓存
+        if request.url.path in ("", "/") or request.url.path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
+class _SPAStaticFiles(StaticFiles):
+    """支持 SPA 路由回退的静态文件服务。"""
+
+    async def get_response(self, path: str, scope) -> StarletteResponse:
+        """获取静态资源响应，找不到文件时回退到 index.html。
+
+        Args:
+            path: 去掉前导斜杠后的请求路径。
+            scope: ASGI 请求作用域。
+
+        Returns:
+            静态资源响应或 index.html 回退响应。
+        """
+        response = None
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code != 404:
+                raise
+
+        if response is not None and response.status_code != 404:
+            return response
+
+        # 带文件扩展名的请求不回退，直接返回 404
+        if "." in path.rsplit("/", maxsplit=1)[-1]:
+            raise StarletteHTTPException(status_code=404)
+
+        return await super().get_response("index.html", scope)

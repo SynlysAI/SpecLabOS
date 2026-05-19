@@ -18,6 +18,11 @@ rabbitmq:
 device_images:
   image_dir: E:/xx_project/SpecLabOS/images
 
+device_logs:
+  raman_dir: \\100.66.91.117\raman_log
+  gpc_lcms_dir: \\100.74.253.59\logs_app
+  nmr_dir: \\100.99.21.29\nmr_log
+
 apis:
   gpc:
     base_url: http://100.74.253.59:8001

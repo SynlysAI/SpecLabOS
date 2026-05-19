@@ -163,6 +163,12 @@ a {
   background: rgba(31, 94, 255, 0.06) !important;
 }
 
+.sidebar-version {
+  text-align: center;
+  padding: 12px 0 4px;
+  font-size: 12px;
+}
+
 .app-shell-header {
   min-height: 86px;
   height: auto;

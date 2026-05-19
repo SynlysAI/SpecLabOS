@@ -82,6 +82,9 @@ export default function AppSidebar({ collapsed, onToggle }) {
         className="sidebar-menu"
         style={{ borderInlineEnd: "none", background: "transparent" }}
       />
+      <div className="sidebar-version">
+        {!collapsed && <Text type="secondary">v1.0.0</Text>}
+      </div>
     </div>
   );
 }

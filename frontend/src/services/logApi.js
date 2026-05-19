@@ -13,7 +13,8 @@ export async function fetchSystemLogs(filters = {}) {
   const response = await http.get("/api/logs", {
     params: {
       keyword: filters.keyword || undefined,
-      level: filters.level && filters.level !== "all" ? filters.level : undefined
+      level: filters.level && filters.level !== "all" ? filters.level : undefined,
+      source: filters.source && filters.source !== "all" ? filters.source : undefined
     }
   });
   return response.data.items || [];

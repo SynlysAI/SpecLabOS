@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, Query
 
+from app.core.config import get_settings
 from app.schemas.log import LogListResponse
+from app.services.log_service import DeviceLogService
 
 
 router = APIRouter(prefix="/api/logs", tags=["logs"])
@@ -32,13 +34,19 @@ FALLBACK_LOG_ITEMS = [
 def list_logs(
     keyword: str | None = Query(default=None),
     level: str | None = Query(default=None),
+    source: str | None = Query(default=None),
 ) -> LogListResponse:
     """返回日志列表数据。"""
-    filtered_items = FALLBACK_LOG_ITEMS
-    if keyword:
-        filtered_items = [
-            item for item in filtered_items if keyword.lower() in item["message"].lower()
-        ]
-    if level:
-        filtered_items = [item for item in filtered_items if item["level"] == level]
+    service = DeviceLogService(get_settings().device_logs)
+    filtered_items = service.list_logs(keyword=keyword, level=level, source=source)
+    if not filtered_items:
+        filtered_items = FALLBACK_LOG_ITEMS
+        if keyword:
+            filtered_items = [
+                item for item in filtered_items if keyword.lower() in item["message"].lower()
+            ]
+        if level:
+            filtered_items = [item for item in filtered_items if item["level"] == level]
+        if source:
+            filtered_items = [item for item in filtered_items if item["source"] == source]
     return LogListResponse(items=filtered_items)

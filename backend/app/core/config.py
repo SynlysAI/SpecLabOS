@@ -39,6 +39,14 @@ class DeviceImagesSettings(BaseModel):
     image_dir: str = ""
 
 
+class DeviceLogSettings(BaseModel):
+    """设备日志目录配置。"""
+
+    raman_dir: str = ""
+    gpc_lcms_dir: str = ""
+    nmr_dir: str = ""
+
+
 class ApiEndpointSettings(BaseModel):
     """通用接口地址配置。"""
 
@@ -92,6 +100,7 @@ class Settings(BaseModel):
     mongo: MongoSettings
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     device_images: DeviceImagesSettings = Field(default_factory=DeviceImagesSettings)
+    device_logs: DeviceLogSettings = Field(default_factory=DeviceLogSettings)
     apis: ApiSettings = Field(default_factory=ApiSettings)
     runtime: RuntimeSettings
     devices: DeviceSettings

@@ -10,8 +10,11 @@ class LogItem(BaseModel):
     level: str
     message: str
     source: str = "system"
+    source_label: str = "System"
     service_name: str = "system"
     created_at: str = "--"
+    file_path: str = ""
+    raw_content: str = ""
 
 
 class LogListResponse(BaseModel):
