@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import DeviceLogSettings
 
@@ -105,10 +108,14 @@ class DeviceLogService:
         Returns:
             Raman 标准化日志列表。
         """
-        target_file = Path(self._settings.raman_dir) / (
-            f"ExRaman_{datetime.now().strftime('%Y-%m-%d')}.log"
-        )
-        if not target_file.is_file():
+        try:
+            target_file = Path(self._settings.raman_dir) / (
+                f"ExRaman_{datetime.now().strftime('%Y-%m-%d')}.log"
+            )
+            if not target_file.is_file():
+                return []
+        except OSError as exc:
+            logger.warning("Raman 日志目录不可访问，已跳过: %s", exc)
             return []
 
         items: list[dict] = []
@@ -140,10 +147,14 @@ class DeviceLogService:
         Returns:
             GPC/LCMS 标准化日志列表。
         """
-        target_file = Path(self._settings.gpc_lcms_dir) / (
-            f"info-{datetime.now().strftime('%Y-%m-%d')}.log"
-        )
-        if not target_file.is_file():
+        try:
+            target_file = Path(self._settings.gpc_lcms_dir) / (
+                f"info-{datetime.now().strftime('%Y-%m-%d')}.log"
+            )
+            if not target_file.is_file():
+                return []
+        except OSError as exc:
+            logger.warning("GPC/LCMS 日志目录不可访问，已跳过: %s", exc)
             return []
 
         items: list[dict] = []
@@ -175,9 +186,13 @@ class DeviceLogService:
         Returns:
             NMR 标准化日志列表。
         """
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        target_dir = Path(self._settings.nmr_dir) / current_date / "TaskFlow"
-        if not target_dir.is_dir():
+        try:
+            current_date = datetime.now().strftime("%Y-%m-%d")
+            target_dir = Path(self._settings.nmr_dir) / current_date / "TaskFlow"
+            if not target_dir.is_dir():
+                return []
+        except OSError as exc:
+            logger.warning("NMR 日志目录不可访问，已跳过: %s", exc)
             return []
 
         items: list[dict] = []
