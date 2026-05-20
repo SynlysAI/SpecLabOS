@@ -330,3 +330,41 @@ a {
 .ant-empty {
   width: 100%;
 }
+
+.automation-summary-card,
+.automation-metric-card {
+  min-height: 164px;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at top right, rgba(31, 94, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+}
+
+.automation-summary-label,
+.automation-metric-label {
+  display: inline-block;
+  color: #6a7d91;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.automation-summary-rate {
+  margin: 14px 0 10px;
+  color: #10233f;
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.automation-metric-rate {
+  margin: 12px 0 6px;
+  color: #10233f;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.automation-metric-meta {
+  color: #4b6076;
+  font-size: 13px;
+}

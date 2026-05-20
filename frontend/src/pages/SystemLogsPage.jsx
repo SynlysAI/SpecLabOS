@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, DatePicker, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Form,
+  Input,
+  Row,
+  Select,
+  Space,
+  Table,
+  Typography
+} from "antd";
 import dayjs from "dayjs";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { fetchSystemLogs } from "../services/logApi";
+import { fetchAutomationRateSummary, fetchSystemLogs } from "../services/logApi";
 
 const { Paragraph, Text } = Typography;
 
@@ -21,7 +35,49 @@ const SOURCE_OPTIONS = [
   { label: "GPC/LCMS", value: "gpc-lcms" },
   { label: "NMR", value: "nmr" }
 ];
+
 const DEFAULT_DATE = dayjs();
+const FALLBACK_AUTOMATION_SUMMARY = {
+  overall_rate: 0,
+  metrics: [
+    {
+      key: "gpc",
+      label: "GPC",
+      rate: 0,
+      sample_count: 0,
+      completed_count: 0,
+      source_type: "csv",
+      description: "等待远程表接入。"
+    },
+    {
+      key: "lcms",
+      label: "LCMS",
+      rate: 0,
+      sample_count: 0,
+      completed_count: 0,
+      source_type: "csv",
+      description: "等待远程表接入。"
+    },
+    {
+      key: "nmr",
+      label: "NMR",
+      rate: 0,
+      sample_count: 0,
+      completed_count: 0,
+      source_type: "csv",
+      description: "等待远程表接入。"
+    },
+    {
+      key: "raman",
+      label: "Raman",
+      rate: 0,
+      sample_count: 0,
+      completed_count: 0,
+      source_type: "log",
+      description: "等待日志统计。"
+    }
+  ]
+};
 
 const columns = [
   {
@@ -84,16 +140,57 @@ function normalizeLogs(items) {
 }
 
 /**
+ * 规范自动化率摘要。
+ *
+ * Args:
+ *     summary: 原始自动化率摘要。
+ *
+ * Returns:
+ *     适配页面展示的自动化率摘要。
+ */
+function normalizeAutomationSummary(summary) {
+  const normalizedMetrics = (summary?.metrics || FALLBACK_AUTOMATION_SUMMARY.metrics).map((metric) => ({
+    key: metric.key,
+    label: metric.label,
+    rate: Number(metric.rate || 0),
+    sample_count: Number(metric.sample_count || 0),
+    completed_count: Number(metric.completed_count || 0),
+    source_type: metric.source_type || "",
+    description: metric.description || ""
+  }));
+  return {
+    overall_rate: Number(summary?.overall_rate || 0),
+    metrics: normalizedMetrics
+  };
+}
+
+/**
+ * 格式化百分比文本。
+ *
+ * Args:
+ *     value: 比例数值。
+ *
+ * Returns:
+ *     百分比字符串。
+ */
+function formatRate(value) {
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
+}
+
+/**
  * 系统日志页。
  *
  * Returns:
- *     展示日志筛选栏和日志表格。
+ *     展示自动化率摘要、日志筛选栏和日志表格。
  */
 export default function SystemLogsPage() {
   const [form] = Form.useForm();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [summary, setSummary] = useState(FALLBACK_AUTOMATION_SUMMARY);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryFailed, setSummaryFailed] = useState(false);
 
   /**
    * 加载系统日志。
@@ -124,6 +221,26 @@ export default function SystemLogsPage() {
     }
   }
 
+  /**
+   * 加载自动化率摘要。
+   *
+   * Returns:
+   *     无返回值。
+   */
+  async function loadAutomationSummary() {
+    setSummaryLoading(true);
+    try {
+      const response = await fetchAutomationRateSummary();
+      setSummary(normalizeAutomationSummary(response));
+      setSummaryFailed(false);
+    } catch (error) {
+      setSummary(FALLBACK_AUTOMATION_SUMMARY);
+      setSummaryFailed(true);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
   useEffect(() => {
     form.setFieldsValue({
       keyword: "",
@@ -131,6 +248,7 @@ export default function SystemLogsPage() {
       source: "all",
       date: DEFAULT_DATE
     });
+    loadAutomationSummary();
     loadLogs({
       keyword: "",
       level: "all",
@@ -142,9 +260,42 @@ export default function SystemLogsPage() {
   return (
     <section className="page-section">
       <PageToolbar />
-      <Card
-        title="日志检索"
-      >
+      {summaryFailed ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="自动化率接口暂不可用，当前展示占位统计。"
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} md={12} xl={8}>
+          <Card className="automation-summary-card" loading={summaryLoading}>
+            <Text className="automation-summary-label">总体自动化率</Text>
+            <div className="automation-summary-rate">{formatRate(summary.overall_rate)}</div>
+            <Text type="secondary">按 GPC、LCMS、NMR、Raman 四类指标平均计算</Text>
+          </Card>
+        </Col>
+        {summary.metrics.map((metric) => (
+          <Col xs={24} sm={12} xl={4} key={metric.key}>
+            <Card className="automation-metric-card" loading={summaryLoading}>
+              <Text className="automation-metric-label">{metric.label}</Text>
+              <div className="automation-metric-rate">{formatRate(metric.rate)}</div>
+              <Text className="automation-metric-meta">
+                样本 {metric.sample_count} / 完整 {metric.completed_count}
+              </Text>
+              <Paragraph
+                ellipsis={{ rows: 2, tooltip: metric.description }}
+                type="secondary"
+                style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}
+              >
+                {metric.description}
+              </Paragraph>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+      <Card title="日志检索">
         <Form form={form} layout="inline" onFinish={loadLogs} style={{ marginBottom: 16 }}>
           <Form.Item name="keyword" style={{ marginBottom: 0 }}>
             <Input allowClear placeholder="关键字搜索" style={{ width: 240 }} />
@@ -172,6 +323,7 @@ export default function SystemLogsPage() {
                     source: "all",
                     date: DEFAULT_DATE
                   });
+                  loadAutomationSummary();
                   loadLogs({
                     keyword: "",
                     level: "all",

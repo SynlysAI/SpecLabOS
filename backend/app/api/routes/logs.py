@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 
 from app.core.config import get_settings
-from app.schemas.log import LogListResponse
+from app.schemas.log import AutomationRateSummaryResponse, LogListResponse
 from app.services.log_service import DeviceLogService
 
 
@@ -56,3 +56,12 @@ def list_logs(
         if source:
             filtered_items = [item for item in filtered_items if item["source"] == source]
     return LogListResponse(items=filtered_items)
+
+
+@router.get("/automation-rate", response_model=AutomationRateSummaryResponse)
+def get_automation_rate_summary() -> AutomationRateSummaryResponse:
+    """返回设备日志页所需的自动化率摘要。"""
+    service = DeviceLogService(get_settings().device_logs)
+    return AutomationRateSummaryResponse.model_validate(
+        service.get_automation_rate_summary()
+    )

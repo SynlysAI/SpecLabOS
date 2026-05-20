@@ -22,6 +22,17 @@ export async function fetchSystemLogs(filters = {}) {
 }
 
 /**
+ * 获取设备自动化率摘要。
+ *
+ * Returns:
+ *     自动化率摘要数据。
+ */
+export async function fetchAutomationRateSummary() {
+  const response = await http.get("/api/logs/automation-rate");
+  return response.data || { overall_rate: 0, metrics: [] };
+}
+
+/**
  * 获取单条日志详情。
  *
  * Args:

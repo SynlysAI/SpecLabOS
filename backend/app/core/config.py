@@ -45,6 +45,10 @@ class DeviceLogSettings(BaseModel):
     raman_dir: str = ""
     gpc_lcms_dir: str = ""
     nmr_dir: str = ""
+    gpc_rate_csv: str = ""
+    lcms_rate_csv: str = ""
+    nmr_rate_csv: str = ""
+    raman_window_days: int = 3
 
 
 class ApiEndpointSettings(BaseModel):
