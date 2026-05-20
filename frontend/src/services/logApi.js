@@ -14,7 +14,8 @@ export async function fetchSystemLogs(filters = {}) {
     params: {
       keyword: filters.keyword || undefined,
       level: filters.level && filters.level !== "all" ? filters.level : undefined,
-      source: filters.source && filters.source !== "all" ? filters.source : undefined
+      source: filters.source && filters.source !== "all" ? filters.source : undefined,
+      date: filters.date || undefined
     }
   });
   return response.data.items || [];

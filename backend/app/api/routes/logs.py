@@ -35,10 +35,16 @@ def list_logs(
     keyword: str | None = Query(default=None),
     level: str | None = Query(default=None),
     source: str | None = Query(default=None),
+    date: str | None = Query(default=None),
 ) -> LogListResponse:
     """返回日志列表数据。"""
     service = DeviceLogService(get_settings().device_logs)
-    filtered_items = service.list_logs(keyword=keyword, level=level, source=source)
+    filtered_items = service.list_logs(
+        keyword=keyword,
+        level=level,
+        source=source,
+        selected_date=date,
+    )
     if not filtered_items:
         filtered_items = FALLBACK_LOG_ITEMS
         if keyword:

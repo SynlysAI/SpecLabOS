@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
+import { Button, Card, DatePicker, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
+import dayjs from "dayjs";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
@@ -20,6 +21,7 @@ const SOURCE_OPTIONS = [
   { label: "GPC/LCMS", value: "gpc-lcms" },
   { label: "NMR", value: "nmr" }
 ];
+const DEFAULT_DATE = dayjs();
 
 const columns = [
   {
@@ -105,7 +107,13 @@ export default function SystemLogsPage() {
   async function loadLogs(filters = form.getFieldsValue()) {
     setLoading(true);
     try {
-      const items = await fetchSystemLogs(filters);
+      const normalizedFilters = {
+        ...filters,
+        date: filters.date && typeof filters.date === "object" && typeof filters.date.format === "function"
+          ? filters.date.format("YYYY-MM-DD")
+          : filters.date || DEFAULT_DATE.format("YYYY-MM-DD")
+      };
+      const items = await fetchSystemLogs(normalizedFilters);
       setLogs(normalizeLogs(items));
       setLoadFailed(false);
     } catch (error) {
@@ -120,12 +128,14 @@ export default function SystemLogsPage() {
     form.setFieldsValue({
       keyword: "",
       level: "all",
-      source: "all"
+      source: "all",
+      date: DEFAULT_DATE
     });
     loadLogs({
       keyword: "",
       level: "all",
-      source: "all"
+      source: "all",
+      date: DEFAULT_DATE.format("YYYY-MM-DD")
     });
   }, []);
 
@@ -145,6 +155,9 @@ export default function SystemLogsPage() {
           <Form.Item name="source" style={{ marginBottom: 0 }}>
             <Select options={SOURCE_OPTIONS} style={{ width: 160 }} />
           </Form.Item>
+          <Form.Item name="date" style={{ marginBottom: 0 }}>
+            <DatePicker style={{ width: 160 }} />
+          </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Space>
               <Button htmlType="submit" type="primary">
@@ -153,8 +166,18 @@ export default function SystemLogsPage() {
               <Button
                 onClick={() => {
                   form.resetFields();
-                  form.setFieldsValue({ keyword: "", level: "all", source: "all" });
-                  loadLogs({ keyword: "", level: "all", source: "all" });
+                  form.setFieldsValue({
+                    keyword: "",
+                    level: "all",
+                    source: "all",
+                    date: DEFAULT_DATE
+                  });
+                  loadLogs({
+                    keyword: "",
+                    level: "all",
+                    source: "all",
+                    date: DEFAULT_DATE.format("YYYY-MM-DD")
+                  });
                 }}
               >
                 重置

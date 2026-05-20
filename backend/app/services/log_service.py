@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ class DeviceLogService:
         keyword: str | None = None,
         level: str | None = None,
         source: str | None = None,
+        selected_date: str | None = None,
         limit: int = 300,
     ) -> list[dict]:
         """返回统一标准化后的设备日志列表。
@@ -74,6 +75,7 @@ class DeviceLogService:
             keyword: 日志关键字过滤条件。
             level: 日志级别过滤条件。
             source: 日志来源过滤条件。
+            selected_date: 指定查询日期，格式为 YYYY-MM-DD。
             limit: 返回结果数量上限。
 
         Returns:
@@ -82,11 +84,12 @@ class DeviceLogService:
         normalized_keyword = self._normalize_filter_value(keyword)
         normalized_level = self._normalize_filter_value(level)
         normalized_source = self._normalize_filter_value(source)
+        target_date = self._parse_selected_date(selected_date)
 
         items = (
-            self._collect_raman_logs()
-            + self._collect_gpc_lcms_logs()
-            + self._collect_nmr_logs()
+            self._collect_raman_logs(target_date)
+            + self._collect_gpc_lcms_logs(target_date)
+            + self._collect_nmr_logs(target_date)
         )
 
         filtered_items = [
@@ -102,15 +105,18 @@ class DeviceLogService:
         )
         return [self._strip_internal_fields(item) for item in filtered_items[:limit]]
 
-    def _collect_raman_logs(self) -> list[dict]:
-        """收集 Raman 当日日志中的有效实验记录。
+    def _collect_raman_logs(self, target_date: date) -> list[dict]:
+        """收集 Raman 指定日期日志中的有效实验记录。
+
+        Args:
+            target_date: 目标查询日期。
 
         Returns:
             Raman 标准化日志列表。
         """
         try:
             target_file = Path(self._settings.raman_dir) / (
-                f"ExRaman_{datetime.now().strftime('%Y-%m-%d')}.log"
+                f"ExRaman_{target_date.strftime('%Y-%m-%d')}.log"
             )
             if not target_file.is_file():
                 return []
@@ -141,15 +147,18 @@ class DeviceLogService:
             )
         return items
 
-    def _collect_gpc_lcms_logs(self) -> list[dict]:
-        """收集 GPC/LCMS 前处理 info 日志。
+    def _collect_gpc_lcms_logs(self, target_date: date) -> list[dict]:
+        """收集 GPC/LCMS 指定日期前处理 info 日志。
+
+        Args:
+            target_date: 目标查询日期。
 
         Returns:
             GPC/LCMS 标准化日志列表。
         """
         try:
             target_file = Path(self._settings.gpc_lcms_dir) / (
-                f"info-{datetime.now().strftime('%Y-%m-%d')}.log"
+                f"info-{target_date.strftime('%Y-%m-%d')}.log"
             )
             if not target_file.is_file():
                 return []
@@ -180,15 +189,17 @@ class DeviceLogService:
             )
         return items
 
-    def _collect_nmr_logs(self) -> list[dict]:
-        """收集 NMR TaskFlow 实验操作日志。
+    def _collect_nmr_logs(self, target_date: date) -> list[dict]:
+        """收集 NMR 指定日期 TaskFlow 实验操作日志。
+
+        Args:
+            target_date: 目标查询日期。
 
         Returns:
             NMR 标准化日志列表。
         """
         try:
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            target_dir = Path(self._settings.nmr_dir) / current_date / "TaskFlow"
+            target_dir = Path(self._settings.nmr_dir) / target_date.strftime("%Y-%m-%d") / "TaskFlow"
             if not target_dir.is_dir():
                 return []
         except OSError as exc:
@@ -420,6 +431,23 @@ class DeviceLogService:
         if not isinstance(value, str):
             return ""
         return value.strip().lower()
+
+    @staticmethod
+    def _parse_selected_date(value: str | None) -> date:
+        """解析查询日期参数。
+
+        Args:
+            value: 前端传入的日期字符串，格式为 YYYY-MM-DD。
+
+        Returns:
+            解析成功后的日期对象，失败时返回当天日期。
+        """
+        if isinstance(value, str):
+            try:
+                return datetime.strptime(value.strip(), "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        return datetime.now().date()
 
     @staticmethod
     def _parse_gpc_lcms_line(line: str) -> dict | None:
