@@ -171,14 +171,20 @@ class DeviceLogService:
             return []
 
         items: list[dict] = []
+        last_created_at = ""
         for index, line in enumerate(self._read_lines(target_file)):
             if not self._is_raman_signal(line):
                 continue
-            matched = RAMAN_LINE_PATTERN.match(line.strip())
-            if not matched:
+            parsed_line = self._parse_raman_line(
+                line=line.strip(),
+                fallback_created_at=last_created_at,
+            )
+            if not parsed_line:
                 continue
-            created_at = matched.group("created_at")
-            message = matched.group("message").strip().strip('"')
+            created_at = parsed_line["created_at"]
+            message = parsed_line["message"]
+            if created_at:
+                last_created_at = created_at
             items.append(
                 self._build_log_item(
                     log_id=f"raman-{index}",
@@ -456,22 +462,28 @@ class DeviceLogService:
         Returns:
             面向页面展示的服务模块名称。
         """
-        if "slider pos" in message:
-            return "波长切换"
+        if message.startswith("body:"):
+            return "优化参数"
 
-        focus_keywords = [
-            "/raman/jy/camera",
-            "开始粗搜索自动对焦",
-            "开始精搜索自动对焦",
-            "对焦",
-            "Brightness",
-        ]
-        if any(keyword in message for keyword in focus_keywords):
-            return "对焦模块"
+        if "/raman/jy/camera" in message:
+            return "进样对焦"
+
+        if "开始粗搜索自动对焦" in message:
+            return "初步聚焦"
+
+        if "开始精搜索自动对焦" in message:
+            return "精确对焦"
+
+        if "slider pos" in message:
+            return "自动选择激发波长"
+
+        if "/raman/jy/capture" in message:
+            return "开始采集"
+
+        if "采集流程完成" in message:
+            return "采集完成"
 
         acquisition_keywords = [
-            "/raman/jy/capture",
-            "采集流程完成",
             "Starting acquisition",
             "Actual exposure time",
             "Actual accumulation",
@@ -480,7 +492,7 @@ class DeviceLogService:
             "laser:",
         ]
         if any(keyword in message for keyword in acquisition_keywords):
-            return "采集模块"
+            return "光谱采集"
 
         callback_keywords = [
             "JY req:",
@@ -496,6 +508,32 @@ class DeviceLogService:
             return "接口通信"
 
         return "光谱采集"
+
+    @staticmethod
+    def _parse_raman_line(line: str, fallback_created_at: str) -> dict | None:
+        """解析 Raman 单行日志或关联参数行。
+
+        Args:
+            line: 单行日志文本。
+            fallback_created_at: 无时间戳行继承的上一条时间。
+
+        Returns:
+            解析后的字段字典，无法解析时返回 None。
+        """
+        matched = RAMAN_LINE_PATTERN.match(line)
+        if matched:
+            return {
+                "created_at": matched.group("created_at"),
+                "message": matched.group("message").strip().strip('"'),
+            }
+
+        if line.startswith("body:") and fallback_created_at:
+            return {
+                "created_at": fallback_created_at,
+                "message": line.strip(),
+            }
+
+        return None
 
     @staticmethod
     def _match_keyword(item: dict, keyword: str) -> bool:
