@@ -298,9 +298,9 @@ class DeviceLogService:
             rate_values.append(rate_value)
 
         description = (
-            f"读取远程表 {csv_path} 的 final_auto_rate 字段。"
+            f"读取统计表 {csv_path} 的 final_auto_rate 字段。"
             if csv_path
-            else "未配置远程表路径。"
+            else "未配置统计表路径。"
         )
         if csv_path and not rows:
             description = f"未从 {csv_path} 读取到有效数据。"
