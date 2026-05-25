@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import logging
 import re
 from datetime import date, datetime, timedelta
@@ -323,27 +324,14 @@ class DeviceLogService:
         )
 
     def _collect_raman_automation_metric(self) -> dict:
-        """根据最近窗口期 Raman 日志统计自动化率。
+        """根据最近 10 次 Raman 实验统计自动化率。
 
         Returns:
             Raman 自动化率指标字典。
         """
-        window_days = max(int(self._settings.raman_window_days or 3), 1)
-        target_dates = [
-            datetime.now().date() - timedelta(days=offset)
-            for offset in range(window_days)
-        ]
-        log_records: list[dict] = []
-
-        for target_date in sorted(target_dates):
-            log_records.extend(self._collect_raman_logs(target_date))
-
-        experiments = self._split_raman_experiments(log_records)
-        experiment_rates = [
-            self._calculate_raman_experiment_rate(experiment)
-            for experiment in experiments
-            if experiment
-        ]
+        recent_limit = 10
+        experiments = self._collect_recent_raman_experiments(recent_limit)
+        experiment_rates = [self._calculate_raman_experiment_rate(experiment) for experiment in experiments]
         average_rate = (
             round(sum(experiment_rates) / len(experiment_rates), 4)
             if experiment_rates
@@ -351,9 +339,9 @@ class DeviceLogService:
         )
         completed_count = len([item for item in experiment_rates if item >= 1])
         description = (
-            f"基于最近 {window_days} 天 Raman 日志自动步骤完成情况统计。"
+            f"基于最近 {recent_limit} 次 Raman 实验自动步骤完成情况统计。"
             if experiments
-            else f"最近 {window_days} 天未识别到完整 Raman 实验片段。"
+            else f"未识别到最近 {recent_limit} 次 Raman 实验片段。"
         )
         return self._build_automation_metric(
             key="raman",
@@ -363,6 +351,49 @@ class DeviceLogService:
             source_type="log",
             description=description,
         )
+
+    def _collect_recent_raman_experiments(self, recent_limit: int) -> list[list[str]]:
+        """提取最近若干次 Raman 实验步骤。
+
+        Args:
+            recent_limit: 需要返回的最近实验次数。
+
+        Returns:
+            按时间升序排列的最近实验步骤列表。
+        """
+        if recent_limit <= 0:
+            return []
+
+        try:
+            raman_dir = Path(self._settings.raman_dir)
+            if not raman_dir.is_dir():
+                return []
+        except OSError:
+            return []
+
+        log_files = sorted(
+            raman_dir.glob("ExRaman_*.log"),
+            key=lambda path: path.name,
+            reverse=True,
+        )
+        if not log_files:
+            return []
+
+        collected_logs: list[dict] = []
+        collected_experiments: list[list[str]] = []
+
+        for log_file in log_files:
+            target_date = self._extract_raman_date_from_filename(log_file.name)
+            if not target_date:
+                continue
+            collected_logs.extend(self._collect_raman_logs(target_date))
+            collected_experiments = self._split_raman_experiments(collected_logs)
+            if len(collected_experiments) >= recent_limit:
+                break
+
+        if not collected_experiments:
+            return []
+        return collected_experiments[-recent_limit:]
 
     @staticmethod
     def _read_lines(file_path: Path) -> list[str]:
@@ -395,10 +426,36 @@ class DeviceLogService:
         if not file_path.is_file():
             return []
         try:
-            with file_path.open("r", encoding="utf-8-sig", newline="") as csv_file:
-                reader = csv.DictReader(csv_file)
-                return list(reader)
+            raw_bytes = file_path.read_bytes()
         except OSError:
+            return []
+
+        candidate_encodings = [
+            "utf-8-sig",
+            "utf-8",
+            "gb18030",
+            "gbk",
+            "cp936",
+            "big5",
+            "latin1",
+        ]
+
+        for encoding in candidate_encodings:
+            try:
+                decoded_text = raw_bytes.decode(encoding)
+                reader = csv.DictReader(io.StringIO(decoded_text))
+                return list(reader)
+            except UnicodeDecodeError:
+                continue
+            except csv.Error:
+                continue
+
+        try:
+            decoded_text = raw_bytes.decode("utf-8-sig", errors="ignore")
+            reader = csv.DictReader(io.StringIO(decoded_text))
+            logger.warning("CSV 编码异常，已使用忽略非法字节模式读取: %s", file_path)
+            return list(reader)
+        except csv.Error:
             return []
 
     @staticmethod
@@ -720,6 +777,24 @@ class DeviceLogService:
             except ValueError:
                 pass
         return datetime.now().date()
+
+    @staticmethod
+    def _extract_raman_date_from_filename(filename: str) -> date | None:
+        """从 Raman 日志文件名提取日期。
+
+        Args:
+            filename: Raman 日志文件名。
+
+        Returns:
+            提取成功的日期对象，失败时返回 None。
+        """
+        matched = re.search(r"ExRaman_(\d{4}-\d{2}-\d{2})\.log$", filename)
+        if not matched:
+            return None
+        try:
+            return datetime.strptime(matched.group(1), "%Y-%m-%d").date()
+        except ValueError:
+            return None
 
     @staticmethod
     def _parse_gpc_lcms_line(line: str) -> dict | None:
