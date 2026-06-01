@@ -59,7 +59,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
             <div className="sidebar-brand-copy">
               <Text className="sidebar-brand-product">SpecLabOS</Text>
               <Text type="secondary" className="sidebar-brand-text">
-                实验设备、流程编排与运行监控的一体化工作台
+                实验管理平台 — 实验设备、流程编排与运行监控的一体化工作台
               </Text>
             </div>
           ) : null}

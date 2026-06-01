@@ -33,7 +33,7 @@ class BaseDevice:
     def get_status(self) -> DeviceStatus:
         """返回设备当前状态。"""
         return DeviceStatus(
-            state="idle",
+            state="online",
             message="simulated" if self.sim_mode else "configured",
             updated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
         )
