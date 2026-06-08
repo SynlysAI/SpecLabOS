@@ -1,5 +1,8 @@
 import { http } from "./http";
 
+/** 日志接口涉及远程文件读取，超时设置较长。 */
+const LOG_API_TIMEOUT = 60000;
+
 /**
  * 获取系统日志列表。
  *
@@ -16,7 +19,8 @@ export async function fetchSystemLogs(filters = {}) {
       level: filters.level && filters.level !== "all" ? filters.level : undefined,
       source: filters.source && filters.source !== "all" ? filters.source : undefined,
       date: filters.date || undefined
-    }
+    },
+    timeout: LOG_API_TIMEOUT
   });
   return response.data.items || [];
 }
@@ -28,7 +32,9 @@ export async function fetchSystemLogs(filters = {}) {
  *     自动化率摘要数据。
  */
 export async function fetchAutomationRateSummary() {
-  const response = await http.get("/api/logs/automation-rate");
+  const response = await http.get("/api/logs/automation-rate", {
+    timeout: LOG_API_TIMEOUT
+  });
   return response.data || { overall_rate: 0, metrics: [] };
 }
 
@@ -42,6 +48,8 @@ export async function fetchAutomationRateSummary() {
  *     单条日志详情。
  */
 export async function fetchLogDetail(logId) {
-  const response = await http.get(`/api/logs/${logId}`);
+  const response = await http.get(`/api/logs/${logId}`, {
+    timeout: LOG_API_TIMEOUT
+  });
   return response.data;
 }
