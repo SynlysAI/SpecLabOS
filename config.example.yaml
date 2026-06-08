@@ -28,6 +28,14 @@ device_logs:
   raman_window_days: 3
 
 apis:
+  sciverse:
+    base_url: https://api.sciverse.space
+    api_token: <YOUR_SCIVERSE_API_TOKEN>
+    timeout: 30
+  dianshi:
+    mcp_url: https://dianshi.opendatalab.org.cn/api/mcp
+    api_token: <YOUR_DIANSHI_API_TOKEN>
+    timeout: 30
   gpc:
     base_url: http://100.74.253.59:8001
   resin:
@@ -64,6 +72,6 @@ devices:
     - pi_2278
 
 llm:
-  api_key: "sk-6mOM3wbHEoMQRnVzaW9uc22tAt6iUlMG"
-  base_url: "http://10.26.15.52:30081/132bc0947fc64cc79e22618a60394789/v1"
-  model: "DeepSeek-V4-Flash-w8a8-mtp"
+  api_key: "<YOUR_LLM_API_KEY>"
+  base_url: "https://api.deepseek.com/v1"
+  model: "deepseek-v4-pro"

@@ -10,6 +10,7 @@ const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage")
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
 const ToolsPage = lazy(() => import("./pages/ToolsPage"));
 const InstructionParserTab = lazy(() => import("./pages/InstructionParserTab"));
+const ScienceDataAssistant = lazy(() => import("./pages/ScienceDataAssistant"));
 
 /**
  * 页面懒加载包装组件。
@@ -57,6 +58,10 @@ export const router = createBrowserRouter([
           {
             path: "instruction-parser",
             element: withSuspense(<InstructionParserTab />)
+          },
+          {
+            path: "science-data-assistant",
+            element: withSuspense(<ScienceDataAssistant />)
           }
         ]
       }

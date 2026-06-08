@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 from app.core.config import get_settings
+from app.services.science_chat import generate_chat
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 _logger = logging.getLogger(__name__)
@@ -24,6 +25,17 @@ class ParseInstructionsRequest(BaseModel):
         experiment_plan: 用户输入的实验方案文本。
     """
     experiment_plan: str
+
+
+class ChatRequest(BaseModel):
+    """科学数据助手对话请求参数。
+
+    Args:
+        product: 产品标识，"sciverse" 或 "dianshi"。
+        message: 用户输入的自然语言消息。
+    """
+    product: str
+    message: str
 
 
 def _read_reference_file(filename: str, max_chars: int = 8000) -> str:
@@ -122,3 +134,24 @@ def parse_instructions(payload: ParseInstructionsRequest) -> StreamingResponse:
         yield f"data: {json.dumps({'type': 'done', 'instructions': instructions, 'full_text': full_content}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(_generate(), media_type="text/event-stream")
+
+
+@router.post("/chat")
+def chat(payload: ChatRequest) -> StreamingResponse:
+    """科学数据助手对话接口 — SSE 流式返回 LLM 工具调用与自然语言回复。
+
+    Args:
+        payload: 包含 product（sciverse/dianshi）和 message 的请求体。
+
+    Returns:
+        SSE 流式响应，包含 type=chunk（流式文本）和 type=done（完成）。
+    """
+    if payload.product not in ("sciverse", "dianshi"):
+        def _invalid():
+            yield f"data: {json.dumps({'type': 'error', 'message': 'product 必须是 sciverse 或 dianshi'}, ensure_ascii=False)}\n\n"
+        return StreamingResponse(_invalid(), media_type="text/event-stream")
+
+    return StreamingResponse(
+        generate_chat(payload.product, payload.message),
+        media_type="text/event-stream",
+    )

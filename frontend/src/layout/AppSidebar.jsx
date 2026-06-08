@@ -40,6 +40,10 @@ const MENU_ITEMS = [
       {
         key: "/tools/instruction-parser",
         label: "树脂合成指令解析"
+      },
+      {
+        key: "/tools/science-data-assistant",
+        label: "科学数据助手"
       }
     ]
   }

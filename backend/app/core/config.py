@@ -72,9 +72,27 @@ class RamanApiSettings(BaseModel):
     timeout: int = 60
 
 
+class SciverseApiSettings(BaseModel):
+    """Sciverse 科学文献检索 API 配置。"""
+
+    base_url: str = "https://api.sciverse.space"
+    api_token: str = ""
+    timeout: int = 30
+
+
+class DianshiApiSettings(BaseModel):
+    """点石化学信息检索 MCP 配置。"""
+
+    mcp_url: str = "https://dianshi.opendatalab.com/api/mcp"
+    api_token: str = ""
+    timeout: int = 30
+
+
 class ApiSettings(BaseModel):
     """外部设备接口配置。"""
 
+    sciverse: SciverseApiSettings = Field(default_factory=SciverseApiSettings)
+    dianshi: DianshiApiSettings = Field(default_factory=DianshiApiSettings)
     gpc: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
     resin: ResinApiSettings = Field(default_factory=ResinApiSettings)
     station: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
