@@ -6,12 +6,39 @@ import csv
 import io
 import logging
 import re
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from app.core.config import DeviceLogSettings
 
 logger = logging.getLogger(__name__)
+
+# ---------- 模块级 TTL 缓存 ----------
+
+_CACHE_TTL = 30
+_cache_store: dict[str, tuple[float, object]] = {}
+
+_MISS = object()
+
+
+def _get_cached(key: str, ttl: int = _CACHE_TTL):
+    """从模块级缓存获取值，过期或不存在时返回 _MISS 哨兵。"""
+    entry = _cache_store.get(key)
+    if entry:
+        expiry, value = entry
+        if time.time() < expiry:
+            return value
+        del _cache_store[key]
+    return _MISS
+
+
+def _set_cache(key: str, value: object) -> None:
+    """写入模块级 TTL 缓存。"""
+    _cache_store[key] = (time.time() + _CACHE_TTL, value)
+
+
+# ----------------------------------
 
 
 RAMAN_SIGNAL_PATTERNS = [
@@ -109,6 +136,11 @@ class DeviceLogService:
         Returns:
             已按时间倒序排列的日志列表。
         """
+        cache_key = f"list_logs:{selected_date}:{keyword}:{level}:{source}"
+        cached = _get_cached(cache_key)
+        if cached is not _MISS:
+            return cached
+
         normalized_keyword = self._normalize_filter_value(keyword)
         normalized_level = self._normalize_filter_value(level)
         normalized_source = self._normalize_filter_value(source)
@@ -131,7 +163,9 @@ class DeviceLogService:
             key=lambda item: item.get("_sort_at", datetime.min),
             reverse=True,
         )
-        return [self._strip_internal_fields(item) for item in filtered_items[:limit]]
+        result = [self._strip_internal_fields(item) for item in filtered_items[:limit]]
+        _set_cache(cache_key, result)
+        return result
 
     def get_automation_rate_summary(self) -> dict:
         """汇总设备自动化率摘要。
@@ -139,6 +173,11 @@ class DeviceLogService:
         Returns:
             包含总自动化率与各设备明细的摘要字典。
         """
+        cache_key = "automation_rate_summary"
+        cached = _get_cached(cache_key)
+        if cached is not _MISS:
+            return cached
+
         metrics = [
             self._collect_csv_automation_metric("gpc"),
             self._collect_csv_automation_metric("lcms"),
@@ -147,10 +186,12 @@ class DeviceLogService:
         ]
         valid_rates = [metric["rate"] for metric in metrics if metric["sample_count"] > 0]
         overall_rate = round(sum(valid_rates) / len(valid_rates), 4) if valid_rates else 0.0
-        return {
+        result = {
             "overall_rate": overall_rate,
             "metrics": metrics,
         }
+        _set_cache(cache_key, result)
+        return result
 
     def _collect_raman_logs(self, target_date: date) -> list[dict]:
         """收集 Raman 指定日期日志中的有效实验记录。
