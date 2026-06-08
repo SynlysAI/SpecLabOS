@@ -136,7 +136,8 @@ a {
   flex: 1 1 auto;
 }
 
-.sidebar-menu .ant-menu-item {
+.sidebar-menu .ant-menu-item,
+.sidebar-menu .ant-menu-submenu-title {
   height: 50px;
   margin-block: 8px;
   border-radius: 14px;
@@ -145,8 +146,16 @@ a {
   color: #1d2d44;
 }
 
-.sidebar-menu .ant-menu-item .ant-menu-item-icon {
+.sidebar-menu .ant-menu-item .ant-menu-item-icon,
+.sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon,
+.sidebar-menu .ant-menu-submenu-title .ant-menu-submenu-arrow {
   font-size: 18px;
+}
+
+.sidebar-menu .ant-menu-sub .ant-menu-item {
+  height: 44px;
+  margin-block: 6px;
+  font-size: 16px;
 }
 
 .sidebar-menu.ant-menu-inline-collapsed .ant-menu-item {
@@ -162,7 +171,8 @@ a {
   color: #1f5eff !important;
 }
 
-.sidebar-menu .ant-menu-item:hover {
+.sidebar-menu .ant-menu-item:hover,
+.sidebar-menu .ant-menu-submenu-title:hover {
   color: #1f5eff !important;
   background: rgba(31, 94, 255, 0.06) !important;
 }

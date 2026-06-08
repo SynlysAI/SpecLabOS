@@ -30,6 +30,11 @@ const HEADER_META = [
     match: (pathname) => pathname.startsWith("/logs"),
     title: "设备日志",
     subtitle: "检索设备事件、错误信息与关键操作记录。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/tools"),
+    title: "工具服务",
+    subtitle: "树脂合成指令解析、实验方案智能拆解等实用工具。"
   }
 ];
 

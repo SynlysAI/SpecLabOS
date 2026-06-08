@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Menu, Typography } from "antd";
 import {
   AppstoreOutlined,
@@ -6,7 +6,8 @@ import {
   DashboardOutlined,
   FileSearchOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  ToolOutlined
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -30,6 +31,17 @@ const MENU_ITEMS = [
     key: "/logs",
     icon: <FileSearchOutlined />,
     label: "设备日志"
+  },
+  {
+    key: "/tools",
+    icon: <ToolOutlined />,
+    label: "工具服务",
+    children: [
+      {
+        key: "/tools/instruction-parser",
+        label: "树脂合成指令解析"
+      }
+    ]
   }
 ];
 
@@ -44,11 +56,48 @@ const { Text, Title } = Typography;
 export default function AppSidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedKey =
-    MENU_ITEMS.find(
-      (item) => item.key !== "/" && location.pathname.startsWith(item.key)
-    )?.key ||
-    (location.pathname === "/" ? "/" : undefined);
+
+  /** 展平所有菜单项（含子项），从中找出匹配当前路径的最深层 key。 */
+  const allFlatItems = useMemo(
+    () =>
+      MENU_ITEMS.flatMap(function flatten(item) {
+        return item.children
+          ? [item, ...item.children.flatMap(flatten)]
+          : [item];
+      }),
+    []
+  );
+
+  const selectedKey = useMemo(() => {
+    let best = null;
+    for (const item of allFlatItems) {
+      if (item.key !== "/" && location.pathname.startsWith(item.key)) {
+        if (!best || item.key.length > best.key.length) best = item;
+      }
+    }
+    if (best) return best.key;
+    return location.pathname === "/" ? "/" : undefined;
+  }, [allFlatItems, location.pathname]);
+
+  /** 默认展开包含当前选中项的父级菜单。 */
+  const initialOpenKeys = useMemo(() => {
+    const parents = [];
+    for (const item of MENU_ITEMS) {
+      if (
+        item.children &&
+        item.children.some(function (child) {
+          return allFlatItems.some(function (flat) {
+            return flat.key === child.key && location.pathname.startsWith(flat.key);
+          });
+        })
+      ) {
+        parents.push(item.key);
+      }
+    }
+    return parents;
+  }, [location.pathname, allFlatItems]);
+
+  const [openKeys, setOpenKeys] = useState(initialOpenKeys);
 
   return (
     <div className="sidebar-root">
@@ -77,8 +126,16 @@ export default function AppSidebar({ collapsed, onToggle }) {
         mode="inline"
         inlineCollapsed={collapsed}
         selectedKeys={selectedKey ? [selectedKey] : []}
+        openKeys={collapsed ? [] : openKeys}
+        onOpenChange={setOpenKeys}
         items={MENU_ITEMS}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key, keyPath }) => {
+          // 仅有 children 的父级 item 不触发导航
+          const item = MENU_ITEMS.flatMap((i) => (i.children ? i.children : [i])).find(
+            (i) => i.key === key
+          );
+          if (item && !item.children) navigate(key);
+        }}
         className="sidebar-menu"
         style={{ borderInlineEnd: "none", background: "transparent" }}
       />

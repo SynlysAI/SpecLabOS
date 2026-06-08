@@ -25,6 +25,8 @@ pip install -r requirements.txt
 ```powershell
 cd E:\xx_project\SpecLabOS\backend
 uvicorn main:app --reload
+# 或者
+uvicorn main:app --host 0.0.0.0 --port 8010
 ```
 
 4. 安装并启动前端

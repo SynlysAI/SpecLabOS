@@ -97,6 +97,14 @@ class DeviceSettings(BaseModel):
     enabled_keys: list[str] = Field(default_factory=list)
 
 
+class LlmSettings(BaseModel):
+    """LLM 大模型接口配置。"""
+
+    api_key: str = ""
+    base_url: str = "https://api.openai.com/v1"
+    model: str = "gpt-3.5-turbo"
+
+
 class Settings(BaseModel):
     """系统总配置。"""
 
@@ -108,6 +116,7 @@ class Settings(BaseModel):
     apis: ApiSettings = Field(default_factory=ApiSettings)
     runtime: RuntimeSettings
     devices: DeviceSettings
+    llm: LlmSettings = Field(default_factory=LlmSettings)
 
 
 def get_default_config_path(current_file: str | Path | None = None) -> Path:

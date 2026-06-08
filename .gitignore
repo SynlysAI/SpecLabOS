@@ -6,3 +6,10 @@ venv/
 env/
 frontend/node_modules/
 frontend/dist/
+.agents
+.conda
+.playwright
+.playwright-cli
+.vscode
+.claude
+.idea

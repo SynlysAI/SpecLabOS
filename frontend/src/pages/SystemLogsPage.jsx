@@ -117,6 +117,44 @@ const columns = [
 ];
 
 /**
+ * 提取接口请求失败原因。
+ *
+ * Args:
+ *     error: 请求异常对象。
+ *
+ * Returns:
+ *     可直接展示给用户的失败原因文本。
+ */
+function buildRequestErrorMessage(error) {
+  const baseUrl = error?.config?.baseURL || "http://127.0.0.1:8000";
+  const requestPath = error?.config?.url || "";
+  const requestTarget = requestPath ? `${baseUrl}${requestPath}` : baseUrl;
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === "string" && detail.trim()) {
+    return `后端返回 ${error.response.status}：${detail}`;
+  }
+
+  if (error?.code === "ECONNABORTED") {
+    return `请求 ${requestTarget} 超时，请检查后端服务状态或远程日志目录是否响应缓慢。`;
+  }
+
+  if (error?.message === "Network Error") {
+    return `无法连接 ${baseUrl}，请确认后端服务已启动。`;
+  }
+
+  if (error?.response?.status) {
+    return `请求 ${requestTarget} 失败，HTTP ${error.response.status}。`;
+  }
+
+  if (typeof error?.message === "string" && error.message.trim()) {
+    return `请求 ${requestTarget} 失败：${error.message}`;
+  }
+
+  return `请求 ${requestTarget} 失败，请检查后端服务状态。`;
+}
+
+/**
  * 规范日志数据。
  *
  * Args:
@@ -188,9 +226,11 @@ export default function SystemLogsPage() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [logsErrorMessage, setLogsErrorMessage] = useState("");
   const [summary, setSummary] = useState(FALLBACK_AUTOMATION_SUMMARY);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryFailed, setSummaryFailed] = useState(false);
+  const [summaryErrorMessage, setSummaryErrorMessage] = useState("");
 
   /**
    * 加载系统日志。
@@ -213,9 +253,12 @@ export default function SystemLogsPage() {
       const items = await fetchSystemLogs(normalizedFilters);
       setLogs(normalizeLogs(items));
       setLoadFailed(false);
+      setLogsErrorMessage("");
     } catch (error) {
+      console.error("加载系统日志失败", error);
       setLogs([]);
       setLoadFailed(true);
+      setLogsErrorMessage(buildRequestErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -233,9 +276,12 @@ export default function SystemLogsPage() {
       const response = await fetchAutomationRateSummary();
       setSummary(normalizeAutomationSummary(response));
       setSummaryFailed(false);
+      setSummaryErrorMessage("");
     } catch (error) {
+      console.error("加载自动化率摘要失败", error);
       setSummary(FALLBACK_AUTOMATION_SUMMARY);
       setSummaryFailed(true);
+      setSummaryErrorMessage(buildRequestErrorMessage(error));
     } finally {
       setSummaryLoading(false);
     }
@@ -265,6 +311,7 @@ export default function SystemLogsPage() {
           type="warning"
           showIcon
           message="自动化率接口暂不可用，当前展示占位统计。"
+          description={summaryErrorMessage}
           style={{ marginBottom: 16 }}
         />
       ) : null}
@@ -345,7 +392,7 @@ export default function SystemLogsPage() {
           pagination={{ pageSize: 20, showSizeChanger: false }}
           locale={{
             emptyText: loadFailed ? (
-              <Empty description="日志接口暂不可用" />
+              <Empty description={logsErrorMessage || "日志接口暂不可用"} />
             ) : (
               <Empty description="暂无设备日志" />
             ),

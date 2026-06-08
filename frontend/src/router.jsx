@@ -8,6 +8,8 @@ const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
 const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage"));
 const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage"));
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
+const ToolsPage = lazy(() => import("./pages/ToolsPage"));
+const InstructionParserTab = lazy(() => import("./pages/InstructionParserTab"));
 
 /**
  * 页面懒加载包装组件。
@@ -47,7 +49,17 @@ export const router = createBrowserRouter([
         path: "runs/:runId",
         element: withSuspense(<WorkflowRunDetailPage />)
       },
-      { path: "logs", element: withSuspense(<SystemLogsPage />) }
+      { path: "logs", element: withSuspense(<SystemLogsPage />) },
+      {
+        path: "tools",
+        element: withSuspense(<ToolsPage />),
+        children: [
+          {
+            path: "instruction-parser",
+            element: withSuspense(<InstructionParserTab />)
+          }
+        ]
+      }
     ]
   }
 ]);
