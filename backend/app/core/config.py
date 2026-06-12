@@ -24,6 +24,16 @@ class MongoSettings(BaseModel):
     completed_database: str = ""
 
 
+class AuthSettings(BaseModel):
+    """统一认证配置。"""
+
+    enabled: bool = True
+    token_expire_hours: int = 12
+    secret: str = ""
+    user_mongo_uri: str = ""
+    user_database: str = "ai4ms"
+
+
 class RabbitMQSettings(BaseModel):
     """RabbitMQ 连接配置。"""
 
@@ -128,6 +138,7 @@ class Settings(BaseModel):
 
     app: AppSettings
     mongo: MongoSettings
+    auth: AuthSettings = Field(default_factory=AuthSettings)
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     device_images: DeviceImagesSettings = Field(default_factory=DeviceImagesSettings)
     device_logs: DeviceLogSettings = Field(default_factory=DeviceLogSettings)

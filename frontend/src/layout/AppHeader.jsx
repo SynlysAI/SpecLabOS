@@ -1,7 +1,9 @@
 import React from "react";
-import { Avatar, Button, Input, Space, Tag, Typography } from "antd";
-import { BellOutlined, SearchOutlined } from "@ant-design/icons";
-import { useLocation } from "react-router-dom";
+import { Avatar, Button, Dropdown, Input, Space, Tag, Typography } from "antd";
+import { BellOutlined, LogoutOutlined, SearchOutlined } from "@ant-design/icons";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../auth/AuthContext";
 
 const { Text, Title } = Typography;
 
@@ -56,8 +58,21 @@ const HEADER_META = [
  */
 export default function AppHeader() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const headerMeta =
     HEADER_META.find((item) => item.match(location.pathname)) || HEADER_META[0];
+  const username = user?.username || "未登录";
+  const roleLabel = user?.role === "admin" ? "系统管理员" : "普通用户";
+  const avatarText = username.slice(0, 1).toUpperCase();
+
+  /**
+   * 退出当前账号。
+   */
+  const handleLogout = () => {
+    signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="app-header">
@@ -80,15 +95,31 @@ export default function AppHeader() {
           实验室网络已连接
         </Tag>
         <Button shape="circle" icon={<BellOutlined />} />
-        <Space size={10} className="app-header-user">
-          <Avatar style={{ backgroundColor: "#1f5eff" }}>A</Avatar>
-          <div className="app-header-user-meta">
-            <Text strong className="app-header-user-name">
-              Admin
-            </Text>
-            <Text type="secondary">系统管理员</Text>
-          </div>
-        </Space>
+        <Dropdown
+          trigger={["click"]}
+          menu={{
+            items: [
+              {
+                key: "logout",
+                icon: <LogoutOutlined />,
+                label: "退出登录",
+                onClick: handleLogout
+              }
+            ]
+          }}
+        >
+          <button className="app-header-user-button" type="button">
+            <Space size={10} className="app-header-user">
+              <Avatar style={{ backgroundColor: "#1f5eff" }}>{avatarText}</Avatar>
+              <div className="app-header-user-meta">
+                <Text strong className="app-header-user-name">
+                  {username}
+                </Text>
+                <Text type="secondary">{roleLabel}</Text>
+              </div>
+            </Space>
+          </button>
+        </Dropdown>
       </Space>
     </div>
   );

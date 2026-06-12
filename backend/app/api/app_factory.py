@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 
-from app.api.routes import devices, logs, tools, workflows
+from app.api.routes import auth, devices, logs, tools, workflows
 from app.core.config import Settings, get_settings
 from app.runtime import get_workflow_dispatcher
 
@@ -41,6 +41,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    application.include_router(auth.router)
     application.include_router(devices.router)
     application.include_router(devices.device_images_router)
     application.include_router(workflows.router)

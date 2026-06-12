@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ConfigProvider } from "antd";
 import { RouterProvider } from "react-router-dom";
 
+import { AuthProvider } from "./auth/AuthContext";
 import App from "./App";
 import { router } from "./router";
 import "./styles/global.css";
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       }}
     >
       <App>
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
       </App>
     </ConfigProvider>
   </React.StrictMode>

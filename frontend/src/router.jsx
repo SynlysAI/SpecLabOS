@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation } from "react-router-dom";
 
+import { useAuth } from "./auth/AuthContext";
 import AppShell from "./layout/AppShell";
 
 const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
@@ -11,6 +12,8 @@ const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
 const ToolsPage = lazy(() => import("./pages/ToolsPage"));
 const InstructionParserTab = lazy(() => import("./pages/InstructionParserTab"));
 const ScienceDataAssistant = lazy(() => import("./pages/ScienceDataAssistant"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 
 /**
  * 页面懒加载包装组件。
@@ -35,10 +38,74 @@ function withSuspense(children) {
   );
 }
 
+/**
+ * 业务页面鉴权守卫。
+ *
+ * Returns:
+ *     已登录时返回主布局，否则跳转登录页。
+ */
+function ProtectedShell() {
+  const location = useLocation();
+  const { initialized, isAuthenticated } = useAuth();
+
+  if (!initialized) {
+    return (
+      <section className="auth-loading">
+        <p>正在校验登录状态...</p>
+      </section>
+    );
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+  return <AppShell />;
+}
+
+/**
+ * 访客页面守卫。
+ *
+ * Args:
+ *     children: 登录或注册页面。
+ *
+ * Returns:
+ *     未登录时返回子页面，已登录时回到首页。
+ */
+function GuestOnly({ children }) {
+  const { initialized, isAuthenticated } = useAuth();
+
+  if (!initialized) {
+    return (
+      <section className="auth-loading">
+        <p>正在校验登录状态...</p>
+      </section>
+    );
+  }
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 export const router = createBrowserRouter([
   {
+    path: "/login",
+    element: withSuspense(
+      <GuestOnly>
+        <LoginPage />
+      </GuestOnly>
+    )
+  },
+  {
+    path: "/register",
+    element: withSuspense(
+      <GuestOnly>
+        <RegisterPage />
+      </GuestOnly>
+    )
+  },
+  {
     path: "/",
-    element: <AppShell />,
+    element: <ProtectedShell />,
     children: [
       { index: true, element: withSuspense(<DeviceMonitorPage />) },
       {

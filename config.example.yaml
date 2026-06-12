@@ -9,6 +9,13 @@ mongo:
   completed_uri: mongodb://admin:password123@127.0.0.1:27018
   completed_database: spectrum_alab_completed
 
+auth:
+  enabled: true
+  token_expire_hours: 12
+  secret: <SAME_AS_AI4MS_AUTH_SECRET>
+  user_mongo_uri: <SAME_AS_AI4MS_MONGODB_URI>
+  user_database: ai4ms
+
 rabbitmq:
   host: 127.0.0.1
   port: 5672
