@@ -32,6 +32,16 @@ const HEADER_META = [
     subtitle: "检索设备事件、错误信息与关键操作记录。"
   },
   {
+    match: (pathname) => pathname.startsWith("/tools/instruction-parser"),
+    title: "树脂合成指令解析",
+    subtitle: "将自然语言实验方案拆解为树脂合成设备可执行指令。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/tools/science-data-assistant"),
+    title: "科学数据助手",
+    subtitle: "通过自然语言检索科学文献、化学数据与蛋白质分析资源。"
+  },
+  {
     match: (pathname) => pathname.startsWith("/tools"),
     title: "工具服务",
     subtitle: "树脂合成指令解析、实验方案智能拆解等实用工具。"

@@ -107,7 +107,9 @@ export default function AppSidebar({ collapsed, onToggle }) {
     <div className="sidebar-root">
       <div className="sidebar-topbar">
         <div className={`sidebar-brand ${collapsed ? "is-collapsed" : ""}`}>
-          <div className="sidebar-brand-mark">S</div>
+          <div className="sidebar-brand-mark">
+            <img src="/JG-logo.png" alt="JG Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
           {!collapsed ? (
             <div className="sidebar-brand-copy">
               <Text className="sidebar-brand-product">SpecLabOS</Text>
