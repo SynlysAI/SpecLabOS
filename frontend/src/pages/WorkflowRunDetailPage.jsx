@@ -20,7 +20,14 @@ const { Text } = Typography;
  *     事件摘要文案。
  */
 function formatEventSummary(event) {
-  return event?.message || event?.summary || event?.event || event?.type || "未命名事件";
+  return (
+    event?.message ||
+    event?.summary ||
+    event?.event ||
+    event?.event_type ||
+    event?.type ||
+    "未命名事件"
+  );
 }
 
 /**

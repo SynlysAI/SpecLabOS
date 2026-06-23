@@ -16,7 +16,8 @@ const STATUS_COLOR_MAP = {
   idle: "default",
   offline: "error",
   warning: "warning",
-  draft: "blue"
+  draft: "blue",
+  published: "success"
 };
 
 const STATUS_LABEL_MAP = {
@@ -34,7 +35,8 @@ const STATUS_LABEL_MAP = {
   idle: "空闲",
   offline: "离线",
   warning: "告警",
-  draft: "草稿"
+  draft: "草稿",
+  published: "已发布"
 };
 
 /**

@@ -24,10 +24,8 @@ import {
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
-  { label: "已接收", value: "accepted" },
-  { label: "排队中", value: "queued" },
-  { label: "阻塞", value: "blocked" },
-  { label: "已拒绝", value: "rejected" },
+  { label: "已发布", value: "published" },
+  { label: "草稿", value: "draft" },
 ];
 
 /**
