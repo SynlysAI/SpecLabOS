@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
@@ -9,13 +8,27 @@ import { fetchWorkflowRuns } from "../services/workflowApi";
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
+  { label: "排队中", value: "queued" },
   { label: "运行中", value: "running" },
-  { label: "已完成", value: "online" },
-  { label: "告警", value: "warning" }
+  { label: "已完成", value: "success" },
+  { label: "失败", value: "failed" },
+  { label: "阻塞", value: "blocked" }
+];
+
+const SOURCE_OPTIONS = [
+  { label: "全部来源", value: "all" },
+  { label: "SpecLabOS", value: "speclabos" },
+  { label: "SmartAccess", value: "smartaccess" }
 ];
 
 const columns = [
   { title: "运行编号", dataIndex: "run_id", key: "run_id" },
+  {
+    title: "任务来源",
+    dataIndex: "source",
+    key: "source",
+    render: (value) => (value === "smartaccess" ? "SmartAccess" : "SpecLabOS")
+  },
   { title: "工作流名称", dataIndex: "workflow_name", key: "workflow_name" },
   {
     title: "目标设备",
@@ -41,6 +54,7 @@ const columns = [
 function normalizeRuns(items) {
   return items.map((item, index) => ({
     run_id: item.run_id || item.id || `run-${index}`,
+    source: item.source || "speclabos",
     workflow_name: item.workflow_name || item.workflow?.name || "未命名工作流",
     device_key: item.device_key || item.device?.key || "--",
     status: item.status || "idle",
@@ -89,11 +103,13 @@ export default function WorkflowRunsPage() {
   useEffect(() => {
     form.setFieldsValue({
       keyword: "",
-      status: "all"
+      status: "all",
+      source: "all"
     });
     loadRuns({
       keyword: "",
-      status: "all"
+      status: "all",
+      source: "all"
     });
   }, []);
 
@@ -110,6 +126,9 @@ export default function WorkflowRunsPage() {
             <Form.Item name="status" style={{ marginBottom: 0 }}>
               <Select options={STATUS_OPTIONS} style={{ width: 140 }} />
             </Form.Item>
+            <Form.Item name="source" style={{ marginBottom: 0 }}>
+              <Select options={SOURCE_OPTIONS} style={{ width: 140 }} />
+            </Form.Item>
             <Form.Item style={{ marginBottom: 0 }}>
               <Space>
                 <Button htmlType="submit" type="primary">
@@ -118,8 +137,8 @@ export default function WorkflowRunsPage() {
                 <Button
                   onClick={() => {
                     form.resetFields();
-                    form.setFieldsValue({ keyword: "", status: "all" });
-                    loadRuns({ keyword: "", status: "all" });
+                    form.setFieldsValue({ keyword: "", status: "all", source: "all" });
+                    loadRuns({ keyword: "", status: "all", source: "all" });
                   }}
                 >
                   重置

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Descriptions, Empty, Row, Space } from "antd";
+import { Button, Card, Col, Descriptions, Empty, List, Row, Space, Typography } from "antd";
 import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -7,6 +7,21 @@ import PageToolbar from "../components/PageToolbar";
 import RunStepTimeline from "../components/RunStepTimeline";
 import StatusTag from "../components/StatusTag";
 import { fetchWorkflowRunDetail } from "../services/workflowApi";
+
+const { Text } = Typography;
+
+/**
+ * 格式化事件摘要文本。
+ *
+ * Args:
+ *     event: 运行事件。
+ *
+ * Returns:
+ *     事件摘要文案。
+ */
+function formatEventSummary(event) {
+  return event?.message || event?.summary || event?.event || event?.type || "未命名事件";
+}
 
 /**
  * 任务运行详情页。
@@ -20,6 +35,7 @@ export default function WorkflowRunDetailPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const isSmartAccess = detail?.source === "smartaccess";
 
   /**
    * 加载运行详情。
@@ -62,6 +78,17 @@ export default function WorkflowRunDetailPage() {
               <Descriptions.Item label="工作流名称">
                 {detail?.workflow_name || "--"}
               </Descriptions.Item>
+              <Descriptions.Item label="任务来源">
+                {isSmartAccess ? "SmartAccess" : "SpecLabOS"}
+              </Descriptions.Item>
+              <Descriptions.Item label="模板">
+                {detail?.template_id
+                  ? `${detail.template_id}@${detail.template_version || ""}`
+                  : "--"}
+              </Descriptions.Item>
+              <Descriptions.Item label="锚点配置">
+                {detail?.anchor_profile || "--"}
+              </Descriptions.Item>
               <Descriptions.Item label="当前状态">
                 <StatusTag status={detail?.status} />
               </Descriptions.Item>
@@ -81,7 +108,7 @@ export default function WorkflowRunDetailPage() {
         </Col>
         <Col xs={24} xl={14}>
           <Card
-            title="步骤执行时间线"
+            title={isSmartAccess ? "SmartAccess 步骤与 Trace" : "步骤执行时间线"}
             loading={loading}
             extra={
               <Space>
@@ -95,6 +122,27 @@ export default function WorkflowRunDetailPage() {
             }
           >
             <RunStepTimeline steps={detail?.steps || []} />
+            {isSmartAccess ? (
+              <List
+                style={{ marginTop: 16 }}
+                header="事件摘要"
+                dataSource={detail?.events || []}
+                locale={{ emptyText: "暂无事件记录" }}
+                renderItem={(event) => (
+                  <List.Item>
+                    <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                      <Space wrap>
+                        <Text strong>{formatEventSummary(event)}</Text>
+                        <StatusTag status={event?.status || event?.level || "info"} />
+                      </Space>
+                      <Text type="secondary">
+                        {event?.timestamp || event?.created_at || event?.time || "--"}
+                      </Text>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : null}
           </Card>
         </Col>
       </Row>

@@ -3,6 +3,7 @@ import { Button, Menu, Typography } from "antd";
 import {
   AppstoreOutlined,
   ClusterOutlined,
+  CloudServerOutlined,
   DashboardOutlined,
   FileSearchOutlined,
   MenuFoldOutlined,
@@ -21,6 +22,11 @@ const MENU_ITEMS = [
     key: "/workflows/new",
     icon: <ClusterOutlined />,
     label: "工作流编排"
+  },
+  {
+    key: "/smartaccess/templates",
+    icon: <CloudServerOutlined />,
+    label: "SmartAccess 模板"
   },
   {
     key: "/runs",

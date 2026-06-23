@@ -2,6 +2,10 @@ import React from "react";
 import { Tag } from "antd";
 
 const STATUS_COLOR_MAP = {
+  accepted: "processing",
+  blocked: "warning",
+  queued: "warning",
+  rejected: "error",
   running: "processing",
   success: "success",
   failed: "error",
@@ -16,6 +20,10 @@ const STATUS_COLOR_MAP = {
 };
 
 const STATUS_LABEL_MAP = {
+  accepted: "已接收",
+  blocked: "阻塞",
+  queued: "排队中",
+  rejected: "已拒绝",
   running: "运行中",
   success: "成功",
   failed: "失败",

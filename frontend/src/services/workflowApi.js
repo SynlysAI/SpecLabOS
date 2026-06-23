@@ -39,6 +39,7 @@ export async function fetchWorkflowRuns(filters = {}) {
     params: {
       keyword: filters.keyword || undefined,
       status: filters.status && filters.status !== "all" ? filters.status : undefined,
+      source: filters.source && filters.source !== "all" ? filters.source : undefined,
     },
   });
   return response.data.items || [];
