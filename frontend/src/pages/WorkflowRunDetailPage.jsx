@@ -11,23 +11,100 @@ import { fetchWorkflowRunDetail } from "../services/workflowApi";
 const { Text } = Typography;
 
 /**
- * 格式化事件摘要文本。
+ * SmartAccess 事件类型到中文标签的映射。
+ */
+const SMARTACCESS_EVENT_LABELS = {
+  "run.accepted": "任务已接受",
+  "run.rejected": "任务被拒绝",
+  "run.started": "运行开始",
+  "run.blocked": "运行阻塞",
+  "run.recovered": "运行恢复",
+  "run.completed": "运行完成",
+  "run.failed": "运行失败",
+  "run.cancelled": "运行取消",
+  "step.started": "步骤开始",
+  "step.updated": "OCR 观察",
+  "step.completed": "步骤完成",
+};
+
+/**
+ * 解析事件中文标签。
  *
  * Args:
  *     event: 运行事件。
  *
  * Returns:
- *     事件摘要文案。
+ *     事件中文标签，未识别时回退到事件类型原文。
  */
-function formatEventSummary(event) {
-  return (
-    event?.message ||
-    event?.summary ||
-    event?.event ||
-    event?.event_type ||
-    event?.type ||
-    "未命名事件"
-  );
+function formatEventLabel(event) {
+  const eventType = event?.event_type || event?.type || "";
+  return SMARTACCESS_EVENT_LABELS[eventType] || eventType || "未命名事件";
+}
+
+/**
+ * 根据事件 step_index 在步骤列表中查找步骤名。
+ *
+ * Args:
+ *     event: 运行事件。
+ *     steps: 步骤详情列表。
+ *
+ * Returns:
+ *     匹配到的步骤名；无法匹配时返回空串。
+ */
+function resolveStepName(event, steps) {
+  const stepIndex = event?.step_index;
+  if (stepIndex === undefined || stepIndex === null || !Array.isArray(steps)) {
+    return "";
+  }
+  const step = steps[Number(stepIndex)];
+  return step?.name || "";
+}
+
+/**
+ * 提取事件发生的本地时间文本。
+ *
+ * Args:
+ *     event: 运行事件。
+ *
+ * Returns:
+ *     时间文本，无法识别时返回 "--"。
+ */
+function formatEventTime(event) {
+  const raw = event?.timestamp || event?.created_at || event?.time || "";
+  if (!raw) return "--";
+  try {
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return raw;
+    return date.toLocaleString("zh-CN", { hour12: false });
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * 提取事件附加摘要：OCR 观察、错误信息或 detail 文本。
+ *
+ * Args:
+ *     event: 运行事件。
+ *
+ * Returns:
+ *     附加摘要文本，无内容时返回空串。
+ */
+function formatEventDetail(event) {
+  const payload = event?.payload || {};
+  const trace = payload?.trace || {};
+  const eventType = event?.event_type || "";
+  if (eventType === "step.updated" && (trace.expected_text !== undefined || trace.actual_text !== undefined)) {
+    const matched = trace.matched ? "匹配" : "不匹配";
+    const confidence = trace.confidence !== undefined && trace.confidence !== null
+      ? `，置信度 ${trace.confidence}`
+      : "";
+    return `期望 "${trace.expected_text ?? ""}" / 实际 "${trace.actual_text ?? ""}"（${matched}${confidence}）`;
+  }
+  const error = payload?.error || trace?.error || "";
+  if (error) return `错误：${error}`;
+  const detail = payload?.detail || trace?.detail || "";
+  return detail ? String(detail) : "";
 }
 
 /**
@@ -146,19 +223,31 @@ export default function WorkflowRunDetailPage() {
                 header="事件摘要"
                 dataSource={detail?.events || []}
                 locale={{ emptyText: "暂无事件记录" }}
-                renderItem={(event) => (
-                  <List.Item>
-                    <Space direction="vertical" size={2} style={{ width: "100%" }}>
-                      <Space wrap>
-                        <Text strong>{formatEventSummary(event)}</Text>
-                        <StatusTag status={event?.status || event?.level || "info"} />
+                renderItem={(event) => {
+                  const stepName = resolveStepName(event, detail?.steps);
+                  const detailText = formatEventDetail(event);
+                  return (
+                    <List.Item>
+                      <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                        <Space wrap>
+                          <StatusTag status={event?.status || event?.level || "info"} />
+                          <Text strong>
+                            {stepName ? `${stepName} · ` : ""}{formatEventLabel(event)}
+                          </Text>
+                        </Space>
+                        <Text type="secondary">{formatEventTime(event)}</Text>
+                        {detailText ? (
+                          <Text
+                            type={event?.status === "failed" ? "danger" : "secondary"}
+                            style={{ fontSize: 12, wordBreak: "break-all" }}
+                          >
+                            {detailText}
+                          </Text>
+                        ) : null}
                       </Space>
-                      <Text type="secondary">
-                        {event?.timestamp || event?.created_at || event?.time || "--"}
-                      </Text>
-                    </Space>
-                  </List.Item>
-                )}
+                    </List.Item>
+                  );
+                }}
               />
             ) : null}
           </Card>

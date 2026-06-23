@@ -90,6 +90,8 @@ class WorkflowRunDetailResponse(BaseModel):
     template_id: str = ""
     template_version: str = ""
     anchor_profile: str = ""
+    smartaccess_node_id: str = ""
+    target_device_id: str = ""
     events: list[dict] = Field(default_factory=list)
     steps: list[WorkflowRunStepItem] = Field(default_factory=list)
 

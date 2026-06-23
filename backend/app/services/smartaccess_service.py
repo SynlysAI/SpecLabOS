@@ -40,6 +40,14 @@ def _build_steps_from_workflow(
     for index, step in enumerate(workflow_steps):
         step_key = str(step.get("id") or step.get("step_id") or index)
         event = event_map.get(step_key) or event_map.get(str(index))
+        if event:
+            step_status = event.get("status", "running")
+        else:
+            step_status = (
+                "success"
+                if index < int(workflow_snapshot.get("current_step_index", 0))
+                else "queued"
+            )
         items.append(
             {
                 "name": step.get("name")
@@ -47,15 +55,7 @@ def _build_steps_from_workflow(
                 or step.get("id")
                 or step.get("step_id")
                 or f"step-{index + 1}",
-                "status": (
-                    event.get("status")
-                    if event
-                    else (
-                        "running"
-                        if index < int(workflow_snapshot.get("current_step_index", 0))
-                        else "queued"
-                    )
-                ),
+                "status": step_status,
                 "started_at": event.get("created_at", "") if event else "",
                 "finished_at": "",
                 "description": step.get("action", ""),

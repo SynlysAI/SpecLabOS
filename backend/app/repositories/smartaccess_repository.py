@@ -251,8 +251,14 @@ class SmartAccessRepository:
         updates: dict = {}
         if status:
             updates["status"] = status
-        if event.get("step_index") is not None:
-            updates["current_step_index"] = int(event["step_index"])
+        if event_type == "step.completed" and event.get("step_index") is not None:
+            # 步骤完成时把进度推进到"已完成步骤数 = step_index + 1"
+            updates["current_step_index"] = int(event["step_index"]) + 1
+        elif event_type == "run.completed":
+            # 运行完成时兜底把进度推到总数，避免最后一步完成后 run 级事件丢失导致少 1
+            run = self._runs.find_one({"run_id": run_id})
+            if run:
+                updates["current_step_index"] = int(run.get("total_steps") or 0)
         if event_type == "run.started":
             updates["started_at"] = event["created_at"]
             updates["status"] = status or "running"
