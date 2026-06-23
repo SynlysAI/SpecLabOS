@@ -17,7 +17,7 @@ def test_list_workflows_returns_items():
     assert isinstance(data["items"], list)
 
 
-def test_list_workflow_runs_returns_items():
+def test_list_workflow_runs_returns_items(fake_smartaccess_service):
     """验证运行列表接口返回列表结构。"""
     client = TestClient(app)
 
@@ -107,7 +107,9 @@ def test_create_workflow_rejects_multiple_devices():
     assert response.json()["detail"] == "当前仅支持单设备工作流编排"
 
 
-def test_get_workflow_run_detail_supports_smartaccess_source():
+def test_get_workflow_run_detail_supports_smartaccess_source(
+    fake_smartaccess_service,
+):
     """验证统一运行详情接口兼容 SmartAccess 来源。"""
     client = TestClient(app)
 
@@ -170,7 +172,9 @@ def test_get_workflow_run_detail_supports_smartaccess_source():
     assert isinstance(data["steps"], list)
 
 
-def test_list_workflow_runs_supports_smartaccess_source_filter():
+def test_list_workflow_runs_supports_smartaccess_source_filter(
+    fake_smartaccess_service,
+):
     """验证统一运行列表支持按 SmartAccess 来源过滤。"""
     client = TestClient(app)
     publish_response = client.post(

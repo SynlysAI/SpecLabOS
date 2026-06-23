@@ -22,7 +22,7 @@ def _workflow_payload() -> dict:
     }
 
 
-def test_publish_and_list_smartaccess_template() -> None:
+def test_publish_and_list_smartaccess_template(fake_smartaccess_service) -> None:
     """验证 SmartAccess 模板发布和列表接口。"""
     client = TestClient(app)
 
@@ -51,7 +51,7 @@ def test_publish_and_list_smartaccess_template() -> None:
     )
 
 
-def test_create_smartaccess_run_and_append_event() -> None:
+def test_create_smartaccess_run_and_append_event(fake_smartaccess_service) -> None:
     """验证 SmartAccess 运行创建和状态事件回传。"""
     client = TestClient(app)
     client.post(
@@ -101,7 +101,7 @@ def test_create_smartaccess_run_and_append_event() -> None:
     assert detail_response.json()["status"] == "running"
 
 
-def test_append_smartaccess_event_rejects_missing_run() -> None:
+def test_append_smartaccess_event_rejects_missing_run(fake_smartaccess_service) -> None:
     """验证不存在的 SmartAccess 运行事件回传返回 404。"""
     client = TestClient(app)
 
@@ -118,7 +118,9 @@ def test_append_smartaccess_event_rejects_missing_run() -> None:
     assert response.status_code == 404
 
 
-def test_unified_workflow_runs_include_smartaccess_source() -> None:
+def test_unified_workflow_runs_include_smartaccess_source(
+    fake_smartaccess_service,
+) -> None:
     """验证统一任务列表包含 SmartAccess 来源。"""
     client = TestClient(app)
     client.post(
