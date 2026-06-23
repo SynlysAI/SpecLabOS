@@ -2,6 +2,9 @@
 
 from functools import lru_cache
 
+import pika
+
+from app.core.config import get_settings
 from app.core.mongo import get_database
 from app.devices.factories import build_default_devices
 from app.devices.registry import DeviceRegistry
@@ -11,7 +14,7 @@ from app.runners.device_lock_manager import DeviceLockManager
 from app.runners.workflow_dispatcher import WorkflowDispatcher
 from app.runners.workflow_runner import WorkflowRunner
 from app.services.device_service import DeviceService
-from app.services.smartaccess_mq import SmartAccessNullPublisher
+from app.services.smartaccess_mq import SmartAccessRabbitMQPublisher
 from app.services.smartaccess_service import SmartAccessService
 
 
@@ -43,9 +46,26 @@ def get_smartaccess_repository() -> SmartAccessRepository:
 
 
 @lru_cache(maxsize=1)
-def get_smartaccess_publisher() -> SmartAccessNullPublisher:
+def get_smartaccess_publisher() -> SmartAccessRabbitMQPublisher:
     """构建并缓存 SmartAccess MQ 发布器。"""
-    return SmartAccessNullPublisher()
+    settings = get_settings()
+
+    def _channel():
+        """创建 RabbitMQ channel。"""
+        credentials = pika.PlainCredentials(
+            settings.rabbitmq.username,
+            settings.rabbitmq.password,
+        )
+        connection = pika.BlockingConnection(
+            pika.ConnectionParameters(
+                host=settings.rabbitmq.host,
+                port=settings.rabbitmq.port,
+                credentials=credentials,
+            )
+        )
+        return connection.channel()
+
+    return SmartAccessRabbitMQPublisher(channel_factory=_channel)
 
 
 @lru_cache(maxsize=1)

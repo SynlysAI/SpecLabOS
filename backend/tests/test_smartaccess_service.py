@@ -1,5 +1,7 @@
 """SmartAccess 服务测试。"""
 
+import json
+
 import pytest
 from fastapi import HTTPException
 
@@ -9,7 +11,33 @@ from app.schemas.smartaccess import (
     SmartAccessRunEventRequest,
     SmartAccessTemplatePublishRequest,
 )
+from app.services.smartaccess_mq import SmartAccessRabbitMQPublisher
 from app.services.smartaccess_service import SmartAccessService
+
+
+class FakeChannel:
+    """记录 RabbitMQ 发布调用的测试 channel。"""
+
+    def __init__(self) -> None:
+        """初始化 channel。"""
+        self.declared = []
+        self.published = []
+
+    def exchange_declare(self, **kwargs) -> None:
+        """记录 exchange 声明。
+
+        Args:
+            kwargs: exchange 声明参数。
+        """
+        self.declared.append(kwargs)
+
+    def basic_publish(self, **kwargs) -> None:
+        """记录发布消息。
+
+        Args:
+            kwargs: 消息发布参数。
+        """
+        self.published.append(kwargs)
 
 
 class FakePublisher:
@@ -46,6 +74,26 @@ def _workflow_payload() -> dict:
             {"id": "observe", "anchor_id": "status", "action": "observe"},
         ],
     }
+
+
+def test_rabbitmq_publisher_routes_to_device_queue() -> None:
+    """验证 RabbitMQ publisher 使用设备 routing key。"""
+    channel = FakeChannel()
+    publisher = SmartAccessRabbitMQPublisher(channel_factory=lambda: channel)
+
+    publisher.publish_run_requested({"device_id": "weixin", "run_id": "sa_run_1"})
+
+    assert channel.declared[0]["exchange"] == "smartaccess.commands"
+    assert channel.declared[0]["exchange_type"] == "topic"
+    assert channel.declared[0]["durable"] is True
+    assert channel.published[0]["routing_key"] == "device.weixin.run.requested"
+    assert channel.published[0]["exchange"] == "smartaccess.commands"
+    assert json.loads(channel.published[0]["body"].decode("utf-8")) == {
+        "device_id": "weixin",
+        "run_id": "sa_run_1",
+    }
+    assert channel.published[0]["properties"].content_type == "application/json"
+    assert channel.published[0]["properties"].delivery_mode == 2
 
 
 def test_publish_template_upserts_snapshot(fake_database) -> None:
