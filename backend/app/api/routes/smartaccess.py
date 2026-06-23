@@ -1,7 +1,8 @@
 """SmartAccess 集成接口。"""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
+from app.core.config import get_settings
 from app.runtime import get_smartaccess_service
 from app.schemas.smartaccess import (
     SmartAccessRunCreateRequest,
@@ -15,7 +16,30 @@ from app.schemas.smartaccess import (
 )
 
 
-router = APIRouter(prefix="/api/smartaccess", tags=["smartaccess"])
+def require_smartaccess_token(
+    authorization: str | None = Header(default=None),
+) -> None:
+    """校验 SmartAccess 接口 Bearer Token。
+
+    Args:
+        authorization: HTTP Authorization 请求头。
+    """
+    api_token = get_settings().smartaccess.api_token
+    if not api_token:
+        return
+    expected = f"Bearer {api_token}"
+    if authorization != expected:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="SmartAccess API token is invalid.",
+        )
+
+
+router = APIRouter(
+    prefix="/api/smartaccess",
+    tags=["smartaccess"],
+    dependencies=[Depends(require_smartaccess_token)],
+)
 
 
 @router.post("/templates/publish", response_model=SmartAccessTemplateDetailResponse)

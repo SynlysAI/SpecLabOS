@@ -34,6 +34,12 @@ class AuthSettings(BaseModel):
     user_database: str = "ai4ms"
 
 
+class SmartAccessSettings(BaseModel):
+    """SmartAccess 接入配置。"""
+
+    api_token: str = ""
+
+
 class RabbitMQSettings(BaseModel):
     """RabbitMQ 连接配置。"""
 
@@ -139,6 +145,7 @@ class Settings(BaseModel):
     app: AppSettings
     mongo: MongoSettings
     auth: AuthSettings = Field(default_factory=AuthSettings)
+    smartaccess: SmartAccessSettings = Field(default_factory=SmartAccessSettings)
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     device_images: DeviceImagesSettings = Field(default_factory=DeviceImagesSettings)
     device_logs: DeviceLogSettings = Field(default_factory=DeviceLogSettings)

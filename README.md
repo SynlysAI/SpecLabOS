@@ -48,6 +48,19 @@ npm run dev
 - 当前前端页面会优先请求这些接口。
 - 当接口不可用或字段尚未完全对齐时，页面会回退到前端内置示例数据，并显示提示信息。
 
+## SmartAccess 模板中心
+
+SpecLabOS 提供独立的 SmartAccess 模板中心，用于接收 SmartAccess 桌面端发布的 workflow 模板，并发起远程运行任务。
+
+- 模板发布接口：`POST /api/smartaccess/templates/publish`
+- 模板查看入口：前端“SmartAccess 模板”页
+- 运行状态回传：`POST /api/smartaccess/runs/{run_id}/events`
+- RabbitMQ exchange：`smartaccess.commands`
+- RabbitMQ routing key：`device.{device_id}.run.requested`
+- 设备队列建议：`smartaccess.device.{device_id}.commands`
+
+`config.yaml` 中配置 `smartaccess.api_token` 后，SmartAccess HTTP 接口会要求请求携带 `Authorization: Bearer <token>`。平台发起运行时，后端创建 `smartaccess_runs` 记录，并通过 RabbitMQ 把任务投递给指定 `device_id` 的 SmartAccess worker。
+
 ## 基础验证
 
 后端测试：

@@ -1,7 +1,10 @@
 """SmartAccess 路由测试。"""
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
+from app.api.routes import smartaccess
 from main import app
 
 
@@ -49,6 +52,31 @@ def test_publish_and_list_smartaccess_template(fake_smartaccess_service) -> None
         item["template_id"] == "tpl_weixin"
         for item in list_response.json()["items"]
     )
+
+
+def test_smartaccess_routes_require_bearer_token_when_configured(
+    fake_smartaccess_service,
+    monkeypatch,
+) -> None:
+    """验证配置 SmartAccess API Token 后路由需要 Bearer Token。"""
+    monkeypatch.setattr(
+        smartaccess,
+        "get_settings",
+        lambda: SimpleNamespace(
+            smartaccess=SimpleNamespace(api_token="dev-smartaccess-token")
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+
+    rejected_response = client.get("/api/smartaccess/templates")
+    accepted_response = client.get(
+        "/api/smartaccess/templates",
+        headers={"Authorization": "Bearer dev-smartaccess-token"},
+    )
+
+    assert rejected_response.status_code == 401
+    assert accepted_response.status_code == 200
 
 
 def test_create_smartaccess_run_and_append_event(fake_smartaccess_service) -> None:

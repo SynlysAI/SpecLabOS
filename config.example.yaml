@@ -16,6 +16,9 @@ auth:
   user_mongo_uri: <SAME_AS_AI4MS_MONGODB_URI>
   user_database: ai4ms
 
+smartaccess:
+  api_token: dev-smartaccess-token
+
 rabbitmq:
   host: 127.0.0.1
   port: 5672
