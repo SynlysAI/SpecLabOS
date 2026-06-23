@@ -1,6 +1,7 @@
 """SmartAccess 服务测试。"""
 
 import pytest
+from fastapi import HTTPException
 
 from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.schemas.smartaccess import (
@@ -147,3 +148,91 @@ def test_append_event_updates_run_status(fake_database) -> None:
 
     stored = fake_database["smartaccess_runs"].find_one({"run_id": run["run_id"]})
     assert stored["status"] == "running"
+
+
+def test_append_event_rejects_missing_run(fake_database) -> None:
+    """验证不存在的运行不会接收事件回传。"""
+    service = SmartAccessService(
+        repository=SmartAccessRepository(fake_database),
+        publisher=FakePublisher(),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        service.append_event(
+            "missing-run",
+            SmartAccessRunEventRequest(
+                event_id="evt-missing-run",
+                event_type="run.started",
+                status="running",
+                payload={},
+            ),
+        )
+
+    assert getattr(exc_info.value, "status_code", None) == 404
+    assert fake_database["smartaccess_run_events"].count_documents({}) == 0
+
+
+def test_append_event_is_idempotent_per_run(fake_database) -> None:
+    """验证不同运行可复用事件 ID 且只更新各自状态。"""
+    service = SmartAccessService(
+        repository=SmartAccessRepository(fake_database),
+        publisher=FakePublisher(),
+    )
+    service.publish_template(
+        SmartAccessTemplatePublishRequest(
+            template_id="tpl_same_event",
+            template_version="1.0.0",
+            workflow_id="wf_weixin",
+            name="微信流程",
+            anchor_profile="weixin",
+            source_device_id="weixin",
+            published_by="smartaccess",
+            workflow=_workflow_payload(),
+        )
+    )
+    first_run = service.create_run(
+        SmartAccessRunCreateRequest(
+            template_id="tpl_same_event",
+            template_version="1.0.0",
+            device_id="weixin",
+            requested_by="admin",
+        )
+    )
+    second_run = service.create_run(
+        SmartAccessRunCreateRequest(
+            template_id="tpl_same_event",
+            template_version="1.0.0",
+            device_id="weixin",
+            requested_by="admin",
+        )
+    )
+
+    first_event = service.append_event(
+        first_run["run_id"],
+        SmartAccessRunEventRequest(
+            event_id="evt-shared",
+            event_type="run.started",
+            status="running",
+            payload={},
+        ),
+    )
+    second_event = service.append_event(
+        second_run["run_id"],
+        SmartAccessRunEventRequest(
+            event_id="evt-shared",
+            event_type="run.completed",
+            status="completed",
+            payload={},
+        ),
+    )
+
+    assert first_event["run_id"] == first_run["run_id"]
+    assert second_event["run_id"] == second_run["run_id"]
+    first_stored = fake_database["smartaccess_runs"].find_one(
+        {"run_id": first_run["run_id"]}
+    )
+    second_stored = fake_database["smartaccess_runs"].find_one(
+        {"run_id": second_run["run_id"]}
+    )
+    assert first_stored["status"] == "running"
+    assert second_stored["status"] == "completed"

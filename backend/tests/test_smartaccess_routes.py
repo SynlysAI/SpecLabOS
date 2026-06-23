@@ -101,6 +101,23 @@ def test_create_smartaccess_run_and_append_event() -> None:
     assert detail_response.json()["status"] == "running"
 
 
+def test_append_smartaccess_event_rejects_missing_run() -> None:
+    """验证不存在的 SmartAccess 运行事件回传返回 404。"""
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/smartaccess/runs/missing-run/events",
+        json={
+            "event_id": "evt-route-missing-run",
+            "event_type": "run.started",
+            "status": "running",
+            "payload": {},
+        },
+    )
+
+    assert response.status_code == 404
+
+
 def test_unified_workflow_runs_include_smartaccess_source() -> None:
     """验证统一任务列表包含 SmartAccess 来源。"""
     client = TestClient(app)

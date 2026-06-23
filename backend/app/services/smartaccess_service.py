@@ -2,7 +2,10 @@
 
 from fastapi import HTTPException
 
-from app.repositories.smartaccess_repository import SmartAccessRepository
+from app.repositories.smartaccess_repository import (
+    SmartAccessRepository,
+    SmartAccessRunNotFoundError,
+)
 from app.schemas.smartaccess import (
     SmartAccessRunCreateRequest,
     SmartAccessRunEventRequest,
@@ -251,4 +254,10 @@ class SmartAccessService:
         Returns:
             事件记录。
         """
-        return self._repository.append_event(run_id, payload)
+        try:
+            return self._repository.append_event(run_id, payload)
+        except SmartAccessRunNotFoundError as exc:
+            raise HTTPException(
+                status_code=404,
+                detail="SmartAccess 运行不存在",
+            ) from exc

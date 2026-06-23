@@ -19,6 +19,10 @@ def _now_text() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+class SmartAccessRunNotFoundError(Exception):
+    """SmartAccess 运行不存在错误。"""
+
+
 class SmartAccessRepository:
     """SmartAccess 模板、运行和事件 MongoDB 仓储。"""
 
@@ -215,7 +219,12 @@ class SmartAccessRepository:
         Returns:
             事件记录。
         """
-        existing = self._events.find_one({"event_id": payload.event_id})
+        if self._runs.find_one({"run_id": run_id}) is None:
+            raise SmartAccessRunNotFoundError("SmartAccess 运行不存在")
+
+        existing = self._events.find_one(
+            {"run_id": run_id, "event_id": payload.event_id}
+        )
         if existing:
             return existing
         event = {
