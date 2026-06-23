@@ -176,6 +176,31 @@ class SmartAccessRepository:
         self._runs.insert_one(record)
         return dict(record)
 
+    def list_runs(self) -> list[dict]:
+        """查询 SmartAccess 运行列表。
+
+        Returns:
+            运行记录列表。
+        """
+        return list(self._runs.find({}).sort("requested_at", -1))
+
+    def get_run(self, run_id: str) -> dict | None:
+        """读取 SmartAccess 运行详情。
+
+        Args:
+            run_id: 平台运行 ID。
+
+        Returns:
+            运行记录，不存在时返回 None。
+        """
+        record = self._runs.find_one({"run_id": run_id})
+        if record is None:
+            return None
+        record["events"] = list(
+            self._events.find({"run_id": run_id}).sort("created_at", 1)
+        )
+        return record
+
     def append_event(
         self,
         run_id: str,
