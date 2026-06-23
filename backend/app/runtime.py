@@ -5,11 +5,14 @@ from functools import lru_cache
 from app.core.mongo import get_database
 from app.devices.factories import build_default_devices
 from app.devices.registry import DeviceRegistry
+from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.repositories.workflow_repository import WorkflowRepository
 from app.runners.device_lock_manager import DeviceLockManager
 from app.runners.workflow_dispatcher import WorkflowDispatcher
 from app.runners.workflow_runner import WorkflowRunner
 from app.services.device_service import DeviceService
+from app.services.smartaccess_mq import SmartAccessNullPublisher
+from app.services.smartaccess_service import SmartAccessService
 
 
 @lru_cache(maxsize=1)
@@ -31,6 +34,27 @@ def get_device_service() -> DeviceService:
 def get_workflow_repository() -> WorkflowRepository:
     """构建并缓存全局工作流仓储。"""
     return WorkflowRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_repository() -> SmartAccessRepository:
+    """构建并缓存 SmartAccess 仓储。"""
+    return SmartAccessRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_publisher() -> SmartAccessNullPublisher:
+    """构建并缓存 SmartAccess MQ 发布器。"""
+    return SmartAccessNullPublisher()
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_service() -> SmartAccessService:
+    """构建并缓存 SmartAccess 服务。"""
+    return SmartAccessService(
+        repository=get_smartaccess_repository(),
+        publisher=get_smartaccess_publisher(),
+    )
 
 
 @lru_cache(maxsize=1)

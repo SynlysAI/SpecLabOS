@@ -51,6 +51,7 @@ class WorkflowRunItem(BaseModel):
     current_step_index: int = 0
     total_steps: int = 0
     started_at: str = "--"
+    source: str = "speclabos"
 
 
 class WorkflowRunListResponse(BaseModel):
@@ -83,6 +84,11 @@ class WorkflowRunDetailResponse(BaseModel):
     finished_at: str = ""
     trigger_source: str = "manual"
     operator_name: str = "system"
+    source: str = "speclabos"
+    template_id: str = ""
+    template_version: str = ""
+    anchor_profile: str = ""
+    events: list[dict] = Field(default_factory=list)
     steps: list[WorkflowRunStepItem] = Field(default_factory=list)
 
 
