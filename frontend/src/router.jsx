@@ -7,6 +7,7 @@ import AppShell from "./layout/AppShell";
 const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
 const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
 const SmartAccessTemplatesPage = lazy(() => import("./pages/SmartAccessTemplatesPage"));
+const SmartAccessRunsPage = lazy(() => import("./pages/SmartAccessRunsPage"));
 const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage"));
 const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage"));
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
@@ -116,6 +117,14 @@ export const router = createBrowserRouter([
       {
         path: "smartaccess/templates",
         element: withSuspense(<SmartAccessTemplatesPage />)
+      },
+      {
+        path: "smartaccess/runs",
+        element: withSuspense(<SmartAccessRunsPage />)
+      },
+      {
+        path: "smartaccess/runs/:runId",
+        element: withSuspense(<WorkflowRunDetailPage />)
       },
       { path: "runs", element: withSuspense(<WorkflowRunsPage />) },
       {

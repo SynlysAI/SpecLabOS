@@ -47,6 +47,8 @@ class WorkflowRunItem(BaseModel):
     run_id: str
     workflow_name: str
     device_key: str = ""
+    smartaccess_node_id: str = ""
+    target_device_id: str = ""
     status: str = "pending"
     current_step_index: int = 0
     total_steps: int = 0

@@ -24,11 +24,6 @@ const MENU_ITEMS = [
     label: "工作流编排"
   },
   {
-    key: "/smartaccess/templates",
-    icon: <CloudServerOutlined />,
-    label: "SmartAccess 模板"
-  },
-  {
     key: "/runs",
     icon: <AppstoreOutlined />,
     label: "任务运行"
@@ -37,6 +32,21 @@ const MENU_ITEMS = [
     key: "/logs",
     icon: <FileSearchOutlined />,
     label: "设备日志"
+  },
+  {
+    key: "/smartaccess",
+    icon: <CloudServerOutlined />,
+    label: "SmartAccess",
+    children: [
+      {
+        key: "/smartaccess/templates",
+        label: "工作流模板"
+      },
+      {
+        key: "/smartaccess/runs",
+        label: "任务运行"
+      }
+    ]
   },
   {
     key: "/tools",

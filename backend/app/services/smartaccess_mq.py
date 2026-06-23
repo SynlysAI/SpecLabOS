@@ -36,13 +36,20 @@ class SmartAccessRabbitMQPublisher:
         Args:
             payload: 运行请求消息。
         """
-        device_id = str(payload["device_id"])
-        routing_key = f"device.{device_id}.run.requested"
+        smartaccess_node_id = str(payload["smartaccess_node_id"])
+        routing_key = f"device.{smartaccess_node_id}.run.requested"
+        queue_name = f"smartaccess.device.{smartaccess_node_id}.commands"
         channel = self._channel_factory()
         channel.exchange_declare(
             exchange="smartaccess.commands",
             exchange_type="topic",
             durable=True,
+        )
+        channel.queue_declare(queue=queue_name, durable=True)
+        channel.queue_bind(
+            exchange="smartaccess.commands",
+            queue=queue_name,
+            routing_key=routing_key,
         )
         channel.basic_publish(
             exchange="smartaccess.commands",

@@ -10,6 +10,7 @@ import {
   Select,
   Space,
   Table,
+  Typography,
   message,
 } from "antd";
 import { PlayCircleOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -21,6 +22,8 @@ import {
   fetchSmartAccessTemplateDetail,
   fetchSmartAccessTemplates,
 } from "../services/smartaccessApi";
+
+const { Text } = Typography;
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
@@ -55,7 +58,20 @@ function formatJson(value) {
  *     模板携带的默认设备标识。
  */
 function resolveDefaultDevice(detail) {
-  return detail?.source_device_id || detail?.anchor_profile || "";
+  return detail?.anchor_profile || "";
+}
+
+/**
+ * 解析默认 SmartAccess 执行端电脑 ID。
+ *
+ * Args:
+ *     detail: 模板详情。
+ *
+ * Returns:
+ *     模板来源 SmartAccess 节点标识。
+ */
+function resolveDefaultNode(detail) {
+  return detail?.source_device_id || "";
 }
 
 /**
@@ -76,6 +92,12 @@ export default function SmartAccessTemplatesPage() {
   const [loadFailed, setLoadFailed] = useState(false);
 
   const columns = [
+    {
+      title: "执行端",
+      dataIndex: "source_device_id",
+      key: "source_device_id",
+      render: (value) => value || "--",
+    },
     { title: "模板 ID", dataIndex: "template_id", key: "template_id" },
     { title: "版本", dataIndex: "template_version", key: "template_version" },
     { title: "工作流", dataIndex: "name", key: "name" },
@@ -83,7 +105,7 @@ export default function SmartAccessTemplatesPage() {
       title: "绑定设备",
       dataIndex: "anchor_profile",
       key: "anchor_profile",
-      render: (value, record) => value || record.source_device_id || "--",
+      render: (value) => value || "--",
     },
     {
       title: "状态",
@@ -125,14 +147,20 @@ export default function SmartAccessTemplatesPage() {
     setDrawerOpen(true);
     setDetailLoading(true);
     setDetail(record);
-    runForm.setFieldsValue({ device_id: resolveDefaultDevice(record) });
+    runForm.setFieldsValue({
+      smartaccess_node_id: resolveDefaultNode(record),
+      target_device_id: resolveDefaultDevice(record),
+    });
     try {
       const data = await fetchSmartAccessTemplateDetail(
         record.template_id,
         record.template_version
       );
       setDetail(data);
-      runForm.setFieldsValue({ device_id: resolveDefaultDevice(data) });
+      runForm.setFieldsValue({
+        smartaccess_node_id: resolveDefaultNode(data),
+        target_device_id: resolveDefaultDevice(data),
+      });
     } catch (error) {
       message.error("模板详情加载失败");
     } finally {
@@ -151,11 +179,11 @@ export default function SmartAccessTemplatesPage() {
 
     setSubmitting(true);
     try {
-      const deviceId = values.device_id || resolveDefaultDevice(detail);
       await createSmartAccessRun({
         template_id: detail.template_id,
         template_version: detail.template_version,
-        device_id: deviceId,
+        smartaccess_node_id: values.smartaccess_node_id || resolveDefaultNode(detail),
+        target_device_id: values.target_device_id || resolveDefaultDevice(detail),
         requested_by: "web",
       });
       message.success("SmartAccess 运行已发起");
@@ -182,8 +210,13 @@ export default function SmartAccessTemplatesPage() {
   return (
     <section className="page-section">
       <PageToolbar />
+      <div style={{ marginBottom: 16 }}>
+        <Text type="secondary">
+          SmartAccess 工作流模板管理，由 SmartAccess 桌面端发布，可在平台查看模板版本并远程发起运行。
+        </Text>
+      </div>
       <Card
-        title="SmartAccess 模板"
+        title="工作流模板"
         extra={
           <Form form={filterForm} layout="inline" onFinish={loadTemplates}>
             <Form.Item name="keyword" style={{ marginBottom: 0 }}>
@@ -256,7 +289,10 @@ export default function SmartAccessTemplatesPage() {
               <StatusTag status={detail?.status} />
             </Descriptions.Item>
             <Descriptions.Item label="绑定设备">
-              {detail?.anchor_profile || detail?.source_device_id || "--"}
+              {detail?.anchor_profile || "--"}
+            </Descriptions.Item>
+            <Descriptions.Item label="发布执行端">
+              {detail?.source_device_id || "--"}
             </Descriptions.Item>
             <Descriptions.Item label="步骤数">
               {detail?.step_count ?? detail?.workflow?.steps?.length ?? "--"}
@@ -267,11 +303,18 @@ export default function SmartAccessTemplatesPage() {
           </Descriptions>
           <Form form={runForm} layout="vertical" onFinish={submitRun}>
             <Form.Item
-              label="目标设备"
-              name="device_id"
-              rules={[{ required: true, message: "请输入目标设备" }]}
+              label="SmartAccess 执行端电脑"
+              name="smartaccess_node_id"
+              rules={[{ required: true, message: "请输入 SmartAccess 执行端电脑 ID" }]}
             >
-              <Input placeholder="输入目标设备标识" />
+              <Input placeholder="例如 lab-pc-01" />
+            </Form.Item>
+            <Form.Item
+              label="目标设备/软件"
+              name="target_device_id"
+              rules={[{ required: true, message: "请输入目标设备或软件标识" }]}
+            >
+              <Input placeholder="例如 vpn软件、weixin" />
             </Form.Item>
             <Button
               type="primary"

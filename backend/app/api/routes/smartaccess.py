@@ -90,9 +90,22 @@ def create_run(payload: SmartAccessRunCreateRequest) -> SmartAccessRunCreateResp
 
 
 @router.get("/runs", response_model=SmartAccessRunListResponse)
-def list_runs() -> SmartAccessRunListResponse:
+def list_runs(
+    keyword: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+) -> SmartAccessRunListResponse:
     """查询 SmartAccess 运行列表。"""
-    return SmartAccessRunListResponse(items=get_smartaccess_service().list_runs())
+    records = get_smartaccess_service().list_runs()
+    if keyword:
+        needle = keyword.lower()
+        records = [
+            item for item in records
+            if needle in item.get("run_id", "").lower()
+            or needle in item.get("workflow_name", "").lower()
+        ]
+    if status:
+        records = [item for item in records if item.get("status") == status]
+    return SmartAccessRunListResponse(items=records)
 
 
 @router.get("/runs/{run_id}")

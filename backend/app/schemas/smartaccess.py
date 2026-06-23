@@ -52,7 +52,8 @@ class SmartAccessRunCreateRequest(BaseModel):
 
     template_id: str
     template_version: str
-    device_id: str
+    smartaccess_node_id: str
+    target_device_id: str
     requested_by: str = "system"
 
 
@@ -80,6 +81,8 @@ class SmartAccessRunItem(BaseModel):
     run_id: str
     workflow_name: str = ""
     device_key: str = ""
+    smartaccess_node_id: str = ""
+    target_device_id: str = ""
     status: str = "queued"
     current_step_index: int = 0
     total_steps: int = 0

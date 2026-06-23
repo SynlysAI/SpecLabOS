@@ -21,22 +21,22 @@ class FakeChannel:
     def __init__(self) -> None:
         """初始化 channel。"""
         self.declared = []
+        self.bound = []
         self.published = []
 
     def exchange_declare(self, **kwargs) -> None:
-        """记录 exchange 声明。
-
-        Args:
-            kwargs: exchange 声明参数。
-        """
+        """记录 exchange 声明。"""
         self.declared.append(kwargs)
 
-    def basic_publish(self, **kwargs) -> None:
-        """记录发布消息。
+    def queue_declare(self, **kwargs) -> None:
+        """记录队列声明（测试中不阻塞）。"""
 
-        Args:
-            kwargs: 消息发布参数。
-        """
+    def queue_bind(self, **kwargs) -> None:
+        """记录队列绑定。"""
+        self.bound.append(kwargs)
+
+    def basic_publish(self, **kwargs) -> None:
+        """记录发布消息。"""
         self.published.append(kwargs)
 
 
@@ -81,15 +81,18 @@ def test_rabbitmq_publisher_routes_to_device_queue() -> None:
     channel = FakeChannel()
     publisher = SmartAccessRabbitMQPublisher(channel_factory=lambda: channel)
 
-    publisher.publish_run_requested({"device_id": "weixin", "run_id": "sa_run_1"})
+    publisher.publish_run_requested(
+        {"smartaccess_node_id": "weixin", "run_id": "sa_run_1"}
+    )
 
     assert channel.declared[0]["exchange"] == "smartaccess.commands"
     assert channel.declared[0]["exchange_type"] == "topic"
     assert channel.declared[0]["durable"] is True
+    assert channel.bound[0]["routing_key"] == "device.weixin.run.requested"
     assert channel.published[0]["routing_key"] == "device.weixin.run.requested"
     assert channel.published[0]["exchange"] == "smartaccess.commands"
     assert json.loads(channel.published[0]["body"].decode("utf-8")) == {
-        "device_id": "weixin",
+        "smartaccess_node_id": "weixin",
         "run_id": "sa_run_1",
     }
     assert channel.published[0]["properties"].content_type == "application/json"
@@ -146,13 +149,14 @@ def test_create_run_publishes_device_message(fake_database) -> None:
         SmartAccessRunCreateRequest(
             template_id="tpl_weixin",
             template_version="1.0.0",
-            device_id="weixin",
+            smartaccess_node_id="weixin",
+            target_device_id="weixin",
             requested_by="admin",
         )
     )
 
     assert run["status"] == "queued"
-    assert run["device_id"] == "weixin"
+    assert run["smartaccess_node_id"] == "weixin"
     assert publisher.messages[0]["run_id"] == run["run_id"]
     assert publisher.messages[0]["workflow"]["metadata"]["workflow_id"] == "wf_weixin"
 
@@ -179,7 +183,8 @@ def test_append_event_updates_run_status(fake_database) -> None:
         SmartAccessRunCreateRequest(
             template_id="tpl_weixin",
             template_version="1.0.0",
-            device_id="weixin",
+            smartaccess_node_id="weixin",
+            target_device_id="weixin",
             requested_by="admin",
         )
     )
@@ -242,7 +247,8 @@ def test_append_event_is_idempotent_per_run(fake_database) -> None:
         SmartAccessRunCreateRequest(
             template_id="tpl_same_event",
             template_version="1.0.0",
-            device_id="weixin",
+            smartaccess_node_id="weixin",
+            target_device_id="weixin",
             requested_by="admin",
         )
     )
@@ -250,7 +256,8 @@ def test_append_event_is_idempotent_per_run(fake_database) -> None:
         SmartAccessRunCreateRequest(
             template_id="tpl_same_event",
             template_version="1.0.0",
-            device_id="weixin",
+            smartaccess_node_id="weixin",
+            target_device_id="weixin",
             requested_by="admin",
         )
     )

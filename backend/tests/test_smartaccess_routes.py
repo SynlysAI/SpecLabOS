@@ -101,7 +101,8 @@ def test_create_smartaccess_run_and_append_event(fake_smartaccess_service) -> No
         json={
             "template_id": "tpl_weixin_run",
             "template_version": "1.0.0",
-            "device_id": "weixin",
+            "smartaccess_node_id": "weixin",
+            "target_device_id": "weixin",
             "requested_by": "admin",
         },
     )
@@ -169,7 +170,8 @@ def test_unified_workflow_runs_include_smartaccess_source(
         json={
             "template_id": "tpl_weixin_list",
             "template_version": "1.0.0",
-            "device_id": "weixin",
+            "smartaccess_node_id": "weixin",
+            "target_device_id": "weixin",
             "requested_by": "admin",
         },
     )

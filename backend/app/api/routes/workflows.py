@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
+from app.core.datetime_utils import format_datetime
 from app.domain.enums import WorkflowRunStatus
 from app.domain.models import WorkflowDefinitionCreate, WorkflowStepDefinition
 from app.runtime import get_smartaccess_service, get_workflow_repository
@@ -24,22 +25,6 @@ workflow_runs_router = APIRouter(prefix="/api/workflow-runs", tags=["workflow-ru
 def _get_workflow_service() -> WorkflowService:
     """构建工作流服务。"""
     return WorkflowService(get_workflow_repository())
-
-
-def _format_datetime(value) -> str:
-    """格式化运行时间字段。
-
-    Args:
-        value: 原始时间值。
-
-    Returns:
-        格式化后的时间字符串。
-    """
-    if value is None:
-        return "--"
-    if hasattr(value, "strftime"):
-        return value.strftime("%Y-%m-%d %H:%M")
-    return str(value)
 
 
 @router.get("", response_model=WorkflowListResponse)
@@ -124,7 +109,7 @@ def list_workflow_runs(
                     "status": item["status"],
                     "current_step_index": item.get("current_step_index", 0),
                     "total_steps": item.get("total_steps", 0),
-                    "started_at": _format_datetime(
+                    "started_at": format_datetime(
                         item.get("started_at") or item.get("created_at")
                     ),
                     "source": "speclabos",
@@ -178,8 +163,8 @@ def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
         status=item["status"],
         current_step_index=item.get("current_step_index", 0),
         total_steps=item.get("total_steps", 0),
-        started_at=_format_datetime(item.get("started_at") or item.get("created_at")),
-        finished_at=_format_datetime(item.get("finished_at"))
+        started_at=format_datetime(item.get("started_at") or item.get("created_at")),
+        finished_at=format_datetime(item.get("finished_at"))
         if item.get("finished_at")
         else "",
         trigger_source=item.get("trigger_source", "manual"),

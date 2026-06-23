@@ -14,7 +14,10 @@ from app.runners.device_lock_manager import DeviceLockManager
 from app.runners.workflow_dispatcher import WorkflowDispatcher
 from app.runners.workflow_runner import WorkflowRunner
 from app.services.device_service import DeviceService
-from app.services.smartaccess_mq import SmartAccessRabbitMQPublisher
+from app.services.smartaccess_mq import (
+    SmartAccessNullPublisher,
+    SmartAccessRabbitMQPublisher,
+)
 from app.services.smartaccess_service import SmartAccessService
 
 
@@ -46,8 +49,11 @@ def get_smartaccess_repository() -> SmartAccessRepository:
 
 
 @lru_cache(maxsize=1)
-def get_smartaccess_publisher() -> SmartAccessRabbitMQPublisher:
-    """构建并缓存 SmartAccess MQ 发布器。"""
+def get_smartaccess_publisher():
+    """构建并缓存 SmartAccess MQ 发布器。
+
+    当 RabbitMQ 未配置或连接失败时返回空发布器，避免启动崩溃。
+    """
     settings = get_settings()
 
     def _channel():
@@ -65,6 +71,14 @@ def get_smartaccess_publisher() -> SmartAccessRabbitMQPublisher:
         )
         return connection.channel()
 
+    try:
+        _channel().close()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning(
+            "RabbitMQ 连接失败，SmartAccess 远程任务下发不可用，已回退空发布器"
+        )
+        return SmartAccessNullPublisher()
     return SmartAccessRabbitMQPublisher(channel_factory=_channel)
 
 

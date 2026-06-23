@@ -2,6 +2,7 @@
 
 from fastapi import HTTPException
 
+from app.core.datetime_utils import format_datetime
 from app.repositories.smartaccess_repository import (
     SmartAccessRepository,
     SmartAccessRunNotFoundError,
@@ -11,22 +12,6 @@ from app.schemas.smartaccess import (
     SmartAccessRunEventRequest,
     SmartAccessTemplatePublishRequest,
 )
-
-
-def _format_datetime(value) -> str:
-    """格式化时间字段。
-
-    Args:
-        value: 原始时间值。
-
-    Returns:
-        格式化后的时间字符串。
-    """
-    if value is None:
-        return "--"
-    if hasattr(value, "strftime"):
-        return value.strftime("%Y-%m-%d %H:%M")
-    return str(value)
 
 
 def _build_steps_from_workflow(
@@ -117,7 +102,7 @@ class SmartAccessService:
 
         Args:
             keyword: 搜索关键字。
-            device_id: 设备 ID。
+            device_id: 目标设备或锚点配置 ID。
             status: 模板状态。
 
         Returns:
@@ -158,7 +143,9 @@ class SmartAccessService:
                 "run_id": run["run_id"],
                 "template_id": run["template_id"],
                 "template_version": run["template_version"],
-                "device_id": run["device_id"],
+                "device_id": run["smartaccess_node_id"],
+                "smartaccess_node_id": run["smartaccess_node_id"],
+                "target_device_id": run["target_device_id"],
                 "workflow": run["workflow_snapshot"],
                 "requested_by": run["requested_by"],
                 "requested_at": run["requested_at"],
@@ -177,11 +164,13 @@ class SmartAccessService:
             {
                 "run_id": item["run_id"],
                 "workflow_name": item.get("workflow_name", ""),
-                "device_key": item.get("device_id", ""),
+                "device_key": item.get("target_device_id", ""),
+                "smartaccess_node_id": item.get("smartaccess_node_id", ""),
+                "target_device_id": item.get("target_device_id", ""),
                 "status": item.get("status", "queued"),
                 "current_step_index": int(item.get("current_step_index") or 0),
                 "total_steps": int(item.get("total_steps") or 0),
-                "started_at": _format_datetime(
+                "started_at": format_datetime(
                     item.get("started_at") or item.get("requested_at")
                 ),
                 "source": "smartaccess",
@@ -224,10 +213,10 @@ class SmartAccessService:
             "status": record.get("status", "queued"),
             "current_step_index": int(record.get("current_step_index") or 0),
             "total_steps": int(record.get("total_steps") or 0),
-            "started_at": _format_datetime(
+            "started_at": format_datetime(
                 record.get("started_at") or record.get("requested_at")
             ),
-            "finished_at": _format_datetime(record.get("finished_at"))
+            "finished_at": format_datetime(record.get("finished_at"))
             if record.get("finished_at")
             else "",
             "trigger_source": "smartaccess",
@@ -235,6 +224,8 @@ class SmartAccessService:
             "source": "smartaccess",
             "template_id": record.get("template_id", ""),
             "template_version": record.get("template_version", ""),
+            "smartaccess_node_id": record.get("smartaccess_node_id", ""),
+            "target_device_id": record.get("target_device_id", ""),
             "anchor_profile": record.get("anchor_profile", ""),
             "events": events,
             "steps": _build_steps_from_workflow(workflow_snapshot, events),

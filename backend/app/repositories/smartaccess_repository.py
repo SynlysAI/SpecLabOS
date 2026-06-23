@@ -98,7 +98,7 @@ class SmartAccessRepository:
 
         Args:
             keyword: 搜索关键字。
-            device_id: 来源设备或锚点配置。
+            device_id: 目标设备或锚点配置。
             status: 模板状态。
 
         Returns:
@@ -108,10 +108,7 @@ class SmartAccessRepository:
         if status:
             query["status"] = status
         if device_id:
-            query["$or"] = [
-                {"source_device_id": device_id},
-                {"anchor_profile": device_id},
-            ]
+            query["anchor_profile"] = device_id
         records = list(self._templates.find(query).sort("updated_at", -1))
         if keyword:
             needle = keyword.lower()
@@ -164,7 +161,8 @@ class SmartAccessRepository:
             "template_version": payload.template_version,
             "workflow_id": template.get("workflow_id", ""),
             "workflow_name": template.get("name", ""),
-            "device_id": payload.device_id,
+            "smartaccess_node_id": payload.smartaccess_node_id,
+            "target_device_id": payload.target_device_id,
             "anchor_profile": template.get("anchor_profile", ""),
             "status": "queued",
             "current_step_index": 0,

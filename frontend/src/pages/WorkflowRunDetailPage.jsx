@@ -96,6 +96,12 @@ export default function WorkflowRunDetailPage() {
               <Descriptions.Item label="锚点配置">
                 {detail?.anchor_profile || "--"}
               </Descriptions.Item>
+              <Descriptions.Item label="SmartAccess 执行端">
+                {detail?.smartaccess_node_id || "--"}
+              </Descriptions.Item>
+              <Descriptions.Item label="目标设备/软件">
+                {detail?.target_device_id || "--"}
+              </Descriptions.Item>
               <Descriptions.Item label="当前状态">
                 <StatusTag status={detail?.status} />
               </Descriptions.Item>
@@ -119,7 +125,12 @@ export default function WorkflowRunDetailPage() {
             loading={loading}
             extra={
               <Space>
-                <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/runs")}>
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() =>
+                    navigate(isSmartAccess ? "/smartaccess/runs" : "/runs")
+                  }
+                >
                   返回列表
                 </Button>
                 <Button icon={<ReloadOutlined />} loading={loading} onClick={loadDetail}>

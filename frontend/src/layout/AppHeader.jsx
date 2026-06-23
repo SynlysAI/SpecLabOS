@@ -34,6 +34,21 @@ const HEADER_META = [
     subtitle: "检索设备事件、错误信息与关键操作记录。"
   },
   {
+    match: (pathname) => pathname.startsWith("/smartaccess/runs/"),
+    title: "SmartAccess 运行详情",
+    subtitle: "查看 SmartAccess 远程任务执行明细、步骤时间线与事件记录。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/smartaccess/templates"),
+    title: "SmartAccess 工作流模板",
+    subtitle: "管理 SmartAccess 桌面端发布的工作流模板版本，支持远程发起运行。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/smartaccess/runs"),
+    title: "SmartAccess 任务运行",
+    subtitle: "追踪 SmartAccess 远程任务运行记录、执行状态与目标设备。"
+  },
+  {
     match: (pathname) => pathname.startsWith("/tools/instruction-parser"),
     title: "树脂合成指令解析",
     subtitle: "将自然语言实验方案拆解为树脂合成设备可执行指令。"

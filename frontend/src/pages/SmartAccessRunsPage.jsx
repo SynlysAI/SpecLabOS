@@ -1,28 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
+import { Button, Card, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
+import { ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { fetchWorkflowRuns } from "../services/workflowApi";
+import { fetchSmartAccessRuns } from "../services/smartaccessApi";
+
+const { Text } = Typography;
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
   { label: "排队中", value: "queued" },
+  { label: "已接收", value: "accepted" },
   { label: "运行中", value: "running" },
   { label: "已完成", value: "success" },
   { label: "失败", value: "failed" },
   { label: "阻塞", value: "blocked" },
-  { label: "已取消", value: "cancelled" },
+  { label: "已拒绝", value: "rejected" },
 ];
 
 const columns = [
   { title: "运行编号", dataIndex: "run_id", key: "run_id" },
   { title: "工作流名称", dataIndex: "workflow_name", key: "workflow_name" },
   {
+    title: "执行端",
+    dataIndex: "smartaccess_node_id",
+    key: "smartaccess_node_id",
+    render: (value) => value || "--",
+  },
+  {
     title: "目标设备",
-    dataIndex: "device_key",
-    key: "device_key",
+    dataIndex: "target_device_id",
+    key: "target_device_id",
     render: (value) => value || "--",
   },
   {
@@ -41,43 +51,35 @@ const columns = [
 ];
 
 function normalizeRuns(items) {
-  return items.map((item, index) => ({
-    run_id: item.run_id || item.id || `run-${index}`,
-    workflow_name: item.workflow_name || item.workflow?.name || "未命名工作流",
-    device_key: item.device_key || "--",
-    status: item.status || "idle",
+  return items.map((item) => ({
+    run_id: item.run_id || item.id || "--",
+    workflow_name: item.workflow_name || "未命名工作流",
+    smartaccess_node_id: item.smartaccess_node_id || "--",
+    target_device_id: item.target_device_id || "--",
+    status: item.status || "queued",
     current_step_index: item.current_step_index || 0,
-    total_steps: item.total_steps || item.steps?.length || 0,
+    total_steps: item.total_steps || 0,
     started_at: item.started_at || "--",
   }));
 }
 
 /**
- * 任务运行页。
+ * SmartAccess 任务运行页。
  *
  * Returns:
- *     展示运行记录表格与基础筛选栏。
+ *     SmartAccess 远程运行记录表格与筛选栏。
  */
-export default function WorkflowRunsPage() {
+export default function SmartAccessRunsPage() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
 
-  /**
-   * 加载运行记录列表。
-   *
-   * Args:
-   *     filters: 当前筛选条件。
-   *
-   * Returns:
-   *     无返回值。
-   */
   async function loadRuns(filters = form.getFieldsValue()) {
     setLoading(true);
     try {
-      const items = await fetchWorkflowRuns({ ...filters, source: "speclabos" });
+      const items = await fetchSmartAccessRuns(filters);
       setRuns(normalizeRuns(items));
       setLoadFailed(false);
     } catch (error) {
@@ -96,8 +98,13 @@ export default function WorkflowRunsPage() {
   return (
     <section className="page-section">
       <PageToolbar />
+      <div style={{ marginBottom: 16 }}>
+        <Text type="secondary">
+          SmartAccess 远程任务运行记录，由 SpecLabOS 发起并下发到指定执行端电脑执行。
+        </Text>
+      </div>
       <Card
-        title="运行记录列表"
+        title="SmartAccess 任务运行"
         extra={
           <Form form={form} layout="inline" onFinish={loadRuns}>
             <Form.Item name="keyword" style={{ marginBottom: 0 }}>
@@ -112,6 +119,7 @@ export default function WorkflowRunsPage() {
                   查询
                 </Button>
                 <Button
+                  icon={<ReloadOutlined />}
                   onClick={() => {
                     form.resetFields();
                     form.setFieldsValue({ keyword: "", status: "all" });
@@ -135,12 +143,12 @@ export default function WorkflowRunsPage() {
             emptyText: loadFailed ? (
               <Empty description="运行记录接口暂不可用" />
             ) : (
-              <Empty description="暂无任务运行记录" />
+              <Empty description="暂无 SmartAccess 任务运行记录" />
             ),
           }}
           onRow={(record) => ({
-            onClick: () => navigate(`/runs/${record.run_id}`),
-            style: { cursor: "pointer" }
+            onClick: () => navigate(`/smartaccess/runs/${record.run_id}`),
+            style: { cursor: "pointer" },
           })}
         />
       </Card>

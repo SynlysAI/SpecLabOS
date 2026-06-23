@@ -56,10 +56,12 @@ SpecLabOS 提供独立的 SmartAccess 模板中心，用于接收 SmartAccess �
 - 模板查看入口：前端“SmartAccess 模板”页
 - 运行状态回传：`POST /api/smartaccess/runs/{run_id}/events`
 - RabbitMQ exchange：`smartaccess.commands`
-- RabbitMQ routing key：`device.{device_id}.run.requested`
-- 设备队列建议：`smartaccess.device.{device_id}.commands`
+- RabbitMQ routing key：`device.{smartaccess_node_id}.run.requested`
+- 设备队列建议：`smartaccess.device.{smartaccess_node_id}.commands`
 
-`config.yaml` 中配置 `smartaccess.api_token` 后，SmartAccess HTTP 接口会要求请求携带 `Authorization: Bearer <token>`。平台发起运行时，后端创建 `smartaccess_runs` 记录，并通过 RabbitMQ 把任务投递给指定 `device_id` 的 SmartAccess worker。
+`config.yaml` 中配置 `smartaccess.api_token` 后，SmartAccess HTTP 接口会要求请求携带 `Authorization: Bearer <token>`。平台发起运行时，后端创建 `smartaccess_runs` 记录，并通过 RabbitMQ 把任务投递给指定 `smartaccess_node_id` 的 SmartAccess worker。
+
+`smartaccess_node_id` 表示安装并运行 SmartAccess worker 的执行端电脑 ID；`target_device_id` 表示该电脑控制的目标设备或目标软件，例如 `vpn软件`、`weixin`。任务运行列表中的“目标设备”展示 `target_device_id`，“执行端”展示 `smartaccess_node_id`。
 
 ## 基础验证
 
