@@ -38,6 +38,20 @@ export async function fetchSmartAccessTemplateDetail(templateId, templateVersion
 }
 
 /**
+ * 删除 SmartAccess 模板。
+ *
+ * Args:
+ *     templateId: 模板 ID。
+ *     templateVersion: 模板版本。
+ */
+export async function deleteSmartAccessTemplate(templateId, templateVersion) {
+  const response = await http.delete(
+    `/api/smartaccess/templates/${templateId}/versions/${templateVersion}`
+  );
+  return response.data;
+}
+
+/**
  * 发起 SmartAccess 远程运行。
  *
  * Args:

@@ -7,18 +7,20 @@ import {
   Empty,
   Form,
   Input,
+  Modal,
   Select,
   Space,
   Table,
   Typography,
   message,
 } from "antd";
-import { PlayCircleOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlayCircleOutlined, ReloadOutlined } from "@ant-design/icons";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import {
   createSmartAccessRun,
+  deleteSmartAccessTemplate,
   fetchSmartAccessTemplateDetail,
   fetchSmartAccessTemplates,
 } from "../services/smartaccessApi";
@@ -115,6 +117,24 @@ export default function SmartAccessTemplatesPage() {
     },
     { title: "步骤数", dataIndex: "step_count", key: "step_count" },
     { title: "发布时间", dataIndex: "published_at", key: "published_at" },
+    {
+      title: "操作",
+      key: "actions",
+      render: (_, record) => (
+        <Button
+          type="link"
+          danger
+          size="small"
+          icon={<DeleteOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDelete(record);
+          }}
+        >
+          删除
+        </Button>
+      ),
+    },
   ];
 
   /**
@@ -192,6 +212,31 @@ export default function SmartAccessTemplatesPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  /**
+   * 删除模板。
+   *
+   * Args:
+   *     record: 模板记录。
+   */
+  function handleDelete(record) {
+    Modal.confirm({
+      title: "确认删除",
+      content: `确定要删除模板 ${record.template_id}@${record.template_version} 吗？`,
+      okText: "确认删除",
+      okType: "danger",
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await deleteSmartAccessTemplate(record.template_id, record.template_version);
+          message.success("模板已删除");
+          loadTemplates();
+        } catch {
+          message.error("模板删除失败");
+        }
+      },
+    });
   }
 
   useEffect(() => {

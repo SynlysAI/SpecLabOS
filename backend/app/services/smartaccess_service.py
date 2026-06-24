@@ -108,7 +108,10 @@ class SmartAccessService:
         Returns:
             模板列表。
         """
-        return self._repository.list_templates(keyword, device_id, status)
+        records = self._repository.list_templates(keyword, device_id, status)
+        for item in records:
+            item["published_at"] = format_datetime(item.get("published_at"))
+        return records
 
     def get_template(self, template_id: str, template_version: str) -> dict:
         """读取模板详情。
@@ -123,7 +126,18 @@ class SmartAccessService:
         template = self._repository.get_template(template_id, template_version)
         if template is None:
             raise HTTPException(status_code=404, detail="SmartAccess 模板不存在")
+        template["published_at"] = format_datetime(template.get("published_at"))
         return template
+
+    def delete_template(self, template_id: str, template_version: str) -> None:
+        """删除 SmartAccess 模板。
+
+        Args:
+            template_id: 模板 ID。
+            template_version: 模板版本。
+        """
+        if not self._repository.delete_template(template_id, template_version):
+            raise HTTPException(status_code=404, detail="SmartAccess 模板不存在")
 
     def create_run(self, payload: SmartAccessRunCreateRequest) -> dict:
         """创建 SmartAccess 远程运行并发布 MQ 消息。

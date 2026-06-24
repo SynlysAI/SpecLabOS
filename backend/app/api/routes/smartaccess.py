@@ -79,6 +79,16 @@ def get_template(
     )
 
 
+@router.delete("/templates/{template_id}/versions/{template_version}")
+def delete_template(
+    template_id: str,
+    template_version: str,
+) -> dict:
+    """删除 SmartAccess 模板。"""
+    get_smartaccess_service().delete_template(template_id, template_version)
+    return {"detail": "模板已删除"}
+
+
 @router.post("/runs", response_model=SmartAccessRunCreateResponse)
 def create_run(payload: SmartAccessRunCreateRequest) -> SmartAccessRunCreateResponse:
     """创建 SmartAccess 远程运行。"""

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Descriptions, Empty, List, Row, Space, Typography } from "antd";
+import { Button, Card, Col, Descriptions, Empty, List, Modal, Row, Space, Typography } from "antd";
 import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -23,7 +23,7 @@ const SMARTACCESS_EVENT_LABELS = {
   "run.failed": "运行失败",
   "run.cancelled": "运行取消",
   "step.started": "步骤开始",
-  "step.updated": "OCR 观察",
+  "step.updated": "步骤观察",
   "step.completed": "步骤完成",
 };
 
@@ -82,6 +82,26 @@ function formatEventTime(event) {
 }
 
 /**
+ * 将事件数据格式化为 JSON 文本。
+ *
+ * Args:
+ *     value: 事件数据。
+ *
+ * Returns:
+ *     格式化后的展示文本。
+ */
+function formatEventJson(value) {
+  if (value === undefined || value === null) {
+    return "暂无事件数据";
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+/**
  * 提取事件附加摘要：OCR 观察、错误信息或 detail 文本。
  *
  * Args:
@@ -95,11 +115,13 @@ function formatEventDetail(event) {
   const trace = payload?.trace || {};
   const eventType = event?.event_type || "";
   if (eventType === "step.updated" && (trace.expected_text !== undefined || trace.actual_text !== undefined)) {
-    const matched = trace.matched ? "匹配" : "不匹配";
-    const confidence = trace.confidence !== undefined && trace.confidence !== null
-      ? `，置信度 ${trace.confidence}`
-      : "";
-    return `期望 "${trace.expected_text ?? ""}" / 实际 "${trace.actual_text ?? ""}"（${matched}${confidence}）`;
+    const rule = `${trace.match_mode || "contains"} ${trace.expected_text ?? ""}`.trim();
+    return [
+      rule ? `OCR规则: ${rule}` : "",
+      `OCR实际: ${trace.actual_text ?? ""}`,
+      `匹配: ${trace.matched}`,
+      trace.attempts !== undefined ? `尝试: ${trace.attempts}` : "",
+    ].filter(Boolean).join(" / ");
   }
   const error = payload?.error || trace?.error || "";
   if (error) return `错误：${error}`;
@@ -119,6 +141,7 @@ export default function WorkflowRunDetailPage() {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const isSmartAccess = detail?.source === "smartaccess";
 
   /**
@@ -229,11 +252,20 @@ export default function WorkflowRunDetailPage() {
                   return (
                     <List.Item>
                       <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                        <Space wrap>
-                          <StatusTag status={event?.status || event?.level || "info"} />
-                          <Text strong>
-                            {stepName ? `${stepName} · ` : ""}{formatEventLabel(event)}
-                          </Text>
+                        <Space style={{ justifyContent: "space-between", width: "100%" }} wrap>
+                          <Space wrap>
+                            <StatusTag status={event?.status || event?.level || "info"} />
+                            <Text strong>
+                              {stepName ? `${stepName} · ` : ""}{formatEventLabel(event)}
+                            </Text>
+                          </Space>
+                          <Button
+                            type="link"
+                            size="small"
+                            onClick={() => setSelectedEvent(event)}
+                          >
+                            查看数据
+                          </Button>
                         </Space>
                         <Text type="secondary">{formatEventTime(event)}</Text>
                         {detailText ? (
@@ -253,6 +285,29 @@ export default function WorkflowRunDetailPage() {
           </Card>
         </Col>
       </Row>
+      <Modal
+        title="事件数据"
+        open={Boolean(selectedEvent)}
+        footer={null}
+        onCancel={() => setSelectedEvent(null)}
+        width={760}
+      >
+        <pre
+          style={{
+            margin: 0,
+            padding: 16,
+            borderRadius: 12,
+            background: "#f7f8fc",
+            overflowX: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          {formatEventJson(selectedEvent)}
+        </pre>
+      </Modal>
     </section>
   );
 }

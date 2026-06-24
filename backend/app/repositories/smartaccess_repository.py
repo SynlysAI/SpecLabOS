@@ -140,6 +140,21 @@ class SmartAccessRepository:
             {"template_id": template_id, "template_version": template_version}
         )
 
+    def delete_template(self, template_id: str, template_version: str) -> bool:
+        """删除指定模板版本。
+
+        Args:
+            template_id: 模板 ID。
+            template_version: 模板版本。
+
+        Returns:
+            是否成功删除。
+        """
+        result = self._templates.delete_one(
+            {"template_id": template_id, "template_version": template_version}
+        )
+        return result.deleted_count > 0
+
     def create_run(
         self,
         template: dict,

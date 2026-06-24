@@ -174,8 +174,8 @@ def get_workflow_run_detail(run_id: str) -> WorkflowRunDetailResponse:
             {
                 "name": step["display_name"],
                 "status": step["status"],
-                "started_at": step.get("started_at", "") or "",
-                "finished_at": step.get("finished_at", "") or "",
+                "started_at": format_datetime(step.get("started_at")) if step.get("started_at") else "",
+                "finished_at": format_datetime(step.get("finished_at")) if step.get("finished_at") else "",
                 "description": step.get("params", {}).get("description", ""),
                 "params": step.get("params", {}),
                 "result": step.get("result"),
