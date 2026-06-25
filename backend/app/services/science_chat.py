@@ -287,7 +287,8 @@ def generate_chat(product: str, user_message: str):
         {"role": "user", "content": user_message},
     ]
 
-    yield f"data: {json.dumps({'type': 'chunk', 'text': '正在分析你的问题...\n\n'}, ensure_ascii=False)}\n\n"
+    text = '正在分析你的问题...\n\n'
+    yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
 
     max_rounds = 10
     consecutive_errors = 0
@@ -315,7 +316,8 @@ def generate_chat(product: str, user_message: str):
                 except json.JSONDecodeError:
                     func_args = {}
 
-                yield f"data: {json.dumps({'type': 'chunk', 'text': f'正在调用 {func_name}...\n\n'}, ensure_ascii=False)}\n\n"
+                text = f'正在调用 {func_name}...\n\n'
+                yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
 
                 tool_result = _execute_tool(product, func_name, func_args)
 

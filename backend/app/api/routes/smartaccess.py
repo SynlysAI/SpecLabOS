@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
+from app.core.auth import get_current_user_optional
 from app.core.config import get_settings
 from app.runtime import get_smartaccess_service
 from app.schemas.smartaccess import (
@@ -16,29 +17,42 @@ from app.schemas.smartaccess import (
 )
 
 
-def require_smartaccess_token(
+def require_smartaccess_auth(
     authorization: str | None = Header(default=None),
 ) -> None:
-    """校验 SmartAccess 接口 Bearer Token。
+    """校验 SmartAccess 接口认证，支持 API Token 或用户 Token。
 
     Args:
         authorization: HTTP Authorization 请求头。
     """
-    api_token = get_settings().smartaccess.api_token
-    if not api_token:
-        return
-    expected = f"Bearer {api_token}"
-    if authorization != expected:
+    if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="SmartAccess API token is invalid.",
+            detail="未提供认证信息。",
         )
+
+    # 优先校验 API Token（供外部调用）
+    api_token = get_settings().smartaccess.api_token
+    if api_token and authorization == f"Bearer {api_token}":
+        return
+
+    # 其次校验用户 Token（供前端调用）
+    from app.core.auth import parse_access_token
+
+    token = authorization[7:] if authorization.startswith("Bearer ") else None
+    if token and parse_access_token(token):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="认证信息无效。",
+    )
 
 
 router = APIRouter(
     prefix="/api/smartaccess",
     tags=["smartaccess"],
-    dependencies=[Depends(require_smartaccess_token)],
+    dependencies=[Depends(require_smartaccess_auth)],
 )
 
 
