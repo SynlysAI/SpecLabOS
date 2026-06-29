@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from threading import Event, Lock, Thread
 from traceback import format_exc
 
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
+
 from app.core.config import get_settings
+from app.core.mongo import reset_mongo_client
 from app.domain.enums import StepRunStatus, WorkflowRunStatus
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowDispatcher:
@@ -54,7 +60,16 @@ class WorkflowDispatcher:
         """按固定周期扫描待执行工作流。"""
         interval_seconds = max(get_settings().runtime.runner_interval_seconds, 1)
         while not self._stop_event.is_set():
-            self._dispatch_once()
+            try:
+                self._dispatch_once()
+            except (ServerSelectionTimeoutError, ConnectionFailure):
+                reset_mongo_client()
+                logger.warning(
+                    "MongoDB 连接异常，已重置客户端缓存，%ds 后重试",
+                    interval_seconds,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("调度循环异常，%ds 后重试", interval_seconds)
             self._stop_event.wait(interval_seconds)
 
     def _dispatch_once(self) -> None:

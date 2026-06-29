@@ -6,12 +6,14 @@ from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response as StarletteResponse
+from starlette.responses import JSONResponse, Response as StarletteResponse
 
 from app.api.routes import auth, devices, logs, smartaccess, tools, workflows
 from app.core.config import Settings, get_settings
+from app.core.mongo import reset_mongo_client
 from app.runtime import get_workflow_dispatcher
 
 _FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
@@ -49,6 +51,24 @@ def create_app(
     application.include_router(workflows.workflow_runs_router)
     application.include_router(logs.router)
     application.include_router(tools.router)
+
+    @application.exception_handler(ServerSelectionTimeoutError)
+    async def _mongo_timeout_handler(_request: Request, exc: ServerSelectionTimeoutError) -> JSONResponse:
+        """MongoDB 连接超时，清除客户端缓存并返回 503。"""
+        reset_mongo_client()
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "数据库连接超时，请稍后重试"},
+        )
+
+    @application.exception_handler(ConnectionFailure)
+    async def _mongo_connection_handler(_request: Request, exc: ConnectionFailure) -> JSONResponse:
+        """MongoDB 连接失败，清除客户端缓存并返回 503。"""
+        reset_mongo_client()
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "数据库连接异常，请稍后重试"},
+        )
 
     @application.on_event("startup")
     def _start_workflow_dispatcher() -> None:
