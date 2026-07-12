@@ -2,6 +2,7 @@
 
 import logging
 
+from app.adapters import smartaccess_adapter as _smartaccess_adapter  # noqa: F401
 from app.adapters.local_adapter import LocalAdapter
 from app.domain.adapter import ExecutionAdapter, ExecutionParams, ExecutionResult
 from app.domain.run_event import RunEventType

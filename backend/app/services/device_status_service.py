@@ -69,6 +69,8 @@ class DeviceStatusService:
         """
         spec = STATUS_PROBE_SPECS.get(device.device_id)
         device.status_updated_at = datetime.now()
+        if device.adapter_type == "smartaccess":
+            return device
         if spec is None:
             self._mark_unknown(device, "未配置状态探测接口")
             return device

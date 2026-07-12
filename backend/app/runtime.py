@@ -21,6 +21,7 @@ from app.services.smartaccess_mq import (
     SmartAccessNullPublisher,
     SmartAccessRabbitMQPublisher,
 )
+from app.services.smartaccess_device_service import SmartAccessDeviceService
 from app.services.smartaccess_service import SmartAccessService
 
 
@@ -35,7 +36,7 @@ def ensure_device_registry_loaded() -> bool:
 def get_device_service() -> DeviceService:
     """构建并缓存全局设备服务。"""
     ensure_device_registry_loaded()
-    return DeviceService()
+    return DeviceService(get_smartaccess_device_service())
 
 
 @lru_cache(maxsize=1)
@@ -43,6 +44,12 @@ def get_device_status_service() -> DeviceStatusService:
     """构建并缓存全局设备状态服务。"""
     ensure_device_registry_loaded()
     return DeviceStatusService()
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_device_service() -> SmartAccessDeviceService:
+    """构建并缓存 SmartAccess 虚拟设备服务。"""
+    return SmartAccessDeviceService(get_smartaccess_service())
 
 
 @lru_cache(maxsize=1)

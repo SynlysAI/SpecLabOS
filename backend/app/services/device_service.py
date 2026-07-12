@@ -10,6 +10,7 @@ from app.devices.registry import (
 )
 from app.domain.capability import DeviceCapability
 from app.domain.device import DeviceResource
+from app.services.smartaccess_device_service import SmartAccessDeviceService
 
 
 DEVICE_DISPLAY_ORDER = {
@@ -31,6 +32,17 @@ DEVICE_DISPLAY_ORDER = {
 class DeviceService:
     """封装新设备资源与能力查询能力。"""
 
+    def __init__(
+        self,
+        smartaccess_device_service: SmartAccessDeviceService | None = None,
+    ) -> None:
+        """初始化设备服务。
+
+        Args:
+            smartaccess_device_service: SmartAccess 虚拟设备服务。
+        """
+        self._smartaccess_device_service = smartaccess_device_service
+
     def get_device(self, device_key: str) -> DeviceResource | None:
         """获取指定设备资源。
 
@@ -40,12 +52,16 @@ class DeviceService:
         Returns:
             设备资源，不存在时返回 None。
         """
-        return get_device(device_key)
+        device = get_device(device_key)
+        if device is not None:
+            return device
+        return self._get_smartaccess_device(device_key)
 
     def list_devices(self) -> list[DeviceResource]:
         """列出所有已注册设备资源。"""
+        devices = [*list_devices(), *self._list_smartaccess_devices()]
         return sorted(
-            list_devices(),
+            devices,
             key=lambda device: DEVICE_DISPLAY_ORDER.get(device.device_id, 999),
         )
 
@@ -61,6 +77,8 @@ class DeviceService:
         device = self.get_device(device_key)
         if device is None:
             return []
+        if device.adapter_type == "smartaccess":
+            return self._list_smartaccess_actions(device_key)
         if device.capabilities:
             return [
                 cap for cap in list_capabilities_by_category(device.category)
@@ -193,3 +211,40 @@ class DeviceService:
         if device.connection_status in ("connected", "online"):
             return "idle"
         return device.connection_status or "unknown"
+
+    def _list_smartaccess_devices(self) -> list[DeviceResource]:
+        """列出 SmartAccess 虚拟设备。
+
+        Returns:
+            SmartAccess 虚拟设备资源列表。
+        """
+        if self._smartaccess_device_service is None:
+            return []
+        return self._smartaccess_device_service.list_devices()
+
+    def _list_smartaccess_actions(self, device_key: str) -> list[DeviceCapability]:
+        """列出 SmartAccess 虚拟设备动作。
+
+        Args:
+            device_key: 设备唯一标识。
+
+        Returns:
+            SmartAccess 已发布工作流动作列表。
+        """
+        if self._smartaccess_device_service is None:
+            return []
+        return self._smartaccess_device_service.list_actions(device_key)
+
+    def _get_smartaccess_device(self, device_key: str) -> DeviceResource | None:
+        """获取 SmartAccess 虚拟设备。
+
+        Args:
+            device_key: 设备唯一标识。
+
+        Returns:
+            SmartAccess 虚拟设备，不存在时返回 None。
+        """
+        for device in self._list_smartaccess_devices():
+            if device.device_id == device_key:
+                return device
+        return None
