@@ -2,44 +2,70 @@
 
 import pytest
 
+from app.domain.adapter import ExecutionResult
 from app.domain.enums import StepRunStatus
 from app.runners.device_lock_manager import DeviceLockManager
-from app.runners.workflow_runner import (
-    DeviceActionExecutionError,
-    WorkflowRunner,
-)
+from app.runners.workflow_runner import WorkflowRunner
 
 
-class FakeDevice:
-    """用于测试的设备桩。"""
+class FakeAdapterService:
+    """用于测试的适配器服务桩。"""
 
-    def __init__(self, result=None, error: Exception | None = None) -> None:
-        """初始化测试设备。"""
-        self._result = result or {}
-        self._error = error
+    def __init__(self, result: ExecutionResult) -> None:
+        """初始化适配器服务桩。
 
-    def execute_action(self, action_key: str, params: dict, context: dict) -> dict:
-        """执行测试动作。"""
-        if self._error is not None:
-            raise self._error
-        return {
-            "action_key": action_key,
-            "params": params,
-            "context": context,
-            **self._result,
-        }
+        Args:
+            result: 预设执行结果。
+        """
+        self._result = result
+        self.params = None
+
+    async def execute(self, params):
+        """返回预设执行结果。
+
+        Args:
+            params: 执行参数。
+
+        Returns:
+            预设执行结果。
+        """
+        self.params = params
+        return self._result
 
 
-class FakeRegistry:
-    """用于测试的注册表桩。"""
+class FakeEventBus:
+    """用于测试的事件总线桩。"""
 
-    def __init__(self, device: FakeDevice) -> None:
-        """初始化测试注册表。"""
-        self._device = device
+    def emit(self, *args, **kwargs) -> None:
+        """忽略事件写入。
 
-    def get_device(self, device_key: str) -> FakeDevice:
-        """返回测试设备。"""
-        return self._device
+        Args:
+            *args: 位置参数。
+            **kwargs: 关键字参数。
+        """
+        return None
+
+
+def _build_runner(
+    lock_manager: DeviceLockManager,
+    result: ExecutionResult,
+) -> tuple[WorkflowRunner, FakeAdapterService]:
+    """构造测试运行器。
+
+    Args:
+        lock_manager: 设备锁管理器。
+        result: 预设执行结果。
+
+    Returns:
+        运行器和适配器服务桩。
+    """
+    adapter_service = FakeAdapterService(result)
+    runner = WorkflowRunner(
+        lock_manager=lock_manager,
+        adapter_service=adapter_service,
+        event_bus=FakeEventBus(),
+    )
+    return runner, adapter_service
 
 
 def test_same_device_cannot_be_locked_twice() -> None:
@@ -62,17 +88,16 @@ def test_different_devices_can_be_locked_in_parallel() -> None:
     assert manager.acquire("gpc_2278", "run-2") is True
 
 
-def test_run_step_returns_success_when_device_action_succeeds() -> None:
-    """验证运行器在设备动作成功时返回成功状态。"""
-    runner = WorkflowRunner(
-        registry=FakeRegistry(FakeDevice(result={"result": "ok"})),
-        workflow_repository=None,
-        lock_manager=DeviceLockManager(),
+def test_run_step_returns_success_when_adapter_succeeds() -> None:
+    """验证运行器在适配器执行成功时返回成功状态。"""
+    runner, adapter_service = _build_runner(
+        DeviceLockManager(),
+        ExecutionResult(success=True, data={"result": "ok"}),
     )
     step = {
         "step_id": "step-1",
         "device_key": "nmr_2278",
-        "action_key": "nmr.check_status",
+        "action_key": "nmr.start_task",
         "params": {"sample_id": "s-1"},
     }
 
@@ -80,23 +105,21 @@ def test_run_step_returns_success_when_device_action_succeeds() -> None:
 
     assert status == StepRunStatus.SUCCESS
     assert payload["result"] == "ok"
-    assert payload["context"]["run_id"] == "run-1"
-    assert payload["context"]["step_id"] == "step-1"
+    assert adapter_service.params.run_id == "run-1"
+    assert adapter_service.params.device_id == "nmr_2278"
+    assert adapter_service.params.capability_key == "nmr.start_task"
 
 
-def test_run_step_returns_failed_when_device_action_raises() -> None:
-    """验证运行器在设备动作失败时返回失败状态。"""
-    runner = WorkflowRunner(
-        registry=FakeRegistry(
-            FakeDevice(error=DeviceActionExecutionError("device offline"))
-        ),
-        workflow_repository=None,
-        lock_manager=DeviceLockManager(),
+def test_run_step_returns_failed_when_adapter_fails() -> None:
+    """验证运行器在适配器执行失败时返回失败状态。"""
+    runner, _adapter_service = _build_runner(
+        DeviceLockManager(),
+        ExecutionResult(success=False, error="device offline"),
     )
     step = {
         "step_id": "step-1",
         "device_key": "nmr_2278",
-        "action_key": "nmr.check_status",
+        "action_key": "nmr.start_task",
         "params": {},
     }
 
@@ -109,15 +132,14 @@ def test_run_step_returns_failed_when_device_action_raises() -> None:
 def test_run_step_returns_waiting_when_device_is_held_by_another_run() -> None:
     """验证设备被其他运行占用时返回等待状态。"""
     lock_manager = DeviceLockManager()
-    runner = WorkflowRunner(
-        registry=FakeRegistry(FakeDevice(result={"result": "ok"})),
-        workflow_repository=None,
-        lock_manager=lock_manager,
+    runner, _adapter_service = _build_runner(
+        lock_manager,
+        ExecutionResult(success=True, data={"result": "ok"}),
     )
     step = {
         "step_id": "step-1",
         "device_key": "nmr_2278",
-        "action_key": "nmr.check_status",
+        "action_key": "nmr.start_task",
         "params": {},
     }
     lock_manager.acquire("nmr_2278", "run-1")
@@ -128,20 +150,17 @@ def test_run_step_returns_waiting_when_device_is_held_by_another_run() -> None:
     assert payload == {}
 
 
-def test_run_step_releases_lock_after_device_action_failure() -> None:
-    """验证设备动作失败后锁会被释放。"""
+def test_run_step_releases_lock_after_adapter_failure() -> None:
+    """验证适配器执行失败后锁会被释放。"""
     lock_manager = DeviceLockManager()
-    runner = WorkflowRunner(
-        registry=FakeRegistry(
-            FakeDevice(error=DeviceActionExecutionError("device offline"))
-        ),
-        workflow_repository=None,
-        lock_manager=lock_manager,
+    runner, _adapter_service = _build_runner(
+        lock_manager,
+        ExecutionResult(success=False, error="device offline"),
     )
     step = {
         "step_id": "step-1",
         "device_key": "nmr_2278",
-        "action_key": "nmr.check_status",
+        "action_key": "nmr.start_task",
         "params": {},
     }
 
@@ -154,14 +173,13 @@ def test_run_step_releases_lock_after_device_action_failure() -> None:
 
 def test_run_step_does_not_swallow_programming_errors() -> None:
     """验证明显的程序错误不会被静默转成失败状态。"""
-    runner = WorkflowRunner(
-        registry=FakeRegistry(FakeDevice(result={"result": "ok"})),
-        workflow_repository=None,
-        lock_manager=DeviceLockManager(),
+    runner, _adapter_service = _build_runner(
+        DeviceLockManager(),
+        ExecutionResult(success=True, data={"result": "ok"}),
     )
     step = {
         "device_key": "nmr_2278",
-        "action_key": "nmr.check_status",
+        "action_key": "nmr.start_task",
         "params": {},
     }
 

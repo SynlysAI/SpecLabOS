@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.devices.raman_device import _request_raman
-from app.runtime import get_device_service
+from app.runtime import get_device_service, get_device_status_service
 from app.schemas.device import (
     CameraFocusRequest,
     DeviceActionField,
@@ -35,11 +35,16 @@ def _find_device_image(device_type: str) -> Path | None:
 
 
 @router.get("", response_model=DeviceListResponse)
-def list_devices() -> DeviceListResponse:
+def list_devices(
+    refresh_status: bool = Query(default=True),
+) -> DeviceListResponse:
     """返回设备列表数据。"""
     device_service = get_device_service()
+    devices = device_service.list_devices()
+    if refresh_status:
+        get_device_status_service().refresh_devices(devices)
     items = []
-    for device in device_service.list_devices():
+    for device in devices:
         serialized_device = device_service.serialize_device(device)
         if _find_device_image(serialized_device["device_type"]) is not None:
             serialized_device["image_url"] = (
@@ -53,40 +58,56 @@ def list_devices() -> DeviceListResponse:
 def get_device_detail(device_key: str) -> DeviceItem:
     """返回单个设备详情。"""
     device_service = get_device_service()
-    for device in device_service.list_devices():
-        if device.key != device_key:
-            continue
-        serialized_device = device_service.serialize_device(device)
-        if _find_device_image(serialized_device["device_type"]) is not None:
-            serialized_device["image_url"] = (
-                f"/api/device-images/{serialized_device['device_type']}"
-            )
-        return DeviceItem(**serialized_device)
-    raise HTTPException(status_code=404, detail="设备不存在")
+    device = device_service.get_device(device_key)
+    if device is None:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    serialized_device = device_service.serialize_device(device)
+    if _find_device_image(serialized_device["device_type"]) is not None:
+        serialized_device["image_url"] = (
+            f"/api/device-images/{serialized_device['device_type']}"
+        )
+    return DeviceItem(**serialized_device)
+
+
+@router.post("/{device_key}/refresh-status", response_model=DeviceItem)
+def refresh_device_status(device_key: str) -> DeviceItem:
+    """刷新并返回单个设备状态。"""
+    device_service = get_device_service()
+    device = device_service.get_device(device_key)
+    if device is None:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    get_device_status_service().refresh_device(device)
+    serialized_device = device_service.serialize_device(device)
+    if _find_device_image(serialized_device["device_type"]) is not None:
+        serialized_device["image_url"] = (
+            f"/api/device-images/{serialized_device['device_type']}"
+        )
+    return DeviceItem(**serialized_device)
 
 
 @router.get("/{device_key}/actions", response_model=DeviceActionListResponse)
 def list_device_actions(device_key: str) -> DeviceActionListResponse:
     """返回指定设备支持的动作声明。"""
     device_service = get_device_service()
-    for device in device_service.list_devices():
-        if device.key != device_key:
-            continue
-        items = []
-        for action in device.list_actions():
-            items.append(
-                DeviceActionItem(
-                    action_key=action.action_key,
-                    name=action.name,
-                    description=action.description,
-                    step_mode=action.step_mode,
-                    parameter_schema=[
-                        DeviceActionField(**field) for field in action.parameter_schema
-                    ],
-                )
+    device = device_service.get_device(device_key)
+    if device is None:
+        raise HTTPException(status_code=404, detail="设备不存在")
+    items = []
+    for action in device_service.list_actions(device_key):
+        serialized_action = device_service.serialize_action(action)
+        items.append(
+            DeviceActionItem(
+                action_key=serialized_action["action_key"],
+                name=serialized_action["name"],
+                description=serialized_action["description"],
+                step_mode=serialized_action["step_mode"],
+                parameter_schema=[
+                    DeviceActionField(**field)
+                    for field in serialized_action["parameter_schema"]
+                ],
             )
-        return DeviceActionListResponse(items=items)
-    raise HTTPException(status_code=404, detail="设备不存在")
+        )
+    return DeviceActionListResponse(items=items)
 
 
 @router.post("/{device_key}/camera-focus")

@@ -6,8 +6,11 @@ import { http } from "./http";
  * Returns:
  *     设备列表数据。
  */
-export async function fetchDevices() {
-  const response = await http.get("/api/devices");
+export async function fetchDevices({ refreshStatus = false } = {}) {
+  const response = await http.get("/api/devices", {
+    params: { refresh_status: refreshStatus },
+    timeout: refreshStatus ? 30000 : 10000
+  });
   return response.data.items;
 }
 

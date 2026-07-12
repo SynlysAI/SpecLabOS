@@ -5,8 +5,154 @@ from typing import Any
 import requests
 
 from app.core.config import get_settings
-from app.devices.base import BaseDevice
-from app.domain.device_action import ActionSpec
+from app.devices.registry import capability, device, local_executor
+from app.domain.capability import DeviceCapability
+from app.domain.device import DeviceResource
+
+
+@device
+class RamanDevice(DeviceResource):
+    """Raman 拉曼光谱仪。"""
+
+    device_id: str = "raman_2278"
+    name: str = "raman_2278"
+    category: str = "拉曼光谱仪"
+    device_type: str = "RamanSpectrometer"
+    location: str = "A-118"
+
+
+@local_executor("raman_2278", "raman.capture")
+def raman_capture_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """下发 Raman 采集任务。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        Raman 服务响应。
+    """
+    return _request_raman(
+        "POST",
+        get_settings().apis.raman.capture_base_url,
+        "/raman/jy/capture",
+        payload={
+            "req_id": params.get("req_id"),
+            "capture": params.get("capture", {}),
+        },
+    )
+
+
+@local_executor("raman_2278", "raman.camera_focus")
+def raman_camera_focus_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """执行 Raman 镜头对焦。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        Raman 服务响应。
+    """
+    return _request_raman(
+        "POST",
+        get_settings().apis.raman.capture_base_url,
+        "/raman/jy/camera",
+        payload={
+            "rt": params.get("rt", 8000),
+            "rb": params.get("rb", 5000),
+            "s": params.get("s", 3),
+            "method": 0,
+        },
+    )
+
+
+@local_executor("raman_2278", "raman.get_result")
+def raman_get_result_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """查询 Raman 采集任务结果。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        Raman 服务响应。
+    """
+    return _request_raman(
+        "GET",
+        get_settings().apis.raman.result_base_url,
+        "/raman/jy/result",
+        params={"req_id": params.get("req_id")},
+    )
+
+
+@capability("拉曼光谱仪")
+def raman_capture() -> DeviceCapability:
+    """下发采集任务。"""
+    return DeviceCapability(
+        capability_key="raman.capture",
+        device_category="拉曼光谱仪",
+        name="下发采集任务",
+        description="向 Raman 服务下发采集任务",
+        step_mode="auto",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "req_id": {"type": "string", "description": "请求编号"},
+                "capture": {"type": "object", "description": "采集任务 body 参数"},
+            },
+            "required": ["req_id", "capture"],
+        },
+    )
+
+
+@capability("拉曼光谱仪")
+def raman_camera_focus() -> DeviceCapability:
+    """镜头对焦。"""
+    return DeviceCapability(
+        capability_key="raman.camera_focus",
+        device_category="拉曼光谱仪",
+        name="镜头对焦",
+        description="自动对焦 Raman 设备镜头",
+        step_mode="hidden",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "rt": {"type": "number", "description": "上限"},
+                "rb": {"type": "number", "description": "下限"},
+                "s": {"type": "number", "description": "步长"},
+            },
+            "required": ["rt", "rb", "s"],
+        },
+    )
+
+
+@capability("拉曼光谱仪")
+def raman_get_result() -> DeviceCapability:
+    """查询任务结果。"""
+    return DeviceCapability(
+        capability_key="raman.get_result",
+        device_category="拉曼光谱仪",
+        name="查询任务结果",
+        description="查询 Raman 采集任务状态或结果",
+        step_mode="auto",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "req_id": {"type": "string", "description": "请求编号"},
+            },
+            "required": ["req_id"],
+        },
+    )
 
 
 def _request_raman(
@@ -16,7 +162,18 @@ def _request_raman(
     payload: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """调用 Raman 远程接口。"""
+    """调用 Raman 远程接口。
+
+    Args:
+        method: HTTP 方法。
+        base_url: 接口基础地址。
+        path: 接口路径。
+        payload: 请求体。
+        params: 查询参数。
+
+    Returns:
+        Raman 服务响应。
+    """
     response = requests.request(
         method=method,
         url=f"{base_url.rstrip('/')}{path}",
@@ -29,105 +186,3 @@ def _request_raman(
         return response.json()
     except ValueError:
         return {"raw_text": response.text}
-
-
-def build_raman_device(sim_mode: bool) -> BaseDevice:
-    """构建 Raman 设备实例。"""
-    settings = get_settings()
-    return BaseDevice(
-        key="raman_2278",
-        name="raman_2278",
-        category="拉曼光谱仪",
-        device_type="RamanSpectrometer",
-        location="A-118",
-        sim_mode=sim_mode,
-        connection={
-            "capture_base_url": settings.apis.raman.capture_base_url,
-            "result_base_url": settings.apis.raman.result_base_url,
-        },
-        actions=[
-            ActionSpec(
-                action_key="raman.capture",
-                name="下发采集任务",
-                description="向 Raman 服务下发采集任务",
-                parameter_schema=[
-                    {
-                        "name": "req_id",
-                        "type": "string",
-                        "required": True,
-                        "description": "请求编号",
-                    },
-                    {
-                        "name": "capture",
-                        "type": "json",
-                        "required": True,
-                        "description": "采集任务 body 参数",
-                    },
-                ],
-                executor=lambda params, _context: _request_raman(
-                    "POST",
-                    settings.apis.raman.capture_base_url,
-                    "/raman/jy/capture",
-                    payload={
-                        "req_id": params.get("req_id"),
-                        "capture": params.get("capture", {}),
-                    },
-                ),
-            ),
-            ActionSpec(
-                action_key="raman.camera_focus",
-                name="镜头对焦",
-                description="自动对焦 Raman 设备镜头",
-                parameter_schema=[
-                    {
-                        "name": "rt",
-                        "type": "number",
-                        "required": True,
-                        "description": "上限",
-                    },
-                    {
-                        "name": "rb",
-                        "type": "number",
-                        "required": True,
-                        "description": "下限",
-                    },
-                    {
-                        "name": "s",
-                        "type": "number",
-                        "required": True,
-                        "description": "步长",
-                    },
-                ],
-                executor=lambda params, _context: _request_raman(
-                    "POST",
-                    settings.apis.raman.capture_base_url,
-                    "/raman/jy/camera",
-                    payload={
-                        "rt": params.get("rt", 8000),
-                        "rb": params.get("rb", 5000),
-                        "s": params.get("s", 3),
-                        "method": 0,
-                    },
-                ),
-            ),
-            ActionSpec(
-                action_key="raman.get_result",
-                name="查询任务结果",
-                description="查询 Raman 采集任务状态或结果",
-                parameter_schema=[
-                    {
-                        "name": "req_id",
-                        "type": "string",
-                        "required": True,
-                        "description": "请求编号",
-                    }
-                ],
-                executor=lambda params, _context: _request_raman(
-                    "GET",
-                    settings.apis.raman.result_base_url,
-                    "/raman/jy/result",
-                    params={"req_id": params.get("req_id")},
-                ),
-            ),
-        ],
-    )

@@ -20,6 +20,7 @@ class MongoSettings(BaseModel):
 
     uri: str
     database: str = "spec_labos"
+    data_database: str = "speclabos_data"
     completed_uri: str = ""
     completed_database: str = ""
 

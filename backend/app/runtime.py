@@ -4,16 +4,19 @@ from functools import lru_cache
 
 import pika
 
+from app.adapters.adapter_service import AdapterService
 from app.core.config import get_settings
 from app.core.mongo import get_database
-from app.devices.factories import build_default_devices
-from app.devices.registry import DeviceRegistry
+from app.devices import load_builtin_devices
+from app.repositories.event_repository import EventRepository
 from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.repositories.workflow_repository import WorkflowRepository
 from app.runners.device_lock_manager import DeviceLockManager
 from app.runners.workflow_dispatcher import WorkflowDispatcher
 from app.runners.workflow_runner import WorkflowRunner
 from app.services.device_service import DeviceService
+from app.services.device_status_service import DeviceStatusService
+from app.services.event_bus import EventBus
 from app.services.smartaccess_mq import (
     SmartAccessNullPublisher,
     SmartAccessRabbitMQPublisher,
@@ -22,18 +25,24 @@ from app.services.smartaccess_service import SmartAccessService
 
 
 @lru_cache(maxsize=1)
-def get_device_registry() -> DeviceRegistry:
-    """构建并缓存全局设备注册表。"""
-    registry = DeviceRegistry()
-    for device in build_default_devices():
-        registry.register(device)
-    return registry
+def ensure_device_registry_loaded() -> bool:
+    """加载并缓存内置设备注册信息。"""
+    load_builtin_devices()
+    return True
 
 
 @lru_cache(maxsize=1)
 def get_device_service() -> DeviceService:
     """构建并缓存全局设备服务。"""
-    return DeviceService(get_device_registry())
+    ensure_device_registry_loaded()
+    return DeviceService()
+
+
+@lru_cache(maxsize=1)
+def get_device_status_service() -> DeviceStatusService:
+    """构建并缓存全局设备状态服务。"""
+    ensure_device_registry_loaded()
+    return DeviceStatusService()
 
 
 @lru_cache(maxsize=1)
@@ -98,12 +107,32 @@ def get_lock_manager() -> DeviceLockManager:
 
 
 @lru_cache(maxsize=1)
+def get_event_repository() -> EventRepository:
+    """构建并缓存全局事件仓储。"""
+    return EventRepository()
+
+
+@lru_cache(maxsize=1)
+def get_event_bus() -> EventBus:
+    """构建并缓存全局事件总线。"""
+    return EventBus(get_event_repository())
+
+
+@lru_cache(maxsize=1)
+def get_adapter_service() -> AdapterService:
+    """构建并缓存全局适配器服务。"""
+    ensure_device_registry_loaded()
+    return AdapterService(get_event_bus())
+
+
+@lru_cache(maxsize=1)
 def get_workflow_runner() -> WorkflowRunner:
     """构建并缓存全局工作流运行器。"""
+    ensure_device_registry_loaded()
     return WorkflowRunner(
-        registry=get_device_registry(),
-        workflow_repository=get_workflow_repository(),
         lock_manager=get_lock_manager(),
+        adapter_service=get_adapter_service(),
+        event_bus=get_event_bus(),
     )
 
 

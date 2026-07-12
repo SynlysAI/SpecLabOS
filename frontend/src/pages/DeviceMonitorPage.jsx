@@ -129,7 +129,7 @@ export default function DeviceMonitorPage() {
   async function loadDevices() {
     setLoading(true);
     try {
-      const items = await fetchDevices();
+      const items = await fetchDevices({ refreshStatus: true });
       setDevices(normalizeDevices(items));
       setUsingFallbackData(false);
     } catch (error) {
@@ -159,10 +159,10 @@ export default function DeviceMonitorPage() {
   }
 
   const onlineCount = devices.filter(
-    (item) => item.status_snapshot?.state === "online" || item.status_snapshot?.state === "running"
+    (item) => ["online", "running", "idle"].includes(item.status_snapshot?.state)
   ).length;
   const warningCount = devices.filter(
-    (item) => item.status_snapshot?.state === "warning" || item.status_snapshot?.state === "offline"
+    (item) => ["warning", "offline", "error", "failed"].includes(item.status_snapshot?.state)
   ).length;
 
   return (

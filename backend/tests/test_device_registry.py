@@ -1,67 +1,49 @@
 """设备注册表测试。"""
 
-import pytest
-
-from app.devices.factories import build_device, list_supported_categories
-from app.devices.nmr_device import build_nmr_device
-from app.devices.registry import DeviceRegistry
-
-
-def test_registry_registers_device_and_actions():
-    """验证注册表能够注册设备并暴露动作声明。"""
-    registry = DeviceRegistry()
-    device = build_nmr_device(sim_mode=True)
-
-    registry.register(device)
-
-    assert registry.get_device("nmr_2278").key == "nmr_2278"
-    actions = registry.list_actions("nmr_2278")
-    action_keys = [action.action_key for action in actions]
-    assert "nmr.check_status" in action_keys
-    assert "nmr.start_task" in action_keys
+from app.devices import load_builtin_devices
+from app.devices.registry import (
+    get_capability,
+    get_device,
+    get_local_executor,
+    list_capabilities,
+    list_devices,
+    list_local_executor_keys,
+)
 
 
-def test_registry_rejects_duplicate_device_key():
-    """验证注册表不允许静默覆盖同键设备。"""
-    registry = DeviceRegistry()
-    first_device = build_nmr_device(sim_mode=True)
-    second_device = build_nmr_device(sim_mode=False)
+def test_builtin_devices_register_resources_and_capabilities():
+    """验证内置设备模块会注册设备资源与能力声明。"""
+    load_builtin_devices()
 
-    registry.register(first_device)
+    device = get_device("nmr_2278")
+    capability = get_capability("nmr.start_task")
 
-    with pytest.raises(ValueError, match="nmr_2278"):
-        registry.register(second_device)
-
-
-def test_build_device_returns_registered_category_device():
-    """验证设备工厂能够按类别构建设备。"""
-    device = build_device("nmr", sim_mode=False)
-
-    assert device.key == "nmr_2278"
-    assert device.category == "核磁共振仪"
+    assert device is not None
+    assert device.device_id == "nmr_2278"
     assert device.device_type == "NMRSpectrometer"
-    assert device.sim_mode is False
+    assert capability is not None
+    assert capability.name == "开始任务"
 
 
-def test_list_supported_categories_contains_expected_entries():
-    """验证工厂暴露支持的设备类别。"""
-    categories = list_supported_categories()
+def test_builtin_registry_counts_are_complete():
+    """验证内置设备、能力和本地执行器注册数量完整。"""
+    load_builtin_devices()
 
-    assert "nmr" in categories
-    assert "gpc" in categories
-    assert "resin" in categories
-    assert "pi" in categories
-    assert "station" in categories
+    assert len(list_devices()) == 12
+    assert len(list_capabilities()) == 39
+    assert len(list_local_executor_keys()) == 47
 
 
-def test_execute_action_calls_action_executor():
-    """验证设备动作执行入口返回执行器结果。"""
-    device = build_nmr_device(sim_mode=True)
+def test_local_executor_registered_for_lcms_action():
+    """验证 LCMS 能力已注册本地执行器。"""
+    load_builtin_devices()
 
-    result = device.execute_action(
-        "nmr.start_task",
-        {"task_code": "task-001"},
-        {},
-    )
+    executor = get_local_executor("lcms_2278", "lcms.check_status")
 
-    assert result == {"status": "submitted", "task_code": "task-001"}
+    assert executor is not None
+    assert executor({"sample": "s-1"}, {"run_id": "run-1"}) == {
+        "device": "lcms_2278",
+        "action": "check_status",
+        "status": "completed",
+        "response": {"sample": "s-1"},
+    }

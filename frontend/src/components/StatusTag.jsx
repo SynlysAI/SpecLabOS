@@ -15,6 +15,8 @@ const STATUS_COLOR_MAP = {
   info: "blue",
   idle: "default",
   offline: "error",
+  unknown: "default",
+  disabled: "default",
   warning: "warning",
   draft: "blue",
   published: "success"
@@ -34,6 +36,8 @@ const STATUS_LABEL_MAP = {
   info: "信息",
   idle: "空闲",
   offline: "离线",
+  unknown: "未知",
+  disabled: "未启用",
   warning: "告警",
   draft: "草稿",
   published: "已发布"

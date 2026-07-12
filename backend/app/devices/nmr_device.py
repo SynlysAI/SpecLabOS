@@ -5,12 +5,246 @@ from typing import Any
 import requests
 
 from app.core.config import get_settings
-from app.devices.base import BaseDevice
-from app.domain.device_action import ActionSpec
+from app.devices.registry import capability, device, local_executor
+from app.domain.capability import DeviceCapability
+from app.domain.device import DeviceResource
 
 
-def _request_nmr(method: str, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-    """调用 NMR 远程接口。"""
+@device
+class NMRDevice(DeviceResource):
+    """NMR 核磁共振仪。"""
+
+    device_id: str = "nmr_2278"
+    name: str = "nmr_2278"
+    category: str = "核磁共振仪"
+    device_type: str = "NMRSpectrometer"
+    location: str = "A-203"
+
+
+@local_executor("nmr_2278", "nmr.upload_task_info")
+def nmr_upload_task_info_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """下发 NMR 检测参数。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("POST", "/task/info", params=params)
+
+
+@local_executor("nmr_2278", "nmr.start_task")
+def nmr_start_task_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """启动 NMR 任务。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("POST", "/task/start", params=params)
+
+
+@local_executor("nmr_2278", "nmr.get_task_status")
+def nmr_get_task_status_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """查询 NMR 任务状态。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("GET", "/task/status", params=params)
+
+
+@local_executor("nmr_2278", "nmr.list_templates")
+def nmr_list_templates_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """查询 NMR 模板列表。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("GET", "/check", params=params)
+
+
+@local_executor("nmr_2278", "nmr.change_params")
+def nmr_change_params_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """修改 NMR 运行参数。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("POST", "/param/change", params=params)
+
+
+@local_executor("nmr_2278", "nmr.agv_interact")
+def nmr_agv_interact_executor(
+    params: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any]:
+    """执行 NMR AGV 交互。
+
+    Args:
+        params: 执行参数。
+        context: 运行上下文。
+
+    Returns:
+        NMR 服务响应。
+    """
+    return _request_nmr("POST", "/agv", params=params.get("payload", {}))
+
+
+@capability("核磁共振仪")
+def nmr_upload_task_info() -> DeviceCapability:
+    """下发检测参数。"""
+    return DeviceCapability(
+        capability_key="nmr.upload_task_info",
+        device_category="核磁共振仪",
+        name="下发检测参数",
+        description="向 NMR 服务提交 task_info 参数列表",
+        step_mode="confirm",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "task_info": {"type": "array", "description": "核磁任务参数列表"},
+            },
+            "required": ["task_info"],
+        },
+    )
+
+
+@capability("核磁共振仪")
+def nmr_start_task() -> DeviceCapability:
+    """开始任务。"""
+    return DeviceCapability(
+        capability_key="nmr.start_task",
+        device_category="核磁共振仪",
+        name="开始任务",
+        description="启动指定 batch_id 的核磁任务",
+        step_mode="auto",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "batch_id": {"type": "number", "description": "核磁批次编号"},
+            },
+            "required": ["batch_id"],
+        },
+    )
+
+
+@capability("核磁共振仪")
+def nmr_get_task_status() -> DeviceCapability:
+    """查询任务状态。"""
+    return DeviceCapability(
+        capability_key="nmr.get_task_status",
+        device_category="核磁共振仪",
+        name="查询任务状态",
+        description="查询指定 batch_id 的核磁任务状态",
+        step_mode="auto",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "batch_id": {"type": "number", "description": "核磁批次编号"},
+            },
+            "required": ["batch_id"],
+        },
+    )
+
+
+@capability("核磁共振仪")
+def nmr_list_templates() -> DeviceCapability:
+    """查询模板。"""
+    return DeviceCapability(
+        capability_key="nmr.list_templates",
+        device_category="核磁共振仪",
+        name="查询模板",
+        description="查询 NMR 模板列表",
+        step_mode="auto",
+    )
+
+
+@capability("核磁共振仪")
+def nmr_change_params() -> DeviceCapability:
+    """修改运行参数。"""
+    return DeviceCapability(
+        capability_key="nmr.change_params",
+        device_category="核磁共振仪",
+        name="修改运行参数",
+        description="修改 NMR 参数时间戳和参数列表",
+        step_mode="confirm",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "stamp": {"type": "number", "description": "参数时间戳或批次标识"},
+                "params": {"type": "array", "description": "参数名与参数值列表"},
+            },
+            "required": ["stamp", "params"],
+        },
+    )
+
+
+@capability("核磁共振仪")
+def nmr_agv_interact() -> DeviceCapability:
+    """AGV 交互。"""
+    return DeviceCapability(
+        capability_key="nmr.agv_interact",
+        device_category="核磁共振仪",
+        name="AGV 交互",
+        description="执行 NMR AGV 上下料交互",
+        step_mode="auto",
+        parameter_schema={
+            "type": "object",
+            "properties": {
+                "payload": {"type": "object", "description": "AGV 请求参数"},
+            },
+        },
+    )
+
+
+def _request_nmr(
+    method: str,
+    path: str,
+    params: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """调用 NMR 远程接口。
+
+    Args:
+        method: HTTP 方法。
+        path: 接口路径。
+        params: 请求参数。
+
+    Returns:
+        NMR 服务响应。
+    """
     settings = get_settings()
     base_url = settings.apis.nmr.base_url.rstrip("/")
     response = requests.request(
@@ -25,116 +259,3 @@ def _request_nmr(method: str, path: str, params: dict[str, Any] | None = None) -
         return response.json()
     except ValueError:
         return {"raw_text": response.text}
-
-
-def _build_executor(method: str, path: str):
-    """构造 NMR 接口执行器。"""
-
-    def _executor(params: dict[str, Any], _context: dict[str, Any]) -> dict[str, Any]:
-        return _request_nmr(method, path, params=params)
-
-    return _executor
-
-
-def build_nmr_device(sim_mode: bool) -> BaseDevice:
-    """构建 NMR 设备实例。"""
-    settings = get_settings()
-    return BaseDevice(
-        key="nmr_2278",
-        name="nmr_2278",
-        category="核磁共振仪",
-        device_type="NMRSpectrometer",
-        location="A-203",
-        sim_mode=sim_mode,
-        connection={
-            "base_url": settings.apis.nmr.base_url,
-            "timeout": settings.apis.nmr.timeout,
-        },
-        actions=[
-            ActionSpec(
-                action_key="nmr.upload_task_info",
-                name="下发检测参数",
-                description="向 NMR 服务提交 task_info 参数列表",
-                parameter_schema=[
-                    {
-                        "name": "task_info",
-                        "type": "json",
-                        "required": True,
-                        "description": "核磁任务参数列表",
-                    }
-                ],
-                executor=_build_executor("POST", "/task/info"),
-            ),
-            ActionSpec(
-                action_key="nmr.start_task",
-                name="开始任务",
-                description="启动指定 batch_id 的核磁任务",
-                parameter_schema=[
-                    {
-                        "name": "batch_id",
-                        "type": "number",
-                        "required": True,
-                        "description": "核磁批次编号",
-                    }
-                ],
-                executor=_build_executor("POST", "/task/start"),
-            ),
-            ActionSpec(
-                action_key="nmr.get_task_status",
-                name="查询任务状态",
-                description="查询指定 batch_id 的核磁任务状态",
-                parameter_schema=[
-                    {
-                        "name": "batch_id",
-                        "type": "number",
-                        "required": True,
-                        "description": "核磁批次编号",
-                    }
-                ],
-                executor=_build_executor("GET", "/task/status"),
-            ),
-            ActionSpec(
-                action_key="nmr.list_templates",
-                name="查询模板",
-                description="查询 NMR 模板列表",
-                parameter_schema=[],
-                executor=_build_executor("GET", "/check"),
-            ),
-            ActionSpec(
-                action_key="nmr.change_params",
-                name="修改运行参数",
-                description="修改 NMR 参数时间戳和参数列表",
-                parameter_schema=[
-                    {
-                        "name": "stamp",
-                        "type": "number",
-                        "required": True,
-                        "description": "参数时间戳或批次标识",
-                    },
-                    {
-                        "name": "params",
-                        "type": "json",
-                        "required": True,
-                        "description": "参数名与参数值列表",
-                    },
-                ],
-                executor=_build_executor("POST", "/param/change"),
-            ),
-            ActionSpec(
-                action_key="nmr.agv_interact",
-                name="AGV 交互",
-                description="执行 NMR AGV 上下料交互",
-                parameter_schema=[
-                    {
-                        "name": "payload",
-                        "type": "json",
-                        "required": False,
-                        "description": "AGV 请求参数",
-                    }
-                ],
-                executor=lambda params, _context: _request_nmr(
-                    "POST", "/agv", params=params.get("payload", {})
-                ),
-            ),
-        ],
-    )
