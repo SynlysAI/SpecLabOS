@@ -67,7 +67,7 @@ for _station_device_id, _station_action_key in _STATION_ACTION_KEYS.items():
         Returns:
             Station 服务响应。
         """
-        return _request_station(action_key)
+        return _request_station(action_key, timeout=params.get("timeout"))
 
     @local_executor(_station_device_id, f"{_station_device_id}.power_on")
     def station_power_on_executor(
@@ -217,12 +217,14 @@ def micro_power_off() -> DeviceCapability:
 def _request_station(
     device_action_key: str,
     action: str | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """调用 Station 远程接口。
 
     Args:
         device_action_key: 工位动作前缀。
         action: 动作名称，为空时查询状态。
+        timeout: 请求超时时间。
 
     Returns:
         Station 服务响应。
@@ -234,7 +236,7 @@ def _request_station(
     response = requests.request(
         method="POST",
         url=f"{base_url}{path}",
-        timeout=settings.apis.station.timeout,
+        timeout=timeout or settings.apis.station.timeout,
         json=payload,
     )
     response.raise_for_status()

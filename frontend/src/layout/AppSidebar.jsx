@@ -3,7 +3,6 @@ import { Button, Menu, Typography } from "antd";
 import {
   AppstoreOutlined,
   ClusterOutlined,
-  CloudServerOutlined,
   DashboardOutlined,
   FileSearchOutlined,
   MenuFoldOutlined,
@@ -19,34 +18,39 @@ const MENU_ITEMS = [
     label: "设备监控"
   },
   {
-    key: "/workflows/new",
+    key: "/workflows",
     icon: <ClusterOutlined />,
-    label: "工作流编排"
+    label: "工作流中心",
+    children: [
+      {
+        key: "/workflows/local-builder",
+        label: "本地编排"
+      },
+      {
+        key: "/workflows/smartaccess-templates",
+        label: "SmartAccess 模板"
+      }
+    ]
   },
   {
-    key: "/runs",
+    key: "/tasks",
     icon: <AppstoreOutlined />,
-    label: "任务运行"
+    label: "任务中心",
+    children: [
+      {
+        key: "/tasks/orchestration-runs",
+        label: "编排任务"
+      },
+      {
+        key: "/tasks/smartaccess-runs",
+        label: "SmartAccess 任务"
+      }
+    ]
   },
   {
     key: "/logs",
     icon: <FileSearchOutlined />,
     label: "设备日志"
-  },
-  {
-    key: "/smartaccess",
-    icon: <CloudServerOutlined />,
-    label: "SmartAccess",
-    children: [
-      {
-        key: "/smartaccess/templates",
-        label: "工作流模板"
-      },
-      {
-        key: "/smartaccess/runs",
-        label: "任务运行"
-      }
-    ]
   },
   {
     key: "/tools",

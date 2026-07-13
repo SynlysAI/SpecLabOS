@@ -228,7 +228,7 @@ export default function WorkflowRunDetailPage() {
                 <Button
                   icon={<ArrowLeftOutlined />}
                   onClick={() =>
-                    navigate(isSmartAccess ? "/smartaccess/runs" : "/runs")
+                    navigate(isSmartAccess ? "/tasks/smartaccess-runs" : "/tasks/orchestration-runs")
                   }
                 >
                   返回列表

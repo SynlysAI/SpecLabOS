@@ -35,7 +35,7 @@ def pi_health_check_executor(
     Returns:
         PI 服务响应。
     """
-    return _request_pi("GET", "/health")
+    return _request_pi("GET", "/health", timeout=params.get("timeout"))
 
 
 @local_executor("pi_2278", "pi.power_on")
@@ -137,12 +137,17 @@ def pi_power_off() -> DeviceCapability:
     )
 
 
-def _request_pi(method: str, path: str) -> dict[str, Any]:
+def _request_pi(
+    method: str,
+    path: str,
+    timeout: float | None = None,
+) -> dict[str, Any]:
     """调用 PI 远程接口。
 
     Args:
         method: HTTP 方法。
         path: 接口路径。
+        timeout: 请求超时时间。
 
     Returns:
         PI 服务响应。
@@ -152,7 +157,7 @@ def _request_pi(method: str, path: str) -> dict[str, Any]:
     response = requests.request(
         method=method,
         url=f"{base_url}{path}",
-        timeout=settings.apis.pi.timeout,
+        timeout=timeout or settings.apis.pi.timeout,
     )
     response.raise_for_status()
     return response.json()

@@ -103,7 +103,7 @@ def gpc_status_detail_executor(
     Returns:
         GPC 服务响应。
     """
-    return _request_gpc("POST", "/device/status")
+    return _request_gpc("POST", "/device/status", timeout=params.get("timeout"))
 
 
 @local_executor("gpc_2278", "gpc.get_current_tasks")
@@ -239,6 +239,7 @@ def _request_gpc(
     method: str,
     path: str,
     payload: Any | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """调用 GPC 远程接口。
 
@@ -246,6 +247,7 @@ def _request_gpc(
         method: HTTP 方法。
         path: 接口路径。
         payload: 请求体。
+        timeout: 请求超时时间。
 
     Returns:
         GPC 服务响应。
@@ -255,7 +257,7 @@ def _request_gpc(
     response = requests.request(
         method=method,
         url=f"{base_url}{path}",
-        timeout=settings.apis.gpc.timeout,
+        timeout=timeout or settings.apis.gpc.timeout,
         json=payload,
     )
     response.raise_for_status()

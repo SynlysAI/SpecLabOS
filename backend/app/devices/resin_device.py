@@ -61,7 +61,7 @@ for _resin_device_id in ("resin_2278", "resin_2278_2", "resin_1438"):
         Returns:
             Resin 服务响应。
         """
-        return _request_resin(device_id, "GET", "/health")
+        return _request_resin(device_id, "GET", "/health", timeout=params.get("timeout"))
 
     @local_executor(_resin_device_id, "resin.trigger_generate")
     def resin_trigger_generate_executor(
@@ -199,6 +199,7 @@ def _request_resin(
     method: str,
     path: str,
     payload: dict[str, Any] | None = None,
+    timeout: float | None = None,
 ) -> dict[str, Any]:
     """调用 Resin 远程接口。
 
@@ -207,6 +208,7 @@ def _request_resin(
         method: HTTP 方法。
         path: 接口路径。
         payload: 请求体。
+        timeout: 请求超时时间。
 
     Returns:
         Resin 服务响应。
@@ -219,7 +221,7 @@ def _request_resin(
     response = requests.request(
         method=method,
         url=f"{base_url}{path}",
-        timeout=settings.apis.resin.timeout,
+        timeout=timeout or settings.apis.resin.timeout,
         json=payload,
     )
     response.raise_for_status()

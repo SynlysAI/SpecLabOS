@@ -9,7 +9,7 @@ import { http } from "./http";
 export async function fetchDevices({ refreshStatus = false } = {}) {
   const response = await http.get("/api/devices", {
     params: { refresh_status: refreshStatus },
-    timeout: refreshStatus ? 30000 : 10000
+    timeout: refreshStatus ? 10000 : 5000
   });
   return response.data.items;
 }

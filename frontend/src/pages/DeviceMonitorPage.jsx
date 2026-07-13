@@ -7,48 +7,6 @@ import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import { fetchDevices, resolveDeviceImageUrl } from "../services/deviceApi";
 
-const FALLBACK_DEVICES = [
-  {
-    key: "nmr_2278",
-    name: "nmr_2278",
-    category: "核磁共振仪",
-    device_type: "NMRSpectrometer",
-    image_url: "/api/device-images/NMRSpectrometer",
-    enabled: true,
-    location: "A-203",
-    status_snapshot: {
-      state: "online",
-      updated_at: "2026-04-27 17:40"
-    }
-  },
-  {
-    key: "gpc_2278",
-    name: "gpc_2278",
-    category: "凝胶渗透色谱仪",
-    device_type: "GPCAnalyzer",
-    image_url: "/api/device-images/GPCAnalyzer",
-    enabled: true,
-    location: "A-105",
-    status_snapshot: {
-      state: "running",
-      updated_at: "2026-04-27 17:36"
-    }
-  },
-  {
-    key: "resin_2278",
-    name: "resin_2278",
-    category: "树脂工作站",
-    device_type: "ResinWorkstation",
-    image_url: "/api/device-images/ResinWorkstation",
-    enabled: false,
-    location: "B-201",
-    status_snapshot: {
-      state: "offline",
-      updated_at: "2026-04-27 16:58"
-    }
-  }
-];
-
 const columns = [
   {
     title: "设备",
@@ -114,11 +72,12 @@ function normalizeDevices(items) {
  *     展示设备监控表格、摘要卡片和详情抽屉。
  */
 export default function DeviceMonitorPage() {
-  const [devices, setDevices] = useState(normalizeDevices(FALLBACK_DEVICES));
+  const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [usingFallbackData, setUsingFallbackData] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   /**
    * 加载设备列表。
@@ -126,22 +85,25 @@ export default function DeviceMonitorPage() {
    * Returns:
    *     无返回值。
    */
-  async function loadDevices() {
-    setLoading(true);
+  async function loadDevices({ refreshStatus = false } = {}) {
+    const setBusy = refreshStatus ? setRefreshing : setLoading;
+    setBusy(true);
     try {
-      const items = await fetchDevices({ refreshStatus: true });
+      const items = await fetchDevices({ refreshStatus });
       setDevices(normalizeDevices(items));
-      setUsingFallbackData(false);
+      setLoadError(false);
     } catch (error) {
-      setDevices(normalizeDevices(FALLBACK_DEVICES));
-      setUsingFallbackData(true);
+      setLoadError(true);
+      if (!devices.length) {
+        setDevices([]);
+      }
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
   useEffect(() => {
-    loadDevices();
+    loadDevices({ refreshStatus: false });
   }, []);
 
   /**
@@ -168,11 +130,11 @@ export default function DeviceMonitorPage() {
   return (
     <section className="page-section">
       <PageToolbar />
-      {usingFallbackData ? (
+      {loadError ? (
         <Alert
           type="warning"
           showIcon
-          message="当前接口不可用，页面展示的是示例设备数据。"
+          message="设备接口请求失败，已保留当前设备列表；请检查后端服务或稍后刷新。"
           style={{ marginBottom: 16 }}
         />
       ) : null}
@@ -197,8 +159,12 @@ export default function DeviceMonitorPage() {
         title="设备状态列表"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadDevices} loading={loading}>
-              刷新设备
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => loadDevices({ refreshStatus: true })}
+              loading={refreshing}
+            >
+              刷新状态
             </Button>
           </Space>
         }

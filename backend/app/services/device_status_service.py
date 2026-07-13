@@ -19,6 +19,7 @@ class StatusProbeSpec:
     capability_key: str
     params: dict[str, Any] = field(default_factory=dict)
     source: str = "status_api"
+    timeout_seconds: float = 1.5
 
 
 STATUS_PROBE_SPECS: dict[str, StatusProbeSpec] = {
@@ -48,7 +49,7 @@ class DeviceStatusService:
         """
         if not devices:
             return devices
-        max_workers = min(len(devices), 8)
+        max_workers = min(len(devices), 16)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_map = {
                 executor.submit(self.refresh_device, device): device
@@ -82,7 +83,7 @@ class DeviceStatusService:
 
         try:
             result = executor(
-                spec.params,
+                self._build_probe_params(spec),
                 {"run_id": f"status-{uuid4()}", "source": "status_probe"},
             )
         except request_exceptions.Timeout as exc:
@@ -103,6 +104,20 @@ class DeviceStatusService:
 
         self._mark_connected(device, result, spec)
         return device
+
+    @staticmethod
+    def _build_probe_params(spec: StatusProbeSpec) -> dict[str, Any]:
+        """构建设备状态探测参数。
+
+        Args:
+            spec: 状态探测配置。
+
+        Returns:
+            带短超时的状态探测参数。
+        """
+        params = dict(spec.params)
+        params.setdefault("timeout", spec.timeout_seconds)
+        return params
 
     @staticmethod
     def _mark_connected(

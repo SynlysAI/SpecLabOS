@@ -36,7 +36,7 @@ def _find_device_image(device_type: str) -> Path | None:
 
 @router.get("", response_model=DeviceListResponse)
 def list_devices(
-    refresh_status: bool = Query(default=True),
+    refresh_status: bool = Query(default=False),
 ) -> DeviceListResponse:
     """返回设备列表数据。"""
     device_service = get_device_service()

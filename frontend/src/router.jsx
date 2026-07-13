@@ -5,10 +5,8 @@ import { useAuth } from "./auth/AuthContext";
 import AppShell from "./layout/AppShell";
 
 const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
-const WorkflowBuilderPage = lazy(() => import("./pages/WorkflowBuilderPage"));
-const SmartAccessTemplatesPage = lazy(() => import("./pages/SmartAccessTemplatesPage"));
-const SmartAccessRunsPage = lazy(() => import("./pages/SmartAccessRunsPage"));
-const WorkflowRunsPage = lazy(() => import("./pages/WorkflowRunsPage"));
+const WorkflowCenterPage = lazy(() => import("./pages/WorkflowCenterPage"));
+const TaskCenterPage = lazy(() => import("./pages/TaskCenterPage"));
 const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage"));
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
 const ToolsPage = lazy(() => import("./pages/ToolsPage"));
@@ -110,23 +108,31 @@ export const router = createBrowserRouter([
     element: <ProtectedShell />,
     children: [
       { index: true, element: withSuspense(<DeviceMonitorPage />) },
+      { path: "workflows", element: <Navigate to="/workflows/local-builder" replace /> },
+      { path: "workflows/new", element: <Navigate to="/workflows/local-builder" replace /> },
       {
-        path: "workflows/new",
-        element: withSuspense(<WorkflowBuilderPage />)
+        path: "workflows/:tabKey",
+        element: withSuspense(<WorkflowCenterPage />)
+      },
+      { path: "tasks", element: <Navigate to="/tasks/orchestration-runs" replace /> },
+      { path: "tasks/device-runs", element: <Navigate to="/tasks/orchestration-runs" replace /> },
+      {
+        path: "tasks/:tabKey",
+        element: withSuspense(<TaskCenterPage />)
       },
       {
         path: "smartaccess/templates",
-        element: withSuspense(<SmartAccessTemplatesPage />)
+        element: <Navigate to="/workflows/smartaccess-templates" replace />
       },
       {
         path: "smartaccess/runs",
-        element: withSuspense(<SmartAccessRunsPage />)
+        element: <Navigate to="/tasks/smartaccess-runs" replace />
       },
       {
         path: "smartaccess/runs/:runId",
         element: withSuspense(<WorkflowRunDetailPage />)
       },
-      { path: "runs", element: withSuspense(<WorkflowRunsPage />) },
+      { path: "runs", element: <Navigate to="/tasks/orchestration-runs" replace /> },
       {
         path: "runs/:runId",
         element: withSuspense(<WorkflowRunDetailPage />)

@@ -247,12 +247,14 @@ def _request_nmr(
     """
     settings = get_settings()
     base_url = settings.apis.nmr.base_url.rstrip("/")
+    request_params = dict(params or {})
+    timeout = request_params.pop("timeout", settings.apis.nmr.timeout)
     response = requests.request(
         method=method,
         url=f"{base_url}{path}",
-        timeout=settings.apis.nmr.timeout,
-        json=params if method.upper() != "GET" else None,
-        params=params if method.upper() == "GET" else None,
+        timeout=timeout,
+        json=request_params if method.upper() != "GET" else None,
+        params=request_params if method.upper() == "GET" else None,
     )
     response.raise_for_status()
     try:
