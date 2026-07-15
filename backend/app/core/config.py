@@ -20,9 +20,6 @@ class MongoSettings(BaseModel):
 
     uri: str
     database: str = "spec_labos"
-    data_database: str = "speclabos_data"
-    completed_uri: str = ""
-    completed_database: str = ""
 
 
 class MinioSettings(BaseModel):
@@ -39,6 +36,7 @@ class DataHubSettings(BaseModel):
     """SmartDataHub 上传接口配置。"""
 
     api_token: str = ""
+    database: str = "speclabos_data"
 
 
 class AuthSettings(BaseModel):
@@ -189,6 +187,41 @@ def get_default_config_path(current_file: str | Path | None = None) -> Path:
     return project_root / "config.yaml"
 
 
+def _resolve_config_relative_path(path_value: str, config_file: Path) -> str:
+    """将配置中的相对路径解析为相对配置文件所在目录的绝对路径。
+
+    Args:
+        path_value: 配置中的路径文本。
+        config_file: 配置文件路径。
+
+    Returns:
+        解析后的路径文本。
+    """
+    target_path = Path(path_value)
+    if target_path.is_absolute():
+        return str(target_path)
+    return str((config_file.parent / target_path).resolve())
+
+
+def _resolve_device_image_dir(raw_data: dict, config_file: Path) -> None:
+    """解析设备图片目录配置。
+
+    Args:
+        raw_data: 原始配置数据。
+        config_file: 配置文件路径。
+    """
+    device_images = raw_data.get("device_images")
+    if not isinstance(device_images, dict):
+        return
+
+    image_dir = device_images.get("image_dir")
+    if isinstance(image_dir, str) and image_dir:
+        device_images["image_dir"] = _resolve_config_relative_path(
+            image_dir,
+            config_file,
+        )
+
+
 def load_settings(config_path: str | Path) -> Settings:
     """从 YAML 文件加载系统配置。
 
@@ -198,8 +231,10 @@ def load_settings(config_path: str | Path) -> Settings:
     Returns:
         解析后的系统配置对象。
     """
-    config_file = Path(config_path)
+    config_file = Path(config_path).resolve()
     raw_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+    if isinstance(raw_data, dict):
+        _resolve_device_image_dir(raw_data, config_file)
     return Settings.model_validate(raw_data)
 
 

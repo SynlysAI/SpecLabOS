@@ -1,6 +1,6 @@
 """运行事件仓储。"""
 
-from app.core.data_db import get_data_database
+from app.core.mongo import get_database
 from app.domain.run_event import RunEvent
 
 
@@ -14,7 +14,7 @@ class EventRepository:
 
     def __init__(self):
         """初始化事件仓储，确保索引存在。"""
-        self._collection = get_data_database()[self.COLLECTION]
+        self._collection = get_database()[self.COLLECTION]
         self._collection.create_index([("run_id", 1), ("timestamp", 1)])
         self._collection.create_index([("device_id", 1), ("timestamp", -1)])
 

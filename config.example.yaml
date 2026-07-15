@@ -6,8 +6,6 @@ app:
 mongo:
   uri: mongodb://admin:password123@127.0.0.1:27018
   database: spectrum_alab
-  completed_uri: mongodb://admin:password123@127.0.0.1:27018
-  completed_database: spectrum_alab_completed
 
 minio:
   endpoint: 127.0.0.1:9000
@@ -18,6 +16,7 @@ minio:
 
 datahub:
   api_token: dev-datahub-token
+  database: speclabos_data
 
 auth:
   enabled: true
@@ -36,7 +35,7 @@ rabbitmq:
   password: password123
 
 device_images:
-  image_dir: E:/github_project/SpecLabOS/images
+  image_dir: images
 
 device_logs:
   raman_dir: \\100.66.91.117\raman_log

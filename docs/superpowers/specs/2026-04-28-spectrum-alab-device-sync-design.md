@@ -89,8 +89,6 @@
 
 - `mongo.uri`
 - `mongo.database`
-- `mongo.completed_uri`
-- `mongo.completed_database`
 - `rabbitmq.host`
 - `rabbitmq.port`
 - `rabbitmq.username`
@@ -107,7 +105,7 @@
 - `apis.raman.result_base_url`
 - `apis.raman.timeout`
 
-当前项目如暂时未消费某些配置，也先完整落入配置模型，避免后续再次破坏结构。
+当前项目如暂时未消费某些配置，需避免继续保留无运行时用途的遗留字段。
 
 ## 4.2 设备抽象策略
 
