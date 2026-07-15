@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response as StarletteResponse
 
-from app.api.routes import auth, devices, logs, smartaccess, tools, workflows
+from app.api.routes import auth, data_assets, devices, logs, smartaccess, tools, workflows
 from app.core.config import Settings, get_settings
 from app.core.mongo import reset_mongo_client
 from app.runtime import get_workflow_dispatcher
@@ -47,6 +47,7 @@ def create_app(
     application.include_router(devices.router)
     application.include_router(devices.device_images_router)
     application.include_router(smartaccess.router)
+    application.include_router(data_assets.router)
     application.include_router(workflows.router)
     application.include_router(workflows.workflow_runs_router)
     application.include_router(logs.router)

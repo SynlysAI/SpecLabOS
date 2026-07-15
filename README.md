@@ -63,6 +63,63 @@ SpecLabOS 提供独立的 SmartAccess 模板中心，用于接收 SmartAccess �
 
 `smartaccess_node_id` 表示安装并运行 SmartAccess worker 的执行端电脑 ID；`target_device_id` 表示该电脑控制的目标设备或目标软件，例如 `vpn软件`、`weixin`。任务运行列表中的“目标设备”展示 `target_device_id`，“执行端”展示 `smartaccess_node_id`。
 
+## SmartDataHub 数据入库
+
+SpecLabOS 当前也集成了 SmartDataHub 的数据接收能力，用于接收设备端 Collector 上报的文件，并写入 MinIO 和 MongoDB。
+
+### 接口
+
+- 文件上传：`POST /api/data/ingest/files`
+- 资产列表：`GET /api/data/assets`
+- 资产文件列表：`GET /api/data/assets/{asset_id}/files`
+
+### 存储结构
+
+MongoDB 使用两个集合：
+
+- `data_assets`：资产主记录，表示一个结果目录或一个单文件资产。
+- `data_asset_files`：文件明细记录，表示资产下的每个具体文件。
+
+### ID 规则
+
+当前资产和文件主键使用确定性 UUID 生成，避免同名目录冲突。
+
+- `asset_key = device_id:data_type:asset_group_id`
+- `asset_id = uuid5(namespace, asset_key)`
+- `file_key = asset_key:relative_path`
+- `file_id = uuid5(namespace, file_key)`
+
+其中：
+
+- `asset_group_id` 是业务上的结果目录名或文件名，例如 `sample_005`。
+- `relative_path` 是文件在结果目录内的相对路径，例如 `pdata/1/1r`。
+
+### 数据含义
+
+- `data_assets`：保存资产汇总信息，例如 `file_count`、`total_size`、`storage_prefix`、`upload_status`。
+- `data_asset_files`：保存每个文件的详细信息，例如 `relative_path`、`file_hash`、`storage_key`、`storage_uri`。
+
+对于目录型结果，`data_assets` 代表整个结果目录，`data_asset_files` 代表目录中的每个文件。
+
+### MinIO 规则
+
+目录型资产会按原目录结构上传到 MinIO，不做 zip 压缩。对象 key 形如：
+
+```text
+data-assets/{device_id}/{data_type}/{yyyy}/{mm}/{dd}/{root_name}/{relative_path}
+```
+
+如果是单文件资产，则不会附加根目录名。
+
+### Collector 协作方式
+
+Collector 监听设备端目录并上报文件内容，SpecLabOS 负责：
+
+- 接收上传文件
+- 写入 MinIO
+- 更新 MongoDB 主记录和文件明细
+- 提供资产列表和文件列表查询接口
+
 ## 基础验证
 
 后端测试：

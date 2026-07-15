@@ -9,6 +9,16 @@ mongo:
   completed_uri: mongodb://admin:password123@127.0.0.1:27018
   completed_database: spectrum_alab_completed
 
+minio:
+  endpoint: 127.0.0.1:9000
+  access_key: minioadmin
+  secret_key: minioadmin
+  bucket: speclabos-data
+  secure: false
+
+datahub:
+  api_token: dev-datahub-token
+
 auth:
   enabled: true
   token_expire_hours: 12

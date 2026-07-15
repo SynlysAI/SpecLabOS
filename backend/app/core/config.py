@@ -25,6 +25,22 @@ class MongoSettings(BaseModel):
     completed_database: str = ""
 
 
+class MinioSettings(BaseModel):
+    """MinIO 对象存储配置。"""
+
+    endpoint: str = "127.0.0.1:9000"
+    access_key: str = "minioadmin"
+    secret_key: str = "minioadmin"
+    bucket: str = "speclabos-data"
+    secure: bool = False
+
+
+class DataHubSettings(BaseModel):
+    """SmartDataHub 上传接口配置。"""
+
+    api_token: str = ""
+
+
 class AuthSettings(BaseModel):
     """统一认证配置。"""
 
@@ -145,6 +161,8 @@ class Settings(BaseModel):
 
     app: AppSettings
     mongo: MongoSettings
+    minio: MinioSettings = Field(default_factory=MinioSettings)
+    datahub: DataHubSettings = Field(default_factory=DataHubSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     smartaccess: SmartAccessSettings = Field(default_factory=SmartAccessSettings)
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
