@@ -14,3 +14,6 @@ config.yaml
 .vscode
 .claude
 .idea
+.codegraph/
+outputs/
+test.json
