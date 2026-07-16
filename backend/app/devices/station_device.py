@@ -69,6 +69,24 @@ for _station_device_id, _station_action_key in _STATION_ACTION_KEYS.items():
         """
         return _request_station(action_key, timeout=params.get("timeout"))
 
+    @local_executor(_station_device_id, f"{_station_device_id}.health_check")
+    def station_health_check_executor(
+        params: dict[str, Any],
+        context: dict[str, Any],
+        action_key: str = _station_action_key,
+    ) -> dict[str, Any]:
+        """检查工位服务健康状态。
+
+        Args:
+            params: 执行参数。
+            context: 运行上下文。
+            action_key: 工位动作前缀。
+
+        Returns:
+            Station 健康检查响应。
+        """
+        return _request_station_health(action_key, timeout=params.get("timeout"))
+
     @local_executor(_station_device_id, f"{_station_device_id}.power_on")
     def station_power_on_executor(
         params: dict[str, Any],
@@ -119,6 +137,18 @@ def metal_check_status() -> DeviceCapability:
 
 
 @capability("金属镀膜设备")
+def metal_health_check() -> DeviceCapability:
+    """健康检查。"""
+    return DeviceCapability(
+        capability_key="metal_108.health_check",
+        device_category="金属镀膜设备",
+        name="健康检查",
+        description="检查 metal_108 服务健康状态",
+        step_mode="hidden",
+    )
+
+
+@capability("金属镀膜设备")
 def metal_power_on() -> DeviceCapability:
     """启动。"""
     return DeviceCapability(
@@ -155,6 +185,18 @@ def cat_check_status() -> DeviceCapability:
 
 
 @capability("附着力测试设备")
+def cat_health_check() -> DeviceCapability:
+    """健康检查。"""
+    return DeviceCapability(
+        capability_key="cat_108.health_check",
+        device_category="附着力测试设备",
+        name="健康检查",
+        description="检查 cat_108 服务健康状态",
+        step_mode="hidden",
+    )
+
+
+@capability("附着力测试设备")
 def cat_power_on() -> DeviceCapability:
     """启动。"""
     return DeviceCapability(
@@ -187,6 +229,18 @@ def micro_check_status() -> DeviceCapability:
         name="检查状态",
         description="查询 micro_108 当前状态",
         step_mode="auto",
+    )
+
+
+@capability("微观表征设备")
+def micro_health_check() -> DeviceCapability:
+    """健康检查。"""
+    return DeviceCapability(
+        capability_key="micro_108.health_check",
+        device_category="微观表征设备",
+        name="健康检查",
+        description="检查 micro_108 服务健康状态",
+        step_mode="hidden",
     )
 
 
@@ -241,3 +295,39 @@ def _request_station(
     )
     response.raise_for_status()
     return response.json()
+
+
+def _request_station_health(
+    device_action_key: str,
+    timeout: float | None = None,
+) -> dict[str, Any]:
+    """调用 Station 健康检查接口。
+
+    Args:
+        device_action_key: 工位动作前缀。
+        timeout: 请求超时时间。
+
+    Returns:
+        Station 健康检查响应。
+    """
+    settings = get_settings()
+    base_url = settings.apis.station.base_url.rstrip("/")
+    response = requests.get(
+        url=f"{base_url}/health",
+        timeout=timeout or settings.apis.station.timeout,
+    )
+    response.raise_for_status()
+    result = response.json()
+    loaded_devices = result.get("devices_loaded", [])
+    if device_action_key not in loaded_devices:
+        return {
+            **result,
+            "status": "error",
+            "message": f"Station 未加载设备: {device_action_key}",
+        }
+    return {
+        **result,
+        "status": "healthy",
+        "device_status": "idle",
+        "message": f"Station 已加载设备: {device_action_key}",
+    }

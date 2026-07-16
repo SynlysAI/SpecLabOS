@@ -103,7 +103,7 @@ export default function DeviceMonitorPage() {
   }
 
   useEffect(() => {
-    loadDevices({ refreshStatus: false });
+    loadDevices({ refreshStatus: true });
   }, []);
 
   /**

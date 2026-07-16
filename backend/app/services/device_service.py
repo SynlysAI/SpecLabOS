@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import Any
 
+from app.core.config import get_settings
 from app.devices.registry import (
     get_device,
     list_capabilities_by_category,
@@ -60,6 +61,7 @@ class DeviceService:
     def list_devices(self) -> list[DeviceResource]:
         """列出所有已注册设备资源。"""
         devices = [*list_devices(), *self._list_smartaccess_devices()]
+        self._apply_enabled_config(devices)
         return sorted(
             devices,
             key=lambda device: DEVICE_DISPLAY_ORDER.get(device.device_id, 999),
@@ -193,6 +195,17 @@ class DeviceService:
         return schema_type
 
     @staticmethod
+    def _apply_enabled_config(devices: list[DeviceResource]) -> None:
+        """按配置应用设备启用状态。
+
+        Args:
+            devices: 待更新启用状态的设备列表。
+        """
+        disabled_keys = set(get_settings().devices.disabled_keys)
+        for device in devices:
+            device.enabled = device.device_id not in disabled_keys
+
+    @staticmethod
     def _status_to_state(device: DeviceResource) -> str:
         """将四维状态折叠为前端旧状态。
 
@@ -209,7 +222,7 @@ class DeviceService:
         if device.execution_status not in ("", "idle"):
             return device.execution_status
         if device.connection_status in ("connected", "online"):
-            return "idle"
+            return "online"
         return device.connection_status or "unknown"
 
     def _list_smartaccess_devices(self) -> list[DeviceResource]:

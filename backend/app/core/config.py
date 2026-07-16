@@ -130,6 +130,7 @@ class ApiSettings(BaseModel):
     pi: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
     nmr: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
     raman: RamanApiSettings = Field(default_factory=RamanApiSettings)
+    lcms: ApiEndpointSettings = Field(default_factory=ApiEndpointSettings)
 
 
 class RuntimeSettings(BaseModel):
@@ -143,7 +144,7 @@ class RuntimeSettings(BaseModel):
 class DeviceSettings(BaseModel):
     """设备启用配置。"""
 
-    enabled_keys: list[str] = Field(default_factory=list)
+    disabled_keys: list[str] = Field(default_factory=list)
 
 
 class LlmSettings(BaseModel):

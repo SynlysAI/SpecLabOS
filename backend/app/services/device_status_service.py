@@ -3,11 +3,14 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
+import socket
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from requests import exceptions as request_exceptions
 
+from app.core.config import get_settings
 from app.devices.registry import get_local_executor
 from app.domain.device import DeviceResource
 
@@ -26,12 +29,20 @@ STATUS_PROBE_SPECS: dict[str, StatusProbeSpec] = {
     "nmr_2278": StatusProbeSpec("nmr.list_templates", source="nmr_check"),
     "gpc_2278": StatusProbeSpec("gpc.get_device_status_detail"),
     "pi_2278": StatusProbeSpec("pi.health_check", source="health_api"),
-    "resin_2278": StatusProbeSpec("resin.health_check", source="health_api"),
-    "resin_2278_2": StatusProbeSpec("resin.health_check", source="health_api"),
-    "resin_1438": StatusProbeSpec("resin.health_check", source="health_api"),
-    "metal_108": StatusProbeSpec("metal_108.check_status"),
-    "cat_108": StatusProbeSpec("cat_108.check_status"),
-    "micro_108": StatusProbeSpec("micro_108.check_status"),
+    "metal_108": StatusProbeSpec("metal_108.health_check", source="health_api"),
+    "cat_108": StatusProbeSpec("cat_108.health_check", source="health_api"),
+    "micro_108": StatusProbeSpec("micro_108.health_check", source="health_api"),
+}
+
+TCP_PROBE_DEVICE_IDS = {
+    "nmr_2278",
+    "gpc_2278",
+    "ir_2278",
+    "raman_2278",
+    "lcms_2278",
+    "resin_2278",
+    "resin_2278_2",
+    "resin_1438",
 }
 
 
@@ -70,7 +81,13 @@ class DeviceStatusService:
         """
         spec = STATUS_PROBE_SPECS.get(device.device_id)
         device.status_updated_at = datetime.now()
+        if not device.enabled:
+            self._mark_disabled(device)
+            return device
         if device.adapter_type == "smartaccess":
+            return device
+        if device.device_id in TCP_PROBE_DEVICE_IDS:
+            self._refresh_by_tcp_probe(device)
             return device
         if spec is None:
             self._mark_unknown(device, "未配置状态探测接口")
@@ -106,6 +123,47 @@ class DeviceStatusService:
         return device
 
     @staticmethod
+    def _refresh_by_tcp_probe(device: DeviceResource) -> None:
+        """通过服务端口可达性刷新设备状态。
+
+        Args:
+            device: 待刷新设备。
+        """
+        timeout_seconds = 1.5
+        urls = DeviceStatusService._build_tcp_probe_urls(device.device_id)
+        if not urls:
+            DeviceStatusService._mark_unknown(device, "未配置端口探测地址")
+            return
+
+        reachable_urls, failed_urls = DeviceStatusService._probe_tcp_urls(
+            urls,
+            timeout_seconds,
+        )
+        spec = StatusProbeSpec(
+            capability_key="tcp.port_check",
+            source="tcp_probe",
+            timeout_seconds=timeout_seconds,
+        )
+        if reachable_urls:
+            result = {
+                "status": "idle",
+                "reachable_urls": reachable_urls,
+                "failed_urls": failed_urls,
+            }
+            DeviceStatusService._mark_connected(device, result, spec)
+            device.status_message = DeviceStatusService._build_tcp_success_message(
+                reachable_urls,
+                failed_urls,
+            )
+            return
+
+        DeviceStatusService._mark_offline(
+            device,
+            f"服务端口不可达: {', '.join(failed_urls or urls)}",
+            spec,
+        )
+
+    @staticmethod
     def _build_probe_params(spec: StatusProbeSpec) -> dict[str, Any]:
         """构建设备状态探测参数。
 
@@ -118,6 +176,107 @@ class DeviceStatusService:
         params = dict(spec.params)
         params.setdefault("timeout", spec.timeout_seconds)
         return params
+
+    @staticmethod
+    def _build_tcp_probe_urls(device_id: str) -> list[str]:
+        """构建设备端口探测地址。
+
+        Args:
+            device_id: 设备标识。
+
+        Returns:
+            该设备需要探测的基础服务地址列表。
+        """
+        settings = get_settings()
+        if device_id == "nmr_2278":
+            return [settings.apis.nmr.base_url] if settings.apis.nmr.base_url else []
+        if device_id == "gpc_2278":
+            return [settings.apis.gpc.base_url] if settings.apis.gpc.base_url else []
+        if device_id == "pi_2278":
+            return [settings.apis.pi.base_url] if settings.apis.pi.base_url else []
+        if device_id == "lcms_2278":
+            return [settings.apis.lcms.base_url] if settings.apis.lcms.base_url else []
+        if device_id == "raman_2278":
+            return [
+                url for url in (
+                    settings.apis.raman.capture_base_url,
+                    settings.apis.raman.result_base_url,
+                )
+                if url
+            ]
+        if device_id.startswith("resin_"):
+            base_url = (
+                settings.apis.resin.devices.get(device_id)
+                or settings.apis.resin.base_url
+            )
+            return [base_url] if base_url else []
+        return []
+
+    @staticmethod
+    def _probe_tcp_urls(
+        urls: list[str],
+        timeout_seconds: float,
+    ) -> tuple[list[str], list[str]]:
+        """探测多个服务地址的 TCP 端口可达性。
+
+        Args:
+            urls: 服务基础地址列表。
+            timeout_seconds: 单个端口连接超时时间。
+
+        Returns:
+            可达地址列表与不可达地址列表。
+        """
+        reachable_urls = []
+        failed_urls = []
+        for url in urls:
+            if DeviceStatusService._is_tcp_url_reachable(url, timeout_seconds):
+                reachable_urls.append(url)
+            else:
+                failed_urls.append(url)
+        return reachable_urls, failed_urls
+
+    @staticmethod
+    def _is_tcp_url_reachable(url: str, timeout_seconds: float) -> bool:
+        """判断服务地址的 TCP 端口是否可连接。
+
+        Args:
+            url: 服务基础地址。
+            timeout_seconds: 连接超时时间。
+
+        Returns:
+            端口可连接时返回 True。
+        """
+        parsed_url = urlparse(url if "://" in url else f"http://{url}")
+        host = parsed_url.hostname
+        port = parsed_url.port
+        if port is None:
+            port = 443 if parsed_url.scheme == "https" else 80
+        if not host:
+            return False
+        try:
+            with socket.create_connection((host, port), timeout=timeout_seconds):
+                return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _build_tcp_success_message(
+        reachable_urls: list[str],
+        failed_urls: list[str],
+    ) -> str:
+        """构造端口探测成功消息。
+
+        Args:
+            reachable_urls: 可达地址列表。
+            failed_urls: 不可达地址列表。
+
+        Returns:
+            前端展示的状态消息。
+        """
+        message = f"服务端口可达: {', '.join(reachable_urls)}"
+        if failed_urls:
+            message = f"{message}；不可达: {', '.join(failed_urls)}"
+        return message
 
     @staticmethod
     def _mark_connected(
@@ -153,6 +312,16 @@ class DeviceStatusService:
         device.maintenance_status = "available"
         device.status_sources = []
         device.status_message = message
+
+    @staticmethod
+    def _mark_disabled(device: DeviceResource) -> None:
+        """标记设备未启用。"""
+        device.connection_status = "disabled"
+        device.execution_status = "idle"
+        device.data_status = "unknown"
+        device.maintenance_status = "available"
+        device.status_sources = []
+        device.status_message = "设备已禁用，跳过状态探测"
 
     @staticmethod
     def _mark_offline(

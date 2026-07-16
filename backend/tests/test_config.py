@@ -52,7 +52,7 @@ runtime:
   status_poll_interval_seconds: 10
   runner_interval_seconds: 1
 devices:
-  enabled_keys: [nmr_2278]
+  disabled_keys: [ir_2278]
 datahub:
   api_token: dev-datahub-token
   database: speclabos_data
@@ -70,7 +70,7 @@ datahub:
     assert settings.device_images.image_dir == str((tmp_path / "images").resolve())
     assert settings.datahub.database == "speclabos_data"
     assert settings.runtime.sim_mode is True
-    assert settings.devices.enabled_keys == ["nmr_2278"]
+    assert settings.devices.disabled_keys == ["ir_2278"]
 
 
 def test_get_default_config_path_from_backend_file() -> None:
@@ -131,7 +131,7 @@ def test_create_app_uses_settings_title(monkeypatch: pytest.MonkeyPatch) -> None
                 "runner_interval_seconds": 1,
             },
             "devices": {
-                "enabled_keys": ["nmr_2278"],
+                "disabled_keys": ["ir_2278"],
             },
         }
     )
