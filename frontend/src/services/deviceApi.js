@@ -6,9 +6,12 @@ import { http } from "./http";
  * Returns:
  *     设备列表数据。
  */
-export async function fetchDevices({ refreshStatus = false } = {}) {
+export async function fetchDevices({ refreshStatus = false, includeSmartAccess = true } = {}) {
   const response = await http.get("/api/devices", {
-    params: { refresh_status: refreshStatus },
+    params: {
+      refresh_status: refreshStatus,
+      include_smartaccess: includeSmartAccess,
+    },
     timeout: refreshStatus ? 10000 : 5000
   });
   return response.data.items;

@@ -40,10 +40,11 @@ def _find_device_image(device_type: str) -> Path | None:
 @router.get("", response_model=DeviceListResponse)
 def list_devices(
     refresh_status: bool = Query(default=False),
+    include_smartaccess: bool = Query(default=True),
 ) -> DeviceListResponse:
     """返回设备列表数据。"""
     device_service = get_device_service()
-    devices = device_service.list_devices()
+    devices = device_service.list_devices(include_smartaccess=include_smartaccess)
     if refresh_status:
         get_device_status_service().refresh_devices(devices)
     items = []

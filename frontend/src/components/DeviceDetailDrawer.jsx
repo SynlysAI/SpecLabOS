@@ -3,6 +3,7 @@ import { Descriptions, Drawer, Empty, Image, Space } from "antd";
 
 import StatusTag from "./StatusTag";
 import { resolveDeviceImageUrl } from "../services/deviceApi";
+import { formatDeviceAccessMode } from "../utils/deviceDisplay";
 
 /**
  * 设备详情抽屉组件。
@@ -36,6 +37,9 @@ export default function DeviceDetailDrawer({ open, device, onClose }) {
             <Descriptions.Item label="设备名称">{device.name}</Descriptions.Item>
             <Descriptions.Item label="设备分类">{device.category}</Descriptions.Item>
             <Descriptions.Item label="设备类型">{device.device_type}</Descriptions.Item>
+            <Descriptions.Item label="接入模式">
+              {formatDeviceAccessMode(device.adapter_type)}
+            </Descriptions.Item>
             <Descriptions.Item label="当前状态">
               <StatusTag status={device.status_snapshot?.state} />
             </Descriptions.Item>

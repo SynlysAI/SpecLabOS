@@ -93,6 +93,7 @@ def _register_instance_settings(
         image=str(instance_config.get("image") or ""),
         endpoints=dict(instance_config.get("endpoints") or {}),
         status_endpoints=list(instance_config.get("status_endpoints") or []),
+        status_timeout_seconds=instance_config.get("status_timeout_seconds"),
         health_path=str(instance_config.get("health_path") or ""),
         health_device=str(instance_config.get("health_device") or ""),
     )

@@ -9,6 +9,7 @@ devices:
       status_endpoints:
         - capture
         - result
+      status_timeout_seconds: 1
     resin_2278:
       endpoints:
         api: http://47.121.24.228:7004

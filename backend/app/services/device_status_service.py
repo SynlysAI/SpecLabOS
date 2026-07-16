@@ -16,6 +16,9 @@ from app.devices.registry import get_local_executor
 from app.domain.device import DeviceResource
 
 
+DEFAULT_STATUS_TIMEOUT_SECONDS = 1
+
+
 @dataclass(frozen=True)
 class StatusProbeSpec:
     """设备状态探测配置。"""
@@ -23,7 +26,7 @@ class StatusProbeSpec:
     capability_key: str
     params: dict[str, Any] = field(default_factory=dict)
     source: str = "status_api"
-    timeout_seconds: float = 1.5
+    timeout_seconds: float = DEFAULT_STATUS_TIMEOUT_SECONDS
 
 
 STATUS_PROBE_SPECS: dict[str, StatusProbeSpec] = {
@@ -144,7 +147,14 @@ class DeviceStatusService:
             DeviceStatusService._mark_unknown(device, "未配置设备实例")
             return
 
-        spec = StatusProbeSpec("config_probe", source="device_config")
+        spec = StatusProbeSpec(
+            "config_probe",
+            source="device_config",
+            timeout_seconds=(
+                item_config.status_timeout_seconds
+                or DEFAULT_STATUS_TIMEOUT_SECONDS
+            ),
+        )
         if item_config.health_path:
             DeviceStatusService._refresh_by_config_health_probe(
                 device,
@@ -247,7 +257,7 @@ class DeviceStatusService:
         Args:
             device: 待刷新设备。
         """
-        timeout_seconds = 1.5
+        timeout_seconds = DEFAULT_STATUS_TIMEOUT_SECONDS
         urls = DeviceStatusService._build_tcp_probe_urls(device.device_id)
         if not urls:
             DeviceStatusService._mark_unknown(device, "未配置端口探测地址")
@@ -360,11 +370,21 @@ class DeviceStatusService:
         """
         reachable_urls = []
         failed_urls = []
-        for url in urls:
-            if DeviceStatusService._is_tcp_url_reachable(url, timeout_seconds):
-                reachable_urls.append(url)
-            else:
-                failed_urls.append(url)
+        with ThreadPoolExecutor(max_workers=min(len(urls), 8) or 1) as executor:
+            future_map = {
+                executor.submit(
+                    DeviceStatusService._is_tcp_url_reachable,
+                    url,
+                    timeout_seconds,
+                ): url
+                for url in urls
+            }
+            for future in as_completed(future_map):
+                url = future_map[future]
+                if future.result():
+                    reachable_urls.append(url)
+                else:
+                    failed_urls.append(url)
         return reachable_urls, failed_urls
 
     @staticmethod

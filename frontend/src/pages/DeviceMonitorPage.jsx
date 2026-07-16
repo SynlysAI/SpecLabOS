@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Image, Row, Space, Table } from "antd";
+import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import { fetchDevices, resolveDeviceImageUrl } from "../services/deviceApi";
+import { formatDeviceAccessMode } from "../utils/deviceDisplay";
 
 const columns = [
   {
@@ -34,6 +35,12 @@ const columns = [
     title: "分类",
     dataIndex: "category",
     key: "category"
+  },
+  {
+    title: "接入模式",
+    dataIndex: "adapter_type",
+    key: "adapter_type",
+    render: (value) => formatDeviceAccessMode(value)
   },
   {
     title: "状态",
@@ -126,6 +133,7 @@ export default function DeviceMonitorPage() {
   const warningCount = devices.filter(
     (item) => ["warning", "offline", "error", "failed"].includes(item.status_snapshot?.state)
   ).length;
+  const initialLoading = loading && !devices.length;
 
   return (
     <section className="page-section">
@@ -140,17 +148,17 @@ export default function DeviceMonitorPage() {
       ) : null}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={8}>
-          <Card size="small" title="设备总数">
+          <Card size="small" title="设备总数" loading={loading && !devices.length}>
             <strong style={{ fontSize: 28 }}>{devices.length}</strong>
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card size="small" title="在线设备">
+          <Card size="small" title="在线设备" loading={loading && !devices.length}>
             <strong style={{ fontSize: 28 }}>{onlineCount}</strong>
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card size="small" title="待处理异常">
+          <Card size="small" title="待处理异常" loading={loading && !devices.length}>
             <strong style={{ fontSize: 28 }}>{warningCount}</strong>
           </Card>
         </Col>
@@ -169,17 +177,20 @@ export default function DeviceMonitorPage() {
           </Space>
         }
       >
-        <Table
-          rowKey="key"
-          columns={columns}
-          dataSource={devices}
-          loading={loading}
-          pagination={false}
-          onRow={(record) => ({
-            onClick: () => handleOpenDetail(record),
-            style: { cursor: "pointer" }
-          })}
-        />
+        <Spin spinning={initialLoading} tip="正在加载设备状态...">
+          <Table
+            rowKey="key"
+            columns={columns}
+            dataSource={devices}
+            loading={refreshing}
+            pagination={false}
+            locale={{ emptyText: loadError ? "设备列表加载失败" : "暂无设备数据" }}
+            onRow={(record) => ({
+              onClick: () => handleOpenDetail(record),
+              style: { cursor: "pointer" }
+            })}
+          />
+        </Spin>
       </Card>
       <DeviceDetailDrawer
         open={drawerOpen}

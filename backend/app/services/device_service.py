@@ -60,9 +60,15 @@ class DeviceService:
             self._apply_enabled_config([device])
         return device
 
-    def list_devices(self) -> list[DeviceResource]:
-        """列出所有已注册设备资源。"""
-        devices = [*list_devices(), *self._list_smartaccess_devices()]
+    def list_devices(self, include_smartaccess: bool = True) -> list[DeviceResource]:
+        """列出所有已注册设备资源。
+
+        Args:
+            include_smartaccess: 是否包含 SmartAccess 虚拟设备。
+        """
+        devices = [*list_devices()]
+        if include_smartaccess:
+            devices.extend(self._list_smartaccess_devices())
         self._apply_enabled_config(devices)
         return sorted(
             devices,
@@ -115,6 +121,7 @@ class DeviceService:
             "sim_mode": device.sim_mode,
             "location": device.location,
             "connection": device.connection,
+            "adapter_type": device.adapter_type or "",
             "status_snapshot": {
                 "state": state,
                 "message": device.status_message or (

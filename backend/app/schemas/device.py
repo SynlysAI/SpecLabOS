@@ -23,6 +23,7 @@ class DeviceItem(BaseModel):
     location: str = ""
     image_url: str | None = None
     connection: dict = Field(default_factory=dict)
+    adapter_type: str = ""
     status_snapshot: DeviceStatusSnapshot = Field(default_factory=DeviceStatusSnapshot)
 
 

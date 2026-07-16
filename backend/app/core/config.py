@@ -148,6 +148,7 @@ class DeviceItemSettings(BaseModel):
     image: str = ""
     endpoints: dict[str, str] = Field(default_factory=dict)
     status_endpoints: list[str] = Field(default_factory=list)
+    status_timeout_seconds: float | None = None
     health_path: str = ""
     health_device: str = ""
 
