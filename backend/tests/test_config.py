@@ -27,35 +27,30 @@ rabbitmq:
   password: password123
 device_images:
   image_dir: images
-apis:
-  gpc:
-    base_url: http://100.74.253.59:8001
-  resin:
-    base_url: http://47.113.220.254:7000
-    devices:
-      resin_2278: http://47.113.220.254:7000
-      resin_2278_2: http://47.113.220.254:7000
-      resin_1438: http://47.113.220.254:7000
-  station:
-    base_url: http://47.113.220.254:7001
-  pi:
-    base_url: http://47.113.220.254:6667
-  nmr:
-    base_url: http://127.0.0.1:18080
-    timeout: 60
-  raman:
-    capture_base_url: http://47.113.220.254:7001
-    result_base_url: http://47.113.220.254:7002
-    timeout: 60
+apis: {}
 runtime:
   sim_mode: true
   status_poll_interval_seconds: 10
   runner_interval_seconds: 1
-devices:
-  disabled_keys: [ir_2278]
 datahub:
   api_token: dev-datahub-token
   database: speclabos_data
+""".strip(),
+        encoding="utf-8",
+    )
+    devices_config_dir = tmp_path / "config"
+    devices_config_dir.mkdir()
+    (devices_config_dir / "devices.yaml").write_text(
+        """
+devices:
+  items:
+    ir_2278:
+      enabled: false
+    raman_2278:
+      endpoints:
+        capture: http://47.113.220.254:7001
+        result: http://47.113.220.254:7002
+      status_endpoints: [capture, result]
 """.strip(),
         encoding="utf-8",
     )
@@ -65,12 +60,13 @@ datahub:
     assert isinstance(settings, Settings)
     assert settings.mongo.database == "spec_labos"
     assert settings.rabbitmq.host == "100.84.59.58"
-    assert settings.apis.nmr.base_url == "http://127.0.0.1:18080"
-    assert settings.apis.raman.result_base_url == "http://47.113.220.254:7002"
+    assert settings.apis.nmr.base_url == ""
+    assert settings.apis.raman.result_base_url == ""
     assert settings.device_images.image_dir == str((tmp_path / "images").resolve())
     assert settings.datahub.database == "speclabos_data"
     assert settings.runtime.sim_mode is True
-    assert settings.devices.disabled_keys == ["ir_2278"]
+    assert settings.devices.items["ir_2278"].enabled is False
+    assert settings.devices.items["raman_2278"].endpoints["capture"] == "http://47.113.220.254:7001"
 
 
 def test_get_default_config_path_from_backend_file() -> None:
@@ -131,7 +127,9 @@ def test_create_app_uses_settings_title(monkeypatch: pytest.MonkeyPatch) -> None
                 "runner_interval_seconds": 1,
             },
             "devices": {
-                "disabled_keys": ["ir_2278"],
+                "items": {
+                    "ir_2278": {"enabled": False},
+                },
             },
         }
     )

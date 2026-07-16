@@ -54,9 +54,11 @@ class DeviceService:
             设备资源，不存在时返回 None。
         """
         device = get_device(device_key)
+        if device is None:
+            device = self._get_smartaccess_device(device_key)
         if device is not None:
-            return device
-        return self._get_smartaccess_device(device_key)
+            self._apply_enabled_config([device])
+        return device
 
     def list_devices(self) -> list[DeviceResource]:
         """列出所有已注册设备资源。"""
@@ -104,7 +106,7 @@ class DeviceService:
         """
         updated_at = DeviceService._format_updated_at(device)
         state = DeviceService._status_to_state(device)
-        return {
+        item = {
             "key": device.device_id,
             "name": device.name,
             "category": device.category,
@@ -121,6 +123,10 @@ class DeviceService:
                 "updated_at": updated_at,
             },
         }
+        image_url = DeviceService._get_config_image_url(device.device_id)
+        if image_url:
+            item["image_url"] = image_url
+        return item
 
     @staticmethod
     def serialize_action(capability: DeviceCapability) -> dict:
@@ -201,9 +207,29 @@ class DeviceService:
         Args:
             devices: 待更新启用状态的设备列表。
         """
-        disabled_keys = set(get_settings().devices.disabled_keys)
+        device_settings = get_settings().devices
+        disabled_keys = set(device_settings.disabled_keys)
         for device in devices:
-            device.enabled = device.device_id not in disabled_keys
+            item_config = device_settings.items.get(device.device_id)
+            if item_config is not None and item_config.enabled is not None:
+                device.enabled = item_config.enabled
+            else:
+                device.enabled = device.device_id not in disabled_keys
+
+    @staticmethod
+    def _get_config_image_url(device_id: str) -> str:
+        """获取配置中声明的设备图片地址。
+
+        Args:
+            device_id: 设备标识。
+
+        Returns:
+            设备图片访问路径，未配置时返回空字符串。
+        """
+        image_name = get_settings().devices.items.get(device_id)
+        if image_name is None or not image_name.image:
+            return ""
+        return f"/api/device-images/{image_name.image}"
 
     @staticmethod
     def _status_to_state(device: DeviceResource) -> str:

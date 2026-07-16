@@ -141,10 +141,22 @@ class RuntimeSettings(BaseModel):
     runner_interval_seconds: int = 1
 
 
+class DeviceItemSettings(BaseModel):
+    """单台设备实例配置。"""
+
+    enabled: bool | None = None
+    image: str = ""
+    endpoints: dict[str, str] = Field(default_factory=dict)
+    status_endpoints: list[str] = Field(default_factory=list)
+    health_path: str = ""
+    health_device: str = ""
+
+
 class DeviceSettings(BaseModel):
-    """设备启用配置。"""
+    """设备实例配置。"""
 
     disabled_keys: list[str] = Field(default_factory=list)
+    items: dict[str, DeviceItemSettings] = Field(default_factory=dict)
 
 
 class LlmSettings(BaseModel):
@@ -169,7 +181,7 @@ class Settings(BaseModel):
     device_logs: DeviceLogSettings = Field(default_factory=DeviceLogSettings)
     apis: ApiSettings = Field(default_factory=ApiSettings)
     runtime: RuntimeSettings
-    devices: DeviceSettings
+    devices: DeviceSettings = Field(default_factory=DeviceSettings)
     llm: LlmSettings = Field(default_factory=LlmSettings)
 
 
@@ -223,6 +235,58 @@ def _resolve_device_image_dir(raw_data: dict, config_file: Path) -> None:
         )
 
 
+def get_default_devices_config_path(config_file: Path) -> Path:
+    """获取默认设备实例配置文件路径。
+
+    Args:
+        config_file: 主配置文件路径。
+
+    Returns:
+        默认设备实例配置文件路径。
+    """
+    return config_file.parent / "config" / "devices.yaml"
+
+
+def _load_devices_config(config_file: Path) -> dict:
+    """加载独立设备实例配置。
+
+    Args:
+        config_file: 主配置文件路径。
+
+    Returns:
+        设备实例配置字典，不存在时返回空字典。
+    """
+    devices_config_file = get_default_devices_config_path(config_file)
+    if not devices_config_file.is_file():
+        return {}
+    raw_devices = yaml.safe_load(devices_config_file.read_text(encoding="utf-8"))
+    if not isinstance(raw_devices, dict):
+        return {}
+    return raw_devices.get("devices", raw_devices)
+
+
+def _merge_devices_config(raw_data: dict, config_file: Path) -> None:
+    """合并主配置与独立设备实例配置。
+
+    Args:
+        raw_data: 原始主配置数据。
+        config_file: 主配置文件路径。
+    """
+    devices_config = _load_devices_config(config_file)
+    if not devices_config:
+        return
+    main_devices = raw_data.get("devices")
+    if not isinstance(main_devices, dict):
+        raw_data["devices"] = devices_config
+        return
+    merged_devices = {**main_devices, **devices_config}
+    merged_devices["items"] = {
+        **main_devices.get("items", {}),
+        **devices_config.get("items", {}),
+    }
+    raw_data["devices"] = merged_devices
+
+
 def load_settings(config_path: str | Path) -> Settings:
     """从 YAML 文件加载系统配置。
 
@@ -236,6 +300,7 @@ def load_settings(config_path: str | Path) -> Settings:
     raw_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     if isinstance(raw_data, dict):
         _resolve_device_image_dir(raw_data, config_file)
+        _merge_devices_config(raw_data, config_file)
     return Settings.model_validate(raw_data)
 
 

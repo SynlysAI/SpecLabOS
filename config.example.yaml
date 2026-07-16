@@ -55,36 +55,11 @@ apis:
     mcp_url: https://dianshi.opendatalab.org.cn/api/mcp
     api_token: <YOUR_DIANSHI_API_TOKEN>
     timeout: 30
-  gpc:
-    base_url: http://100.74.253.59:8001
-  resin:
-    base_url: http://47.121.24.228:7004
-    timeout: 60
-    devices:
-      resin_2278: http://47.121.24.228:7004
-      resin_2278_2: http://47.121.24.228:7004
-      resin_1438: http://47.121.24.228:7004
-  station:
-    base_url: http://47.121.24.228:7005
-  pi:
-    base_url: http://47.121.24.228:7006
-  nmr:
-    base_url: http://47.121.24.228:7003
-    timeout: 60
-  raman:
-    capture_base_url: http://47.121.24.228:7001
-    result_base_url: http://47.121.24.228:7002
-    timeout: 60
-  lcms:
-    base_url: http://100.74.253.59:8001
 
 runtime:
   sim_mode: true
   status_poll_interval_seconds: 10
   runner_interval_seconds: 1
-
-devices:
-  disabled_keys: []
 
 llm:
   api_key: "<YOUR_LLM_API_KEY>"

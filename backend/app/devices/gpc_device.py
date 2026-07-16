@@ -253,7 +253,7 @@ def _request_gpc(
         GPC 服务响应。
     """
     settings = get_settings()
-    base_url = settings.apis.gpc.base_url.rstrip("/")
+    base_url = _get_device_api_endpoint("gpc_2278", settings.apis.gpc.base_url).rstrip("/")
     response = requests.request(
         method=method,
         url=f"{base_url}{path}",
@@ -265,3 +265,19 @@ def _request_gpc(
         return response.json()
     except ValueError:
         return {"raw_text": response.text}
+
+
+def _get_device_api_endpoint(device_id: str, fallback_url: str) -> str:
+    """???? API ???
+
+    Args:
+        device_id: ?????
+        fallback_url: ???????????
+
+    Returns:
+        ?? API ?????
+    """
+    item_config = get_settings().devices.items.get(device_id)
+    if item_config is not None and item_config.endpoints.get("api"):
+        return item_config.endpoints["api"]
+    return fallback_url

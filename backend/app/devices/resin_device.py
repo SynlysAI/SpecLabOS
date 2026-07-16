@@ -214,7 +214,10 @@ def _request_resin(
         Resin 服务响应。
     """
     settings = get_settings()
+    item_config = settings.devices.items.get(device_id)
     base_url = (
+        item_config.endpoints.get("api") if item_config is not None else None
+    ) or (
         settings.apis.resin.devices.get(device_id)
         or settings.apis.resin.base_url
     ).rstrip("/")

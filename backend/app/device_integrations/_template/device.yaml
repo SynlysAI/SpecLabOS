@@ -1,0 +1,11 @@
+﻿device_type: ExampleDevice
+category: 示例设备
+adapter_type: local
+capabilities:
+  - example.check_status
+
+instances:
+  example_001:
+    name: example_001
+    location: A-001
+    enabled: true

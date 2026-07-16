@@ -1,0 +1,19 @@
+devices:
+  items:
+    ir_2278:
+      enabled: false
+    raman_2278:
+      endpoints:
+        capture: http://47.121.24.228:7001
+        result: http://47.121.24.228:7002
+      status_endpoints:
+        - capture
+        - result
+    resin_2278:
+      endpoints:
+        api: http://47.121.24.228:7004
+    metal_108:
+      endpoints:
+        api: http://47.121.24.228:7005
+      health_path: /health
+      health_device: metal

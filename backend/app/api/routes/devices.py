@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
-from app.devices.raman_device import _request_raman
+from app.devices.raman_device import _get_raman_endpoint, _request_raman
 from app.runtime import get_device_service, get_device_status_service
 from app.schemas.device import (
     CameraFocusRequest,
@@ -27,6 +27,9 @@ _SUPPORTED_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 def _find_device_image(device_type: str) -> Path | None:
     """按设备类型查找图片文件。"""
     image_dir = Path(get_settings().device_images.image_dir)
+    direct_candidate = image_dir / device_type
+    if direct_candidate.suffix.lower() in _SUPPORTED_EXTENSIONS and direct_candidate.is_file():
+        return direct_candidate
     for extension in _SUPPORTED_EXTENSIONS:
         candidate = image_dir / f"{device_type}{extension}"
         if candidate.is_file():
@@ -46,7 +49,7 @@ def list_devices(
     items = []
     for device in devices:
         serialized_device = device_service.serialize_device(device)
-        if _find_device_image(serialized_device["device_type"]) is not None:
+        if not serialized_device.get("image_url") and _find_device_image(serialized_device["device_type"]) is not None:
             serialized_device["image_url"] = (
                 f"/api/device-images/{serialized_device['device_type']}"
             )
@@ -62,7 +65,7 @@ def get_device_detail(device_key: str) -> DeviceItem:
     if device is None:
         raise HTTPException(status_code=404, detail="设备不存在")
     serialized_device = device_service.serialize_device(device)
-    if _find_device_image(serialized_device["device_type"]) is not None:
+    if not serialized_device.get("image_url") and _find_device_image(serialized_device["device_type"]) is not None:
         serialized_device["image_url"] = (
             f"/api/device-images/{serialized_device['device_type']}"
         )
@@ -78,7 +81,7 @@ def refresh_device_status(device_key: str) -> DeviceItem:
         raise HTTPException(status_code=404, detail="设备不存在")
     get_device_status_service().refresh_device(device)
     serialized_device = device_service.serialize_device(device)
-    if _find_device_image(serialized_device["device_type"]) is not None:
+    if not serialized_device.get("image_url") and _find_device_image(serialized_device["device_type"]) is not None:
         serialized_device["image_url"] = (
             f"/api/device-images/{serialized_device['device_type']}"
         )
@@ -117,7 +120,7 @@ def execute_camera_focus(device_key: str, payload: CameraFocusRequest):
     try:
         return _request_raman(
             "POST",
-            settings.apis.raman.capture_base_url,
+            _get_raman_endpoint("capture"),
             "/raman/jy/camera",
             payload={
                 "rt": payload.rt,

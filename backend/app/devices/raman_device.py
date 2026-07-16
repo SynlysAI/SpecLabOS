@@ -37,7 +37,7 @@ def raman_capture_executor(
     """
     return _request_raman(
         "POST",
-        get_settings().apis.raman.capture_base_url,
+        _get_raman_endpoint("capture"),
         "/raman/jy/capture",
         payload={
             "req_id": params.get("req_id"),
@@ -62,7 +62,7 @@ def raman_camera_focus_executor(
     """
     return _request_raman(
         "POST",
-        get_settings().apis.raman.capture_base_url,
+        _get_raman_endpoint("capture"),
         "/raman/jy/camera",
         payload={
             "rt": params.get("rt", 8000),
@@ -89,7 +89,7 @@ def raman_get_result_executor(
     """
     return _request_raman(
         "GET",
-        get_settings().apis.raman.result_base_url,
+        _get_raman_endpoint("result"),
         "/raman/jy/result",
         params={"req_id": params.get("req_id")},
     )
@@ -186,3 +186,24 @@ def _request_raman(
         return response.json()
     except ValueError:
         return {"raw_text": response.text}
+
+
+def _get_raman_endpoint(endpoint_name: str) -> str:
+    """获取 Raman 指定命名端点。
+
+    Args:
+        endpoint_name: 端点名称，支持 capture 或 result。
+
+    Returns:
+        Raman 服务基础地址。
+    """
+    settings = get_settings()
+    config_endpoint = (
+        settings.devices.items.get("raman_2278")
+        and settings.devices.items["raman_2278"].endpoints.get(endpoint_name)
+    )
+    if config_endpoint:
+        return config_endpoint
+    if endpoint_name == "result":
+        return settings.apis.raman.result_base_url
+    return settings.apis.raman.capture_base_url

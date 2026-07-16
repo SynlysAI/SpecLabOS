@@ -1,4 +1,4 @@
-"""工位设备定义。"""
+﻿"""工位设备定义。"""
 
 from typing import Any
 
@@ -284,7 +284,7 @@ def _request_station(
         Station 服务响应。
     """
     settings = get_settings()
-    base_url = settings.apis.station.base_url.rstrip("/")
+    base_url = _get_station_endpoint(device_action_key).rstrip("/")
     path = f"/{device_action_key}/status" if action is None else f"/{device_action_key}/action"
     payload = None if action is None else {"action": action}
     response = requests.request(
@@ -311,7 +311,7 @@ def _request_station_health(
         Station 健康检查响应。
     """
     settings = get_settings()
-    base_url = settings.apis.station.base_url.rstrip("/")
+    base_url = _get_station_endpoint(device_action_key).rstrip("/")
     response = requests.get(
         url=f"{base_url}/health",
         timeout=timeout or settings.apis.station.timeout,
@@ -331,3 +331,21 @@ def _request_station_health(
         "device_status": "idle",
         "message": f"Station 已加载设备: {device_action_key}",
     }
+
+def _get_station_endpoint(device_action_key: str) -> str:
+    """获取 Station 工位服务端点。
+
+    Args:
+        device_action_key: 工位动作前缀。
+
+    Returns:
+        Station 服务基础地址。
+    """
+    settings = get_settings()
+    for device_id, action_key in _STATION_ACTION_KEYS.items():
+        if action_key != device_action_key:
+            continue
+        item_config = settings.devices.items.get(device_id)
+        if item_config is not None and item_config.endpoints.get("api"):
+            return item_config.endpoints["api"]
+    return settings.apis.station.base_url

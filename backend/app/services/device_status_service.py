@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import requests
 from requests import exceptions as request_exceptions
 
 from app.core.config import get_settings
@@ -86,6 +87,9 @@ class DeviceStatusService:
             return device
         if device.adapter_type == "smartaccess":
             return device
+        if self._has_config_probe(device.device_id):
+            self._refresh_by_config_probe(device)
+            return device
         if device.device_id in TCP_PROBE_DEVICE_IDS:
             self._refresh_by_tcp_probe(device)
             return device
@@ -123,6 +127,120 @@ class DeviceStatusService:
         return device
 
     @staticmethod
+    def _has_config_probe(device_id: str) -> bool:
+        """判断设备是否配置了实例级状态探测。"""
+        item_config = get_settings().devices.items.get(device_id)
+        return bool(item_config and item_config.endpoints)
+
+    @staticmethod
+    def _refresh_by_config_probe(device: DeviceResource) -> None:
+        """按设备实例配置刷新状态。
+
+        Args:
+            device: 待刷新设备。
+        """
+        item_config = get_settings().devices.items.get(device.device_id)
+        if item_config is None:
+            DeviceStatusService._mark_unknown(device, "未配置设备实例")
+            return
+
+        spec = StatusProbeSpec("config_probe", source="device_config")
+        if item_config.health_path:
+            DeviceStatusService._refresh_by_config_health_probe(
+                device,
+                item_config.endpoints,
+                item_config.health_path,
+                item_config.health_device,
+                spec,
+            )
+            return
+
+        urls = DeviceStatusService._resolve_config_status_urls(
+            item_config.endpoints,
+            item_config.status_endpoints,
+        )
+        if not urls:
+            DeviceStatusService._mark_unknown(device, "未配置状态探测地址")
+            return
+        DeviceStatusService._refresh_by_tcp_urls(device, urls, spec)
+
+    @staticmethod
+    def _refresh_by_config_health_probe(
+        device: DeviceResource,
+        endpoints: dict[str, str],
+        health_path: str,
+        health_device: str,
+        spec: StatusProbeSpec,
+    ) -> None:
+        """按配置请求健康检查接口。
+
+        Args:
+            device: 待刷新设备。
+            endpoints: 设备端点映射。
+            health_path: 健康检查路径。
+            health_device: 健康检查设备标识。
+            spec: 状态探测配置。
+        """
+        base_url = endpoints.get("api") or next(iter(endpoints.values()), "")
+        if not base_url:
+            DeviceStatusService._mark_unknown(device, "未配置健康检查地址")
+            return
+        try:
+            response = requests.get(
+                f"{base_url.rstrip('/')}/{health_path.lstrip('/')}",
+                timeout=spec.timeout_seconds,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except request_exceptions.Timeout as exc:
+            DeviceStatusService._mark_offline(device, f"健康检查超时: {exc}", spec)
+            return
+        except request_exceptions.ConnectionError as exc:
+            DeviceStatusService._mark_offline(device, f"健康检查连接失败: {exc}", spec)
+            return
+        except request_exceptions.HTTPError as exc:
+            DeviceStatusService._mark_http_error(device, exc, spec)
+            return
+        except request_exceptions.RequestException as exc:
+            DeviceStatusService._mark_error(device, f"健康检查请求失败: {exc}", spec)
+            return
+        except ValueError as exc:
+            DeviceStatusService._mark_error(device, f"健康检查响应不是 JSON: {exc}", spec)
+            return
+
+        loaded_devices = result.get("devices_loaded", [])
+        if health_device and health_device not in loaded_devices:
+            DeviceStatusService._mark_error(
+                device,
+                f"健康检查未加载设备: {health_device}",
+                spec,
+            )
+            return
+        DeviceStatusService._mark_connected(
+            device,
+            {**result, "device_status": "idle"},
+            spec,
+        )
+
+    @staticmethod
+    def _resolve_config_status_urls(
+        endpoints: dict[str, str],
+        status_endpoints: list[str],
+    ) -> list[str]:
+        """解析配置中用于状态探测的端点地址。
+
+        Args:
+            endpoints: 设备端点映射。
+            status_endpoints: 状态探测端点名称列表。
+
+        Returns:
+            状态探测 URL 列表。
+        """
+        if not status_endpoints:
+            return [url for url in endpoints.values() if url]
+        return [endpoints[name] for name in status_endpoints if endpoints.get(name)]
+
+    @staticmethod
     def _refresh_by_tcp_probe(device: DeviceResource) -> None:
         """通过服务端口可达性刷新设备状态。
 
@@ -134,15 +252,29 @@ class DeviceStatusService:
         if not urls:
             DeviceStatusService._mark_unknown(device, "未配置端口探测地址")
             return
-
-        reachable_urls, failed_urls = DeviceStatusService._probe_tcp_urls(
-            urls,
-            timeout_seconds,
-        )
         spec = StatusProbeSpec(
             capability_key="tcp.port_check",
             source="tcp_probe",
             timeout_seconds=timeout_seconds,
+        )
+        DeviceStatusService._refresh_by_tcp_urls(device, urls, spec)
+
+    @staticmethod
+    def _refresh_by_tcp_urls(
+        device: DeviceResource,
+        urls: list[str],
+        spec: StatusProbeSpec,
+    ) -> None:
+        """按指定 URL 列表执行 TCP 探测。
+
+        Args:
+            device: 待刷新设备。
+            urls: 状态探测 URL 列表。
+            spec: 状态探测配置。
+        """
+        reachable_urls, failed_urls = DeviceStatusService._probe_tcp_urls(
+            urls,
+            spec.timeout_seconds,
         )
         if reachable_urls:
             result = {

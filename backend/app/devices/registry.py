@@ -23,6 +23,15 @@ def device(cls):
     return cls
 
 
+def register_device(device_resource: DeviceResource) -> None:
+    """注册设备资源实例。
+
+    Args:
+        device_resource: 待注册的设备资源。
+    """
+    _DEVICE_REGISTRY[device_resource.device_id] = device_resource
+
+
 def capability(device_category: str):
     """函数装饰器：自动注册设备能力声明。
 

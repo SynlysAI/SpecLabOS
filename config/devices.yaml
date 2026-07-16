@@ -1,0 +1,47 @@
+﻿devices:
+  items:
+    nmr_2278:
+      endpoints:
+        api: http://47.121.24.228:7003
+    pi_2278:
+      endpoints:
+        api: http://47.121.24.228:7006
+    gpc_2278:
+      endpoints:
+        api: http://100.74.253.59:8001
+    ir_2278:
+      enabled: false
+    raman_2278:
+      endpoints:
+        capture: http://47.121.24.228:7001
+        result: http://47.121.24.228:7002
+      status_endpoints:
+        - capture
+        - result
+    lcms_2278:
+      endpoints:
+        api: http://100.74.253.59:8001
+    resin_2278:
+      endpoints:
+        api: http://47.121.24.228:7004
+    resin_2278_2:
+      endpoints:
+        api: http://47.121.24.228:7004
+    resin_1438:
+      endpoints:
+        api: http://47.121.24.228:7004
+    metal_108:
+      endpoints:
+        api: http://47.121.24.228:7005
+      health_path: /health
+      health_device: metal
+    cat_108:
+      endpoints:
+        api: http://47.121.24.228:7005
+      health_path: /health
+      health_device: cat
+    micro_108:
+      endpoints:
+        api: http://47.121.24.228:7005
+      health_path: /health
+      health_device: micro
