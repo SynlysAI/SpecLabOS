@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Button, Card, Col, Empty, Form, Input, Row, Select, Space, message } from "antd";
+import { Alert, Button, Card, Col, Empty, Form, Input, Row, Select, Space, Typography, message } from "antd";
 
 import PageToolbar from "../components/PageToolbar";
 import WorkflowStepForm from "../components/WorkflowStepForm";
@@ -33,6 +33,7 @@ export default function WorkflowBuilderPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [usingActionFallback, setUsingActionFallback] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const { Text } = Typography;
 
   const deviceOptions = useMemo(
     () =>
@@ -220,6 +221,9 @@ export default function WorkflowBuilderPage() {
     <section className="page-section">
       {contextHolder}
       <PageToolbar />
+      <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+        面向 SpecLabOS 本地注册设备，编排 LocalAdapter 可执行工作流。
+      </Text>
       {usingActionFallback ? (
         <Alert
           type="warning"

@@ -24,6 +24,11 @@ const HEADER_META = [
     subtitle: "统一查看编排任务与 SmartAccess 远程任务运行记录。"
   },
   {
+    match: (pathname) => pathname.startsWith("/data"),
+    title: "数据中心",
+    subtitle: "查看 SmartDataHub 接入的数据资产、文件明细与入库状态。"
+  },
+  {
     match: (pathname) => pathname.startsWith("/runs/"),
     title: "运行详情",
     subtitle: "查看工作流执行明细、步骤时间线与接口响应结果。"

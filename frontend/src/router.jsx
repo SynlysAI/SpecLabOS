@@ -8,6 +8,7 @@ const DeviceMonitorPage = lazy(() => import("./pages/DeviceMonitorPage"));
 const WorkflowCenterPage = lazy(() => import("./pages/WorkflowCenterPage"));
 const TaskCenterPage = lazy(() => import("./pages/TaskCenterPage"));
 const WorkflowRunDetailPage = lazy(() => import("./pages/WorkflowRunDetailPage"));
+const SmartDataHubOverviewPage = lazy(() => import("./pages/SmartDataHubOverviewPage"));
 const SystemLogsPage = lazy(() => import("./pages/SystemLogsPage"));
 const ToolsPage = lazy(() => import("./pages/ToolsPage"));
 const InstructionParserTab = lazy(() => import("./pages/InstructionParserTab"));
@@ -137,6 +138,8 @@ export const router = createBrowserRouter([
         path: "runs/:runId",
         element: withSuspense(<WorkflowRunDetailPage />)
       },
+      { path: "data", element: <Navigate to="/data/smartdatahub" replace /> },
+      { path: "data/smartdatahub", element: withSuspense(<SmartDataHubOverviewPage />) },
       { path: "logs", element: withSuspense(<SystemLogsPage />) },
       {
         path: "tools",

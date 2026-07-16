@@ -100,7 +100,7 @@ export default function SmartAccessRunsPage() {
       <PageToolbar />
       <div style={{ marginBottom: 16 }}>
         <Text type="secondary">
-          SmartAccess 远程任务运行记录，由 SpecLabOS 发起并下发到指定执行端电脑执行。
+          查看经 SmartAccess 下发到远程执行端的任务记录。
         </Text>
       </div>
       <Card

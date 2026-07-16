@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Tabs } from "antd";
+import { Tabs } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 
 import SmartAccessRunsPage from "./SmartAccessRunsPage";
@@ -9,13 +9,11 @@ const TASK_TABS = [
   {
     key: "orchestration-runs",
     label: "编排任务",
-    description: "查看由 SpecLabOS 工作流编排下发执行的任务记录。",
     children: <WorkflowRunsPage />
   },
   {
     key: "smartaccess-runs",
     label: "SmartAccess 任务",
-    description: "查看经 SmartAccess 下发到远程执行端的任务记录。",
     children: <SmartAccessRunsPage />
   }
 ];
@@ -32,7 +30,6 @@ export default function TaskCenterPage() {
   const activeKey = TASK_TABS.some((tab) => tab.key === tabKey)
     ? tabKey
     : TASK_TABS[0].key;
-  const activeTab = TASK_TABS.find((tab) => tab.key === activeKey);
 
   /**
    * 切换任务中心子页签。
@@ -46,12 +43,6 @@ export default function TaskCenterPage() {
 
   return (
     <section className="page-section">
-      <Alert
-        type="info"
-        showIcon
-        message={activeTab?.description}
-        style={{ marginBottom: 16 }}
-      />
       <Tabs
         activeKey={activeKey}
         onChange={handleTabChange}

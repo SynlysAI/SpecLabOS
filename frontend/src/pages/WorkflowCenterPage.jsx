@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Tabs } from "antd";
+import { Tabs } from "antd";
 import { useNavigate, useParams } from "react-router-dom";
 
 import SmartAccessTemplatesPage from "./SmartAccessTemplatesPage";
@@ -32,7 +32,6 @@ export default function WorkflowCenterPage() {
   const activeKey = WORKFLOW_TABS.some((tab) => tab.key === tabKey)
     ? tabKey
     : WORKFLOW_TABS[0].key;
-  const activeTab = WORKFLOW_TABS.find((tab) => tab.key === activeKey);
 
   /**
    * 切换工作流中心子页签。
@@ -46,12 +45,6 @@ export default function WorkflowCenterPage() {
 
   return (
     <section className="page-section">
-      <Alert
-        type="info"
-        showIcon
-        message={activeTab?.description}
-        style={{ marginBottom: 16 }}
-      />
       <Tabs
         activeKey={activeKey}
         onChange={handleTabChange}

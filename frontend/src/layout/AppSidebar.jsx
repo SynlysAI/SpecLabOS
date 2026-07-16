@@ -4,6 +4,7 @@ import {
   AppstoreOutlined,
   ClusterOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   FileSearchOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -46,6 +47,11 @@ const MENU_ITEMS = [
         label: "SmartAccess 任务"
       }
     ]
+  },
+  {
+    key: "/data/smartdatahub",
+    icon: <DatabaseOutlined />,
+    label: "数据中心"
   },
   {
     key: "/logs",

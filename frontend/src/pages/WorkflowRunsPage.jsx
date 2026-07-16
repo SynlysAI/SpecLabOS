@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Empty, Form, Input, Select, Space, Table } from "antd";
+import { Button, Card, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import { fetchWorkflowRuns } from "../services/workflowApi";
+
+const { Text } = Typography;
 
 const STATUS_OPTIONS = [
   { label: "全部状态", value: "all" },
@@ -96,6 +98,9 @@ export default function WorkflowRunsPage() {
   return (
     <section className="page-section">
       <PageToolbar />
+      <Text type="secondary" style={{ display: "block", marginBottom: 16 }}>
+        查看由 SpecLabOS 工作流编排下发执行的任务记录。
+      </Text>
       <Card
         title="运行记录列表"
         extra={

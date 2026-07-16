@@ -55,10 +55,36 @@ class DataAssetItem(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DataAssetDistributionItem(BaseModel):
+    """数据资产分布项。"""
+
+    key: str = ""
+    label: str = ""
+    asset_count: int = 0
+    file_count: int = 0
+    total_size: int = 0
+    latest_ingested_at: str = ""
+
+
 class DataAssetListResponse(BaseModel):
     """数据资产列表响应。"""
 
     items: list[DataAssetItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class DataAssetOverviewResponse(BaseModel):
+    """数据资产概览响应。"""
+
+    asset_count: int = 0
+    file_count: int = 0
+    total_size: int = 0
+    device_count: int = 0
+    collector_count: int = 0
+    latest_ingested_at: str = ""
+    data_type_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
+    device_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
+    collector_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
 
 
 class DataAssetFileListResponse(BaseModel):
