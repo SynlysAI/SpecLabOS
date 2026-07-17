@@ -60,7 +60,7 @@ class SmartAccessSettings(BaseModel):
     # 后台超时扫描周期
     sweep_interval_seconds: int = 60
     # 执行端心跳离线判定阈值(秒),超过该时长未上报心跳即视为离线
-    node_offline_threshold_seconds: int = 90
+    node_offline_threshold_seconds: int = 60
     # 节点心跳状态后台扫描周期(秒)
     node_sweep_interval_seconds: int = 30
 

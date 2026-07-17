@@ -77,6 +77,36 @@ function resolveDefaultNode(detail) {
 }
 
 /**
+ * 提取接口错误中的可读提示。
+ *
+ * Args:
+ *     error: axios 请求异常对象。
+ *
+ * Returns:
+ *     后端返回的 detail/message 文本，未命中时返回兜底提示。
+ */
+function getRequestErrorMessage(error, fallback) {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === "string" && detail.trim()) {
+    if (detail.startsWith("无设备控制权限")) {
+      return "无设备控制权限，请联系管理员申请";
+    }
+    return detail;
+  }
+  if (Array.isArray(detail) && detail.length > 0) {
+    return detail
+      .map((item) => item?.msg || item?.message || "")
+      .filter(Boolean)
+      .join("；") || fallback;
+  }
+  const messageText = error?.response?.data?.message;
+  if (typeof messageText === "string" && messageText.trim()) {
+    return messageText;
+  }
+  return fallback;
+}
+
+/**
  * SmartAccess 模板管理页。
  *
  * Returns:
@@ -208,7 +238,9 @@ export default function SmartAccessTemplatesPage() {
       });
       message.success("SmartAccess 运行已发起");
     } catch (error) {
-      message.error("SmartAccess 运行发起失败");
+      message.error(
+        `SmartAccess 运行发起失败：${getRequestErrorMessage(error, "请稍后重试")}`
+      );
     } finally {
       setSubmitting(false);
     }
