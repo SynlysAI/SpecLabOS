@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table, Tag } from "antd";
+import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table, Tabs, Tag } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
@@ -63,6 +63,12 @@ const columns = [
   }
 ];
 
+const ACCESS_MODE_TABS = [
+  { key: "all", label: "全部设备" },
+  { key: "api", label: "API 接入" },
+  { key: "smartaccess", label: "SmartAccess 接入" }
+];
+
 /**
  * 规范设备列表数据。
  *
@@ -80,6 +86,26 @@ function normalizeDevices(items) {
 }
 
 /**
+ * 按接入模式筛选设备列表。
+ *
+ * Args:
+ *     items: 已规范化的设备列表。
+ *     activeTab: 当前选中的接入模式页签。
+ *
+ * Returns:
+ *     与页签匹配的设备列表。
+ */
+function filterDevicesByAccessMode(items, activeTab) {
+  if (activeTab === "smartaccess") {
+    return items.filter((item) => item.adapter_type === "smartaccess");
+  }
+  if (activeTab === "api") {
+    return items.filter((item) => item.adapter_type !== "smartaccess");
+  }
+  return items;
+}
+
+/**
  * 设备监控页。
  *
  * Returns:
@@ -92,6 +118,7 @@ export default function DeviceMonitorPage() {
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [activeAccessMode, setActiveAccessMode] = useState("all");
 
   /**
    * 加载设备列表。
@@ -140,6 +167,11 @@ export default function DeviceMonitorPage() {
   const warningCount = devices.filter(
     (item) => ["warning", "offline", "error", "failed"].includes(item.status_snapshot?.state)
   ).length;
+  const visibleDevices = filterDevicesByAccessMode(devices, activeAccessMode);
+  const accessTabs = ACCESS_MODE_TABS.map((tab) => ({
+    ...tab,
+    label: `${tab.label} (${filterDevicesByAccessMode(devices, tab.key).length})`
+  }));
   const initialLoading = loading && !devices.length;
 
   return (
@@ -184,14 +216,20 @@ export default function DeviceMonitorPage() {
           </Space>
         }
       >
+        <Tabs
+          activeKey={activeAccessMode}
+          items={accessTabs}
+          onChange={setActiveAccessMode}
+          style={{ marginBottom: 12 }}
+        />
         <Spin spinning={initialLoading} tip="正在加载设备状态...">
           <Table
             rowKey="key"
             columns={columns}
-            dataSource={devices}
+            dataSource={visibleDevices}
             loading={refreshing}
             pagination={false}
-            locale={{ emptyText: loadError ? "设备列表加载失败" : "暂无设备数据" }}
+            locale={{ emptyText: loadError ? "设备列表加载失败" : "暂无该接入模式设备" }}
             onRow={(record) => ({
               onClick: () => handleOpenDetail(record),
               style: { cursor: "pointer" }

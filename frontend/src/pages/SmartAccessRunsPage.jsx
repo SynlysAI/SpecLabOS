@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Badge, Button, Card, Empty, Form, Input, Select, Space, Table, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Empty, Form, Input, Select, Space, Table, Typography } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { fetchSmartAccessNodes, fetchSmartAccessRuns } from "../services/smartaccessApi";
+import { fetchSmartAccessRuns } from "../services/smartaccessApi";
 
 const { Text } = Typography;
 
@@ -75,7 +75,6 @@ export default function SmartAccessRunsPage() {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [nodes, setNodes] = useState([]);
 
   async function loadRuns(filters = form.getFieldsValue()) {
     setLoading(true);
@@ -91,21 +90,9 @@ export default function SmartAccessRunsPage() {
     }
   }
 
-  async function loadNodes() {
-    try {
-      const items = await fetchSmartAccessNodes();
-      setNodes(items);
-    } catch (error) {
-      setNodes([]);
-    }
-  }
-
   useEffect(() => {
     form.setFieldsValue({ keyword: "", status: "all" });
     loadRuns({ keyword: "", status: "all" });
-    loadNodes();
-    const timer = setInterval(loadNodes, 30000);
-    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -116,48 +103,6 @@ export default function SmartAccessRunsPage() {
           查看经 SmartAccess 下发到远程执行端的任务记录。
         </Text>
       </div>
-      <Card
-        size="small"
-        title="执行端在线状态"
-        extra={
-          <Button size="small" icon={<ReloadOutlined />} onClick={loadNodes}>
-            刷新
-          </Button>
-        }
-        style={{ marginBottom: 16 }}
-      >
-        {nodes.length === 0 ? (
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="暂无执行端上报心跳"
-          />
-        ) : (
-          <Space wrap>
-            {nodes.map((node) => {
-              const online = node.status === "online";
-              const secs = node.seconds_since_heartbeat;
-              const tip = online
-                ? `最近心跳: ${secs != null ? Math.round(secs) + " 秒前" : "--"}`
-                : `离线: 最后心跳 ${node.last_heartbeat_at}`;
-              return (
-                <Tooltip key={node.node_id} title={tip}>
-                  <Badge
-                    status={online ? "success" : "error"}
-                    text={
-                      <Space size={4}>
-                        <Text strong>{node.node_id}</Text>
-                        <Tag color={online ? "green" : "red"} style={{ margin: 0 }}>
-                          {online ? "在线" : "离线"}
-                        </Tag>
-                      </Space>
-                    }
-                  />
-                </Tooltip>
-              );
-            })}
-          </Space>
-        )}
-      </Card>
       <Card
         title="SmartAccess 任务运行"
         extra={
