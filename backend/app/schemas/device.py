@@ -25,6 +25,7 @@ class DeviceItem(BaseModel):
     connection: dict = Field(default_factory=dict)
     adapter_type: str = ""
     status_snapshot: DeviceStatusSnapshot = Field(default_factory=DeviceStatusSnapshot)
+    permission: str = "read"
 
 
 class DeviceListResponse(BaseModel):

@@ -57,6 +57,16 @@ const HEADER_META = [
     match: (pathname) => pathname.startsWith("/tools"),
     title: "工具服务",
     subtitle: "树脂合成指令解析、实验方案智能拆解等实用工具。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/admin/device-permissions"),
+    title: "设备权限管理",
+    subtitle: "配置用户的设备控制权限,管理可见性与授权范围。"
+  },
+  {
+    match: (pathname) => pathname.startsWith("/admin"),
+    title: "权限管理",
+    subtitle: "SpecLabOS 管理员配置中心。"
   }
 ];
 

@@ -12,9 +12,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse, Response as StarletteResponse
 
 from app.api.routes import auth, data_assets, devices, logs, smartaccess, tools, workflows
+from app.api.routes import admin as admin_routes
 from app.core.config import Settings, get_settings
 from app.core.mongo import reset_mongo_client
-from app.runtime import get_workflow_dispatcher
+from app.runtime import (
+    get_smartaccess_node_sweeper,
+    get_smartaccess_run_sweeper,
+    get_workflow_dispatcher,
+)
 
 _FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent.parent / "frontend" / "dist"
 
@@ -52,6 +57,7 @@ def create_app(
     application.include_router(workflows.workflow_runs_router)
     application.include_router(logs.router)
     application.include_router(tools.router)
+    application.include_router(admin_routes.router)
 
     @application.exception_handler(ServerSelectionTimeoutError)
     async def _mongo_timeout_handler(_request: Request, exc: ServerSelectionTimeoutError) -> JSONResponse:
@@ -80,6 +86,26 @@ def create_app(
     def _stop_workflow_dispatcher() -> None:
         """停止工作流后台调度器。"""
         get_workflow_dispatcher().stop()
+
+    @application.on_event("startup")
+    def _start_smartaccess_run_sweeper() -> None:
+        """启动 SmartAccess 超时扫描器。"""
+        get_smartaccess_run_sweeper().start()
+
+    @application.on_event("shutdown")
+    def _stop_smartaccess_run_sweeper() -> None:
+        """停止 SmartAccess 超时扫描器。"""
+        get_smartaccess_run_sweeper().stop()
+
+    @application.on_event("startup")
+    def _start_smartaccess_node_sweeper() -> None:
+        """启动 SmartAccess 节点心跳扫描器。"""
+        get_smartaccess_node_sweeper().start()
+
+    @application.on_event("shutdown")
+    def _stop_smartaccess_node_sweeper() -> None:
+        """停止 SmartAccess 节点心跳扫描器。"""
+        get_smartaccess_node_sweeper().stop()
 
     # 生产模式：托管前端静态文件
     if _FRONTEND_DIST.is_dir():

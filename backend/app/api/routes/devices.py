@@ -1,13 +1,19 @@
 """设备接口路由。"""
 
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from app.core.auth import get_current_user_optional, get_current_user_required
 from app.core.config import get_settings
 from app.devices.raman_device import _get_raman_endpoint, _request_raman
-from app.runtime import get_device_service, get_device_status_service
+from app.runtime import (
+    get_device_permission_service,
+    get_device_service,
+    get_device_status_service,
+)
 from app.schemas.device import (
     CameraFocusRequest,
     DeviceActionField,
@@ -16,6 +22,7 @@ from app.schemas.device import (
     DeviceItem,
     DeviceListResponse,
 )
+from app.services.device_permission_service import DevicePermissionService
 
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
@@ -37,12 +44,43 @@ def _find_device_image(device_type: str) -> Path | None:
     return None
 
 
+def _get_permission_service() -> DevicePermissionService:
+    """获取设备权限服务单例。"""
+    return get_device_permission_service()
+
+
+def _resolve_permission(
+    user: Optional[dict],
+    device_key: str,
+    service: DevicePermissionService,
+) -> str:
+    """根据当前用户计算对设备的权限等级。
+
+    Args:
+        user: 当前用户文档,未登录时为 None。
+        device_key: 设备唯一标识。
+        service: 设备权限服务实例。
+
+    Returns:
+        "control" 或 "read"。
+    """
+    if service.is_admin(user):
+        return "control"
+    if not user:
+        return "read"
+    if service._repository.has_access(user["user_id"], device_key):
+        return "control"
+    return "read"
+
+
 @router.get("", response_model=DeviceListResponse)
 def list_devices(
     refresh_status: bool = Query(default=False),
     include_smartaccess: bool = Query(default=True),
+    user: Optional[dict] = Depends(get_current_user_optional),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
 ) -> DeviceListResponse:
-    """返回设备列表数据。"""
+    """返回设备列表数据(含当前用户对每台设备的权限标记)。"""
     device_service = get_device_service()
     devices = device_service.list_devices(include_smartaccess=include_smartaccess)
     if refresh_status:
@@ -54,13 +92,20 @@ def list_devices(
             serialized_device["image_url"] = (
                 f"/api/device-images/{serialized_device['device_type']}"
             )
+        serialized_device["permission"] = _resolve_permission(
+            user, serialized_device["key"], permission_service
+        )
         items.append(DeviceItem(**serialized_device))
     return DeviceListResponse(items=items)
 
 
 @router.get("/{device_key}", response_model=DeviceItem)
-def get_device_detail(device_key: str) -> DeviceItem:
-    """返回单个设备详情。"""
+def get_device_detail(
+    device_key: str,
+    user: Optional[dict] = Depends(get_current_user_optional),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
+) -> DeviceItem:
+    """返回单个设备详情(含权限标记)。"""
     device_service = get_device_service()
     device = device_service.get_device(device_key)
     if device is None:
@@ -70,12 +115,20 @@ def get_device_detail(device_key: str) -> DeviceItem:
         serialized_device["image_url"] = (
             f"/api/device-images/{serialized_device['device_type']}"
         )
+    serialized_device["permission"] = _resolve_permission(
+        user, serialized_device["key"], permission_service
+    )
     return DeviceItem(**serialized_device)
 
 
 @router.post("/{device_key}/refresh-status", response_model=DeviceItem)
-def refresh_device_status(device_key: str) -> DeviceItem:
-    """刷新并返回单个设备状态。"""
+def refresh_device_status(
+    device_key: str,
+    user: dict = Depends(get_current_user_required),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
+) -> DeviceItem:
+    """刷新并返回单个设备状态(需 control 权限)。"""
+    permission_service.assert_control(user, [device_key])
     device_service = get_device_service()
     device = device_service.get_device(device_key)
     if device is None:
@@ -115,8 +168,14 @@ def list_device_actions(device_key: str) -> DeviceActionListResponse:
 
 
 @router.post("/{device_key}/camera-focus")
-def execute_camera_focus(device_key: str, payload: CameraFocusRequest):
-    """执行 Raman 设备镜头自动对焦。"""
+def execute_camera_focus(
+    device_key: str,
+    payload: CameraFocusRequest,
+    user: dict = Depends(get_current_user_required),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
+):
+    """执行 Raman 设备镜头自动对焦(需 control 权限)。"""
+    permission_service.assert_control(user, [device_key])
     settings = get_settings()
     try:
         return _request_raman(

@@ -254,6 +254,56 @@ class SmartAccessRepository:
         self._apply_event_to_run(run_id, event)
         return dict(event)
 
+    def find_stale_runs(
+        self,
+        queued_cutoff_iso: str,
+        step_cutoff_iso: str,
+    ) -> dict[str, list[dict]]:
+        """查找超时的 queued 与 running 任务。
+
+        Args:
+            queued_cutoff_iso: 排队超时阈值（ISO 文本），requested_at 早于此值即超时。
+            step_cutoff_iso: 单步超时阈值（ISO 文本），最近事件早于此值即卡死。
+
+        Returns:
+            {"queued": [...], "running": [...]} 两类超时运行记录。
+        """
+        queued_stale = list(
+            self._runs.find(
+                {
+                    "status": "queued",
+                    "requested_at": {"$lt": queued_cutoff_iso},
+                }
+            )
+        )
+        running_stale = list(
+            self._runs.aggregate(
+                [
+                    {"$match": {"status": "running"}},
+                    {
+                        "$lookup": {
+                            "from": "smartaccess_run_events",
+                            "localField": "run_id",
+                            "foreignField": "run_id",
+                            "as": "events",
+                        }
+                    },
+                    {
+                        "$addFields": {
+                            "last_event_at": {
+                                "$ifNull": [
+                                    {"$max": "$events.created_at"},
+                                    "",
+                                ]
+                            }
+                        }
+                    },
+                    {"$match": {"last_event_at": {"$lt": step_cutoff_iso}}},
+                ]
+            )
+        )
+        return {"queued": queued_stale, "running": running_stale}
+
     def _apply_event_to_run(self, run_id: str, event: dict) -> None:
         """根据事件更新运行记录。
 

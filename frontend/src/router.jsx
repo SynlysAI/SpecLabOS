@@ -15,6 +15,7 @@ const InstructionParserTab = lazy(() => import("./pages/InstructionParserTab"));
 const ScienceDataAssistant = lazy(() => import("./pages/ScienceDataAssistant"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const DevicePermissionsPage = lazy(() => import("./pages/admin/DevicePermissionsPage"));
 
 /**
  * 页面懒加载包装组件。
@@ -87,6 +88,34 @@ function GuestOnly({ children }) {
   return children;
 }
 
+/**
+ * 管理员页面守卫。
+ *
+ * Args:
+ *     children: 仅管理员可访问的页面。
+ *
+ * Returns:
+ *     已登录且为管理员时返回子页面,否则回到首页。
+ */
+function RequireAdmin({ children }) {
+  const { initialized, isAuthenticated, user } = useAuth();
+
+  if (!initialized) {
+    return (
+      <section className="auth-loading">
+        <p>正在校验登录状态...</p>
+      </section>
+    );
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (user?.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/login",
@@ -154,6 +183,14 @@ export const router = createBrowserRouter([
             element: withSuspense(<ScienceDataAssistant />)
           }
         ]
+      },
+      {
+        path: "admin/device-permissions",
+        element: (
+          <RequireAdmin>
+            {withSuspense(<DevicePermissionsPage />)}
+          </RequireAdmin>
+        )
       }
     ]
   }

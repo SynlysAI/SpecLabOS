@@ -27,6 +27,12 @@ auth:
 
 smartaccess:
   api_token: dev-smartaccess-token
+  # queued 状态超过该时长无消费，自动标失败（秒，默认 1800=30 分钟）
+  queued_timeout_seconds: 1800
+  # running 单步超过该时长无事件更新，自动标失败（秒，默认 1800=30 分钟）
+  step_timeout_seconds: 1800
+  # 后台超时扫描周期（秒，默认 60）
+  sweep_interval_seconds: 60
 
 rabbitmq:
   host: 127.0.0.1

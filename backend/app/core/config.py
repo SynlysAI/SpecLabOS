@@ -53,6 +53,16 @@ class SmartAccessSettings(BaseModel):
     """SmartAccess 接入配置。"""
 
     api_token: str = ""
+    # queued 状态超过该时长无消费，判定失联并自动标失败
+    queued_timeout_seconds: int = 1800
+    # running 状态单步超过该时长无事件更新，判定卡死并自动标失败
+    step_timeout_seconds: int = 1800
+    # 后台超时扫描周期
+    sweep_interval_seconds: int = 60
+    # 执行端心跳离线判定阈值(秒),超过该时长未上报心跳即视为离线
+    node_offline_threshold_seconds: int = 90
+    # 节点心跳状态后台扫描周期(秒)
+    node_sweep_interval_seconds: int = 30
 
 
 class RabbitMQSettings(BaseModel):

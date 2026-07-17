@@ -1,7 +1,12 @@
 """SmartAccess 平台集成服务。"""
 
+import logging
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
 from fastapi import HTTPException
 
+from app.core.config import get_settings
 from app.core.datetime_utils import format_datetime
 from app.repositories.smartaccess_repository import (
     SmartAccessRepository,
@@ -12,6 +17,8 @@ from app.schemas.smartaccess import (
     SmartAccessRunEventRequest,
     SmartAccessTemplatePublishRequest,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _build_steps_from_workflow(
@@ -266,3 +273,77 @@ class SmartAccessService:
                 status_code=404,
                 detail="SmartAccess 运行不存在",
             ) from exc
+
+    def sweep_stale_runs(self) -> dict[str, int]:
+        """扫描并标记超时的 SmartAccess 运行为失败。
+
+        通过追加 run.failed 事件触发既有状态机，前端无需改动即可看到失败结果。
+
+        Returns:
+            {"queued": N, "running": M} 两类超时清理数量。
+        """
+        settings = get_settings().smartaccess
+        now = datetime.now(timezone.utc)
+        queued_cutoff_iso = (
+            now - timedelta(seconds=settings.queued_timeout_seconds)
+        ).isoformat()
+        step_cutoff_iso = (
+            now - timedelta(seconds=settings.step_timeout_seconds)
+        ).isoformat()
+
+        stale = self._repository.find_stale_runs(
+            queued_cutoff_iso,
+            step_cutoff_iso,
+        )
+        counters = {"queued": 0, "running": 0}
+
+        queued_minutes = settings.queued_timeout_seconds // 60
+        step_minutes = settings.step_timeout_seconds // 60
+
+        for run in stale["queued"]:
+            self._append_timeout_event(
+                run_id=run["run_id"],
+                reason="queued_timeout",
+                error=f"任务排队超过 {queued_minutes} 分钟未被执行端消费",
+            )
+            counters["queued"] += 1
+
+        for run in stale["running"]:
+            self._append_timeout_event(
+                run_id=run["run_id"],
+                reason="step_timeout",
+                error=f"任务执行超过 {step_minutes} 分钟无进展更新",
+            )
+            counters["running"] += 1
+
+        if any(counters.values()):
+            logger.info(
+                "SmartAccess 超时清理：排队超时 %d 个，执行卡死 %d 个",
+                counters["queued"],
+                counters["running"],
+            )
+        return counters
+
+    def _append_timeout_event(
+        self,
+        run_id: str,
+        reason: str,
+        error: str,
+    ) -> None:
+        """为超时运行追加 run.failed 事件。
+
+        Args:
+            run_id: 平台运行 ID。
+            reason: 超时原因标识（queued_timeout / step_timeout）。
+            error: 错误描述文本。
+        """
+        payload = SmartAccessRunEventRequest(
+            event_id=f"timeout_{uuid4().hex[:12]}",
+            event_type="run.failed",
+            status="failed",
+            payload={"error": error, "reason": reason},
+        )
+        try:
+            self._repository.append_event(run_id, payload)
+        except SmartAccessRunNotFoundError:
+            logger.warning("超时清理时运行 %s 不存在，已跳过", run_id)

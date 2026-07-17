@@ -4,8 +4,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 
 from app.core.auth import get_current_user_optional
 from app.core.config import get_settings
-from app.runtime import get_smartaccess_service
+from app.runtime import get_smartaccess_node_service, get_smartaccess_service
 from app.schemas.smartaccess import (
+    SmartAccessNodeHeartbeatRequest,
+    SmartAccessNodeItem,
+    SmartAccessNodeListResponse,
     SmartAccessRunCreateRequest,
     SmartAccessRunCreateResponse,
     SmartAccessRunEventRequest,
@@ -152,3 +155,27 @@ def append_event(run_id: str, payload: SmartAccessRunEventRequest) -> dict:
         "payload": event.get("payload", {}),
         "created_at": event.get("created_at", ""),
     }
+
+
+@router.post("/nodes/heartbeat")
+def receive_node_heartbeat(payload: SmartAccessNodeHeartbeatRequest) -> dict:
+    """接收 SmartAccess 执行端心跳上报。"""
+    record = get_smartaccess_node_service().receive_heartbeat(
+        payload.node_id,
+        device_info=payload.device_info,
+        heartbeat_interval_seconds=payload.heartbeat_interval_seconds,
+    )
+    return {
+        "status": "ok",
+        "node_id": record.get("node_id", payload.node_id),
+        "node_status": record.get("status", "online"),
+    }
+
+
+@router.get("/nodes", response_model=SmartAccessNodeListResponse)
+def list_nodes() -> SmartAccessNodeListResponse:
+    """查询 SmartAccess 执行端节点列表及在线状态。"""
+    items = get_smartaccess_node_service().list_nodes()
+    return SmartAccessNodeListResponse(
+        items=[SmartAccessNodeItem.model_validate(item) for item in items]
+    )

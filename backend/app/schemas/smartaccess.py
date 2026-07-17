@@ -94,3 +94,29 @@ class SmartAccessRunListResponse(BaseModel):
     """SmartAccess 运行列表响应。"""
 
     items: list[SmartAccessRunItem] = Field(default_factory=list)
+
+
+class SmartAccessNodeHeartbeatRequest(BaseModel):
+    """SmartAccess 执行端心跳上报请求。"""
+
+    node_id: str
+    device_info: dict[str, Any] = Field(default_factory=dict)
+    heartbeat_interval_seconds: int = 30
+
+
+class SmartAccessNodeItem(BaseModel):
+    """SmartAccess 执行端节点列表项。"""
+
+    node_id: str
+    status: str = "offline"
+    last_heartbeat_at: str = "--"
+    first_seen_at: str = "--"
+    seconds_since_heartbeat: float | None = None
+    heartbeat_interval_seconds: int = 30
+    device_info: dict[str, Any] = Field(default_factory=dict)
+
+
+class SmartAccessNodeListResponse(BaseModel):
+    """SmartAccess 执行端节点列表响应。"""
+
+    items: list[SmartAccessNodeItem] = Field(default_factory=list)

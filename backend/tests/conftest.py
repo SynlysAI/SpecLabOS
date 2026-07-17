@@ -4,8 +4,18 @@ import mongomock
 import pytest
 
 from app.api.routes import smartaccess, workflows
+from app.core.config import get_settings
 from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.services.smartaccess_service import SmartAccessService
+
+
+@pytest.fixture(autouse=True)
+def _disable_auth_by_default(monkeypatch):
+    """默认关闭鉴权,避免旧测试因新增的登录依赖而 401。
+
+    需要鉴权的测试可自行 monkeypatch.setattr(get_settings().auth, "enabled", True)。
+    """
+    monkeypatch.setattr(get_settings().auth, "enabled", False)
 
 
 @pytest.fixture

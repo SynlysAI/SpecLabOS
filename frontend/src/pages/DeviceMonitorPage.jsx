@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table } from "antd";
+import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table, Tag } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
@@ -25,7 +25,14 @@ const columns = [
           />
         ) : null}
         <Space direction="vertical" size={0}>
-          <strong>{record.name}</strong>
+          <Space size={6}>
+            <strong>{record.name}</strong>
+            {record.permission === "control" ? (
+              <Tag color="green" bordered={false}>可控</Tag>
+            ) : (
+              <Tag bordered={false}>只读</Tag>
+            )}
+          </Space>
           <span style={{ color: "#667085", fontSize: 12 }}>{record.device_type}</span>
         </Space>
       </Space>

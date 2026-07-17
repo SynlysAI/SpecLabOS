@@ -8,11 +8,14 @@ import {
   FileSearchOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SafetyCertificateOutlined,
   ToolOutlined
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
-const MENU_ITEMS = [
+import { useAuth } from "../auth/AuthContext";
+
+const BASE_MENU_ITEMS = [
   {
     key: "/",
     icon: <DashboardOutlined />,
@@ -75,6 +78,20 @@ const MENU_ITEMS = [
   }
 ];
 
+const ADMIN_MENU_ITEMS = [
+  {
+    key: "/admin",
+    icon: <SafetyCertificateOutlined />,
+    label: "权限管理",
+    children: [
+      {
+        key: "/admin/device-permissions",
+        label: "设备权限"
+      }
+    ]
+  }
+];
+
 const { Text, Title } = Typography;
 
 /**
@@ -86,16 +103,25 @@ const { Text, Title } = Typography;
 export default function AppSidebar({ collapsed, onToggle }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+
+  const menuItems = useMemo(() => {
+    const items = [...BASE_MENU_ITEMS];
+    if (user?.role === "admin") {
+      items.push(...ADMIN_MENU_ITEMS);
+    }
+    return items;
+  }, [user?.role]);
 
   /** 展平所有菜单项（含子项），从中找出匹配当前路径的最深层 key。 */
   const allFlatItems = useMemo(
     () =>
-      MENU_ITEMS.flatMap(function flatten(item) {
+      menuItems.flatMap(function flatten(item) {
         return item.children
           ? [item, ...item.children.flatMap(flatten)]
           : [item];
       }),
-    []
+    [menuItems]
   );
 
   const selectedKey = useMemo(() => {
@@ -112,7 +138,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
   /** 默认展开包含当前选中项的父级菜单。 */
   const initialOpenKeys = useMemo(() => {
     const parents = [];
-    for (const item of MENU_ITEMS) {
+    for (const item of menuItems) {
       if (
         item.children &&
         item.children.some(function (child) {
@@ -160,10 +186,10 @@ export default function AppSidebar({ collapsed, onToggle }) {
         selectedKeys={selectedKey ? [selectedKey] : []}
         openKeys={collapsed ? [] : openKeys}
         onOpenChange={setOpenKeys}
-        items={MENU_ITEMS}
+        items={menuItems}
         onClick={({ key, keyPath }) => {
           // 仅有 children 的父级 item 不触发导航
-          const item = MENU_ITEMS.flatMap((i) => (i.children ? i.children : [i])).find(
+          const item = menuItems.flatMap((i) => (i.children ? i.children : [i])).find(
             (i) => i.key === key
           );
           if (item && !item.children) navigate(key);

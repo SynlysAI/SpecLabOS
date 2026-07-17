@@ -8,12 +8,21 @@ from app.adapters.adapter_service import AdapterService
 from app.core.config import get_settings
 from app.core.mongo import get_database
 from app.devices import load_builtin_devices
+from app.repositories.device_permission_repository import (
+    DevicePermissionRepository,
+)
 from app.repositories.event_repository import EventRepository
+from app.repositories.smartaccess_node_repository import (
+    SmartAccessNodeRepository,
+)
 from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.repositories.workflow_repository import WorkflowRepository
 from app.runners.device_lock_manager import DeviceLockManager
+from app.runners.smartaccess_node_sweeper import SmartAccessNodeSweeper
+from app.runners.smartaccess_run_sweeper import SmartAccessRunSweeper
 from app.runners.workflow_dispatcher import WorkflowDispatcher
 from app.runners.workflow_runner import WorkflowRunner
+from app.services.device_permission_service import DevicePermissionService
 from app.services.device_service import DeviceService
 from app.services.device_status_service import DeviceStatusService
 from app.services.event_bus import EventBus
@@ -22,6 +31,7 @@ from app.services.smartaccess_mq import (
     SmartAccessRabbitMQPublisher,
 )
 from app.services.smartaccess_device_service import SmartAccessDeviceService
+from app.services.smartaccess_node_service import SmartAccessNodeService
 from app.services.smartaccess_service import SmartAccessService
 
 
@@ -49,7 +59,10 @@ def get_device_status_service() -> DeviceStatusService:
 @lru_cache(maxsize=1)
 def get_smartaccess_device_service() -> SmartAccessDeviceService:
     """构建并缓存 SmartAccess 虚拟设备服务。"""
-    return SmartAccessDeviceService(get_smartaccess_service())
+    return SmartAccessDeviceService(
+        smartaccess_service=get_smartaccess_service(),
+        node_service=get_smartaccess_node_service(),
+    )
 
 
 @lru_cache(maxsize=1)
@@ -108,6 +121,30 @@ def get_smartaccess_service() -> SmartAccessService:
 
 
 @lru_cache(maxsize=1)
+def get_smartaccess_run_sweeper() -> SmartAccessRunSweeper:
+    """构建并缓存 SmartAccess 超时扫描器。"""
+    return SmartAccessRunSweeper(get_smartaccess_service())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_node_repository() -> SmartAccessNodeRepository:
+    """构建并缓存 SmartAccess 节点心跳仓储。"""
+    return SmartAccessNodeRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_node_service() -> SmartAccessNodeService:
+    """构建并缓存 SmartAccess 节点心跳服务。"""
+    return SmartAccessNodeService(get_smartaccess_node_repository())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_node_sweeper() -> SmartAccessNodeSweeper:
+    """构建并缓存 SmartAccess 节点心跳扫描器。"""
+    return SmartAccessNodeSweeper(get_smartaccess_node_service())
+
+
+@lru_cache(maxsize=1)
 def get_lock_manager() -> DeviceLockManager:
     """构建并缓存全局设备锁管理器。"""
     return DeviceLockManager()
@@ -150,4 +187,18 @@ def get_workflow_dispatcher() -> WorkflowDispatcher:
         workflow_repository=get_workflow_repository(),
         workflow_runner=get_workflow_runner(),
         lock_manager=get_lock_manager(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_device_permission_repository() -> DevicePermissionRepository:
+    """构建并缓存全局设备权限仓储。"""
+    return DevicePermissionRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_device_permission_service() -> DevicePermissionService:
+    """构建并缓存全局设备权限服务。"""
+    return DevicePermissionService(
+        repository=get_device_permission_repository(),
     )

@@ -97,3 +97,14 @@ export async function fetchSmartAccessRunDetail(runId) {
   const response = await http.get(`/api/smartaccess/runs/${runId}`);
   return response.data;
 }
+
+/**
+ * 获取 SmartAccess 执行端节点列表及在线状态。
+ *
+ * Returns:
+ *     节点列表,每项包含 node_id、status、last_heartbeat_at 等。
+ */
+export async function fetchSmartAccessNodes() {
+  const response = await http.get("/api/smartaccess/nodes");
+  return response.data.items || [];
+}

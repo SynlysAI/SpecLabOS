@@ -154,6 +154,42 @@ class UserRepository:
             {"$set": {"last_login_at": now, "updated_at": now}},
         )
 
+    @staticmethod
+    def list_users() -> list[dict]:
+        """返回全部用户(管理员视角,不含密码字段)。
+
+        Returns:
+            用户摘要信息列表,按创建时间倒序。
+        """
+        cursor = (
+            UserRepository.get_collection()
+            .find({}, {"password_hash": 0})
+            .sort("created_at", -1)
+        )
+        return list(cursor)
+
+    @staticmethod
+    def serialize_user_brief(user: dict) -> dict:
+        """整理用户摘要字段,便于 JSON 序列化。
+
+        Args:
+            user: 用户文档。
+
+        Returns:
+            仅含摘要字段的用户字典。
+        """
+        if not user:
+            return {}
+        return {
+            "user_id": user.get("user_id", ""),
+            "username": user.get("username", ""),
+            "role": user.get("role", "user"),
+            "status": user.get("status", "active"),
+            "organization": user.get("organization", ""),
+            "created_at": user.get("created_at"),
+            "last_login_at": user.get("last_login_at"),
+        }
+
 
 class InviteCodeRepository:
     """统一邀请码数据访问层。"""

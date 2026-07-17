@@ -37,10 +37,17 @@ export default function WorkflowBuilderPage() {
 
   const deviceOptions = useMemo(
     () =>
-      devices.map((device) => ({
-        label: `${device.name} · ${device.device_type}`,
-        value: device.key
-      })),
+      devices.map((device) => {
+        const permission = device.permission || "read";
+        const hasControl = permission === "control";
+        return {
+          label: hasControl
+            ? `${device.name} · ${device.device_type}`
+            : `${device.name} · ${device.device_type}(只读,无控制权限)`,
+          value: device.key,
+          disabled: !hasControl,
+        };
+      }),
     [devices]
   );
 

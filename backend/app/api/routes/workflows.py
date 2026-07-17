@@ -1,11 +1,17 @@
 """工作流接口路由。"""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.auth import get_current_user_required
 from app.core.datetime_utils import format_datetime
 from app.domain.enums import WorkflowRunStatus
 from app.domain.models import WorkflowDefinitionCreate, WorkflowStepDefinition
-from app.runtime import get_smartaccess_service, get_workflow_repository
+from app.runtime import (
+    get_device_permission_service,
+    get_smartaccess_service,
+    get_workflow_repository,
+)
+from app.services.device_permission_service import DevicePermissionService
 from app.services.workflow_service import WorkflowService
 
 from app.schemas.workflow import (
@@ -27,6 +33,11 @@ def _get_workflow_service() -> WorkflowService:
     return WorkflowService(get_workflow_repository())
 
 
+def _get_permission_service() -> DevicePermissionService:
+    """获取设备权限服务单例。"""
+    return get_device_permission_service()
+
+
 @router.get("", response_model=WorkflowListResponse)
 def list_workflows() -> WorkflowListResponse:
     """返回工作流列表数据。"""
@@ -44,13 +55,21 @@ def list_workflows() -> WorkflowListResponse:
 
 
 @router.post("", response_model=WorkflowCreateResponse)
-def create_workflow(payload: WorkflowCreateRequest) -> WorkflowCreateResponse:
+def create_workflow(
+    payload: WorkflowCreateRequest,
+    user: dict = Depends(get_current_user_required),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
+) -> WorkflowCreateResponse:
     """创建工作流定义并生成初始运行记录。"""
     invalid_steps = [
         step for step in payload.steps if step.device_key != payload.device_key
     ]
     if invalid_steps:
         raise HTTPException(status_code=400, detail="当前仅支持单设备工作流编排")
+
+    # 工作流提交视为设备控制操作,需要校验用户对目标设备的 control 权限。
+    if payload.device_key:
+        permission_service.assert_control(user, [payload.device_key])
 
     workflow_service = _get_workflow_service()
     definition_payload = WorkflowDefinitionCreate(

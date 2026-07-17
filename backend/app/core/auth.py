@@ -7,10 +7,19 @@ import json
 import time
 from typing import Optional
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request, status
 
 from app.core.config import get_settings
 from app.repositories.identity_repository import UserRepository
+
+
+_DEV_ADMIN_USER = {
+    "user_id": "dev_admin",
+    "username": "dev_admin",
+    "role": "admin",
+    "status": "active",
+    "organization": "",
+}
 
 
 def _get_secret() -> bytes:
@@ -117,3 +126,66 @@ async def get_current_user_optional(request: Request) -> Optional[dict]:
 
     user = UserRepository.find_by_user_id(payload["sub"])
     return user if user and user.get("status") == "active" else None
+
+
+async def get_current_user_required(
+    request: Request,
+) -> dict:
+    """强制要求当前请求已登录。
+
+    用于设备控制、工作流提交等需要明确身份的接口。
+
+    Args:
+        request: 当前 HTTP 请求对象。
+
+    Returns:
+        当前用户文档;认证未启用时返回开发模式占位 admin 用户。
+
+    Raises:
+        HTTPException: 未登录或 token 无效时抛 401。
+    """
+    if not get_settings().auth.enabled:
+        return _DEV_ADMIN_USER
+
+    token = _extract_token(request)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供认证信息。",
+        )
+    payload = parse_access_token(token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="认证信息无效或已过期。",
+        )
+
+    user = UserRepository.find_by_user_id(payload["sub"])
+    if not user or user.get("status") != "active":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="账号不可用。",
+        )
+    return user
+
+
+async def require_admin(
+    user: dict = Depends(get_current_user_required),
+) -> dict:
+    """要求当前用户为管理员。
+
+    Args:
+        user: 当前用户文档(由 get_current_user_required 注入)。
+
+    Returns:
+        管理员用户文档。
+
+    Raises:
+        HTTPException: 非管理员时抛 403。
+    """
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="需要管理员权限。",
+        )
+    return user
