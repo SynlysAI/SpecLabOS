@@ -52,9 +52,11 @@ a {
 
 .sidebar-root {
   height: 100%;
+  min-height: 0;
   padding: 18px 14px 16px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .sidebar-topbar {
@@ -133,6 +135,16 @@ a {
 
 .sidebar-menu {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+  display: none;
 }
 
 .sidebar-menu .ant-menu-item,
