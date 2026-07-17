@@ -162,10 +162,16 @@ def publish_template(
 def list_templates(
     keyword: str | None = Query(default=None),
     device_id: str | None = Query(default=None),
+    source_device_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
 ) -> SmartAccessTemplateListResponse:
     """查询 SmartAccess 模板列表。"""
-    records = get_smartaccess_service().list_templates(keyword, device_id, status)
+    records = get_smartaccess_service().list_templates(
+        keyword,
+        device_id,
+        source_device_id,
+        status,
+    )
     return SmartAccessTemplateListResponse(
         items=[SmartAccessTemplateItem.model_validate(item) for item in records]
     )

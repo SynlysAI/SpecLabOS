@@ -232,6 +232,37 @@ def test_publish_and_list_smartaccess_template(fake_smartaccess_service) -> None
     )
 
 
+def test_list_smartaccess_template_filters_source_device_id(
+    fake_smartaccess_service,
+) -> None:
+    """验证 SmartAccess 模板列表可按发布执行端过滤。"""
+
+    client = TestClient(app)
+    for source_device_id in ("pc-xiaoxu", "pc-other"):
+        response = client.post(
+            "/api/smartaccess/templates/publish",
+            json={
+                "template_id": f"tpl_{source_device_id}",
+                "template_version": "1.0.0",
+                "workflow_id": f"wf_{source_device_id}",
+                "name": f"{source_device_id} 流程",
+                "anchor_profile": "weixin",
+                "source_device_id": source_device_id,
+                "published_by": "smartaccess",
+                "workflow": _workflow_payload(),
+            },
+        )
+        assert response.status_code == 200
+
+    list_response = client.get(
+        "/api/smartaccess/templates?source_device_id=pc-xiaoxu"
+    )
+
+    assert list_response.status_code == 200
+    items = list_response.json()["items"]
+    assert [item["source_device_id"] for item in items] == ["pc-xiaoxu"]
+
+
 def test_smartaccess_routes_require_bearer_token_when_configured(
     fake_smartaccess_service,
     monkeypatch,

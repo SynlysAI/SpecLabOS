@@ -103,19 +103,26 @@ class SmartAccessService:
         self,
         keyword: str | None = None,
         device_id: str | None = None,
+        source_device_id: str | None = None,
         status: str | None = None,
     ) -> list[dict]:
         """查询模板列表。
 
         Args:
             keyword: 搜索关键字。
-            device_id: 目标设备或锚点配置 ID。
+            device_id: 兼容旧参数，按锚点配置 ID 过滤。
+            source_device_id: 发布模板的 SmartAccess 执行端 ID。
             status: 模板状态。
 
         Returns:
             模板列表。
         """
-        records = self._repository.list_templates(keyword, device_id, status)
+        records = self._repository.list_templates(
+            keyword,
+            device_id,
+            source_device_id,
+            status,
+        )
         for item in records:
             item["published_at"] = format_datetime(item.get("published_at"))
         return records

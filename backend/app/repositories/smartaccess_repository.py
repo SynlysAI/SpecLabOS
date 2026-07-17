@@ -92,13 +92,15 @@ class SmartAccessRepository:
         self,
         keyword: str | None = None,
         device_id: str | None = None,
+        source_device_id: str | None = None,
         status: str | None = None,
     ) -> list[dict]:
         """查询 SmartAccess 模板列表。
 
         Args:
             keyword: 搜索关键字。
-            device_id: 目标设备或锚点配置。
+            device_id: 兼容旧参数，按锚点配置过滤。
+            source_device_id: 发布模板的 SmartAccess 执行端 ID。
             status: 模板状态。
 
         Returns:
@@ -109,6 +111,8 @@ class SmartAccessRepository:
             query["status"] = status
         if device_id:
             query["anchor_profile"] = device_id
+        if source_device_id:
+            query["source_device_id"] = source_device_id
         records = list(self._templates.find(query).sort("updated_at", -1))
         if keyword:
             needle = keyword.lower()
