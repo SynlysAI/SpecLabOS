@@ -78,6 +78,45 @@ class SmartAccessNodeService:
             heartbeat_interval_seconds=heartbeat_interval_seconds,
         )
 
+    def register_node(
+        self,
+        node_id: str,
+        *,
+        machine_fingerprint: str,
+        device_info: dict[str, Any] | None = None,
+    ) -> dict:
+        """注册并校验 SmartAccess 执行端节点身份。
+
+        Args:
+            node_id: 执行端节点标识。
+            machine_fingerprint: 本机指纹。
+            device_info: 执行端上报的设备元信息。
+
+        Returns:
+            注册结果，包含是否冲突。
+        """
+
+        if not node_id:
+            raise ValueError("node_id 不能为空")
+        if not machine_fingerprint:
+            raise ValueError("machine_fingerprint 不能为空")
+        result = self._repository.register_node(
+            node_id,
+            machine_fingerprint=machine_fingerprint,
+            device_info=device_info,
+        )
+        node = result.get("node") or {}
+        return {
+            "ok": bool(result.get("ok")),
+            "conflict": bool(result.get("conflict")),
+            "node_id": node_id,
+            "existing_machine_fingerprint": str(
+                node.get("machine_fingerprint") or ""
+            ),
+            "existing_device_info": node.get("device_info") or {},
+            "status": node.get("status", "registered"),
+        }
+
     def list_nodes(self) -> list[dict]:
         """列出全部节点并附带距上次心跳的秒数。
 
@@ -134,5 +173,6 @@ class SmartAccessNodeService:
             "heartbeat_interval_seconds": int(
                 record.get("heartbeat_interval_seconds") or 30
             ),
+            "machine_fingerprint": record.get("machine_fingerprint") or "",
             "device_info": record.get("device_info") or {},
         }

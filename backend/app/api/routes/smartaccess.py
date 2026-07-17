@@ -14,6 +14,7 @@ from app.schemas.smartaccess import (
     SmartAccessNodeHeartbeatRequest,
     SmartAccessNodeItem,
     SmartAccessNodeListResponse,
+    SmartAccessNodeRegisterRequest,
     SmartAccessRunCreateRequest,
     SmartAccessRunCreateResponse,
     SmartAccessRunEventRequest,
@@ -274,6 +275,26 @@ def receive_node_heartbeat(payload: SmartAccessNodeHeartbeatRequest) -> dict:
         "node_id": record.get("node_id", payload.node_id),
         "node_status": record.get("status", "online"),
     }
+
+
+@router.post("/nodes/register")
+def register_node(payload: SmartAccessNodeRegisterRequest) -> dict:
+    """注册并校验 SmartAccess 执行端节点身份。"""
+
+    result = get_smartaccess_node_service().register_node(
+        payload.node_id,
+        machine_fingerprint=payload.machine_fingerprint,
+        device_info=payload.device_info,
+    )
+    if result.get("conflict"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "SMARTACCESS_DEVICE_ID 已被另一台电脑注册",
+                **result,
+            },
+        )
+    return result
 
 
 @router.get("/nodes", response_model=SmartAccessNodeListResponse)

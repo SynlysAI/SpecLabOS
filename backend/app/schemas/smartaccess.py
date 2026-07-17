@@ -104,6 +104,14 @@ class SmartAccessNodeHeartbeatRequest(BaseModel):
     heartbeat_interval_seconds: int = 30
 
 
+class SmartAccessNodeRegisterRequest(BaseModel):
+    """SmartAccess 执行端注册校验请求。"""
+
+    node_id: str
+    machine_fingerprint: str
+    device_info: dict[str, Any] = Field(default_factory=dict)
+
+
 class SmartAccessNodeItem(BaseModel):
     """SmartAccess 执行端节点列表项。"""
 
@@ -113,6 +121,7 @@ class SmartAccessNodeItem(BaseModel):
     first_seen_at: str = "--"
     seconds_since_heartbeat: float | None = None
     heartbeat_interval_seconds: int = 30
+    machine_fingerprint: str = ""
     device_info: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -70,6 +70,65 @@ class SmartAccessNodeRepository:
             **set_fields,
         }
 
+    def register_node(
+        self,
+        node_id: str,
+        *,
+        machine_fingerprint: str,
+        device_info: Optional[dict[str, Any]] = None,
+    ) -> dict:
+        """注册或校验 SmartAccess 执行端节点。
+
+        Args:
+            node_id: SmartAccess 执行端标识。
+            machine_fingerprint: 本机指纹。
+            device_info: 执行端上报的设备元信息。
+
+        Returns:
+            包含注册状态和冲突信息的字典。
+        """
+
+        now = datetime.now(timezone.utc)
+        existing = self.find_node(node_id)
+        if existing:
+            existing_fingerprint = str(existing.get("machine_fingerprint") or "")
+            if existing_fingerprint and existing_fingerprint != machine_fingerprint:
+                return {
+                    "ok": False,
+                    "conflict": True,
+                    "node": existing,
+                }
+            self._collection.update_one(
+                {"node_id": node_id},
+                {
+                    "$set": {
+                        "machine_fingerprint": machine_fingerprint,
+                        "device_info": device_info or existing.get("device_info") or {},
+                        "updated_at": now,
+                    }
+                },
+            )
+            return {
+                "ok": True,
+                "conflict": False,
+                "node": self.find_node(node_id),
+            }
+
+        record = {
+            "node_id": node_id,
+            "machine_fingerprint": machine_fingerprint,
+            "device_info": device_info or {},
+            "status": "registered",
+            "first_seen_at": now,
+            "updated_at": now,
+        }
+        self._collection.insert_one(record)
+        return {
+            "ok": True,
+            "conflict": False,
+            "node": record,
+        }
+
     def mark_offline(self, node_id: str) -> None:
         """将指定节点标记为离线。
 
