@@ -134,6 +134,8 @@ export default function ScienceDataAssistant() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <ModelProviderBanner />
+
       {/* 产品 Tab */}
       <Tabs
         activeKey={activeTab}
@@ -276,6 +278,44 @@ export default function ScienceDataAssistant() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * 模型服务来源品牌说明横幅。
+ */
+function ModelProviderBanner() {
+  return (
+    <Card
+      size="small"
+      bodyStyle={{ padding: "10px 16px" }}
+      style={{
+        border: "1px solid rgba(22, 119, 255, 0.14)",
+        background: "linear-gradient(135deg, #f8fbff 0%, #ffffff 100%)",
+        boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)"
+      }}
+    >
+      <Space size={14} align="center" wrap>
+        <img
+          src="/上海人工智能实验室.png"
+          alt="上海人工智能实验室 Logo"
+          style={{
+            display: "block",
+            width: 118,
+            maxWidth: "32vw",
+            height: "auto"
+          }}
+        />
+        <div>
+          <Text strong style={{ display: "block", fontSize: 15, color: "#123b70" }}>
+            模型服务来自上海人工智能实验室
+          </Text>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            为科学文献检索、化学数据查询与蛋白质分析提供智能模型能力支持。
+          </Text>
+        </div>
+      </Space>
+    </Card>
   );
 }
 
