@@ -33,6 +33,81 @@ const STATUS_OPTIONS = [
   { label: "草稿", value: "draft" },
 ];
 
+const INPUT_PLACEHOLDER = "{input}";
+const RUNTIME_INPUT_ACTION_LABELS = {
+  type: "输入",
+  ocr: "OCR识别",
+};
+
+/**
+ * 判断文本或列表中是否包含运行时输入占位符。
+ *
+ * Args:
+ *     value: 待检查的文本或文本列表。
+ *
+ * Returns:
+ *     包含 `{input}` 占位符时返回 true。
+ */
+function containsInputPlaceholder(value) {
+  if (typeof value === "string") {
+    return value.includes(INPUT_PLACEHOLDER);
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => containsInputPlaceholder(item));
+  }
+  return false;
+}
+
+/**
+ * 获取运行时输入步骤的中文动作名称。
+ *
+ * Args:
+ *     action: 工作流步骤动作。
+ *
+ * Returns:
+ *     动作中文名称。
+ */
+function getRuntimeInputActionLabel(action) {
+  return RUNTIME_INPUT_ACTION_LABELS[action] || action || "运行时输入";
+}
+
+/**
+ * 提取工作流中需要用户填写的运行时输入步骤。
+ *
+ * Args:
+ *     workflow: SmartAccess 工作流定义。
+ *
+ * Returns:
+ *     运行时输入步骤字段列表。
+ */
+function getRuntimeInputFields(workflow) {
+  const steps = Array.isArray(workflow?.steps) ? workflow.steps : [];
+  return steps.flatMap((step) => {
+    const isTypeInput =
+      step?.action === "type" &&
+      step?.input_mode === "free" &&
+      containsInputPlaceholder(step?.value);
+    const ocrTemplate = [step?.expected_text, step?.expected_candidates || []];
+    const isOcrInput =
+      step?.action === "ocr" && containsInputPlaceholder(ocrTemplate);
+    if (!isTypeInput && !isOcrInput) {
+      return [];
+    }
+    return [
+      {
+        stepId: String(step?.id || ""),
+        label: [
+          step?.id || "未命名步骤",
+          getRuntimeInputActionLabel(step?.action),
+          step?.anchor_id,
+        ]
+          .filter(Boolean)
+          .join(" / "),
+      },
+    ];
+  });
+}
+
 /**
  * 将对象格式化为可读 JSON 文本。
  *
@@ -115,9 +190,13 @@ function getRequestErrorMessage(error, fallback) {
 export default function SmartAccessTemplatesPage() {
   const [filterForm] = Form.useForm();
   const [runForm] = Form.useForm();
+  const [runtimeInputForm] = Form.useForm();
   const [templates, setTemplates] = useState([]);
   const [detail, setDetail] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [runtimeInputModalOpen, setRuntimeInputModalOpen] = useState(false);
+  const [runtimeInputFields, setRuntimeInputFields] = useState([]);
+  const [pendingRunValues, setPendingRunValues] = useState(null);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -224,7 +303,7 @@ export default function SmartAccessTemplatesPage() {
    * Args:
    *     values: 运行表单数据。
    */
-  async function submitRun(values) {
+  async function submitRun(values, runtimeInputs = {}) {
     if (!detail?.template_id || !detail?.template_version) return;
 
     setSubmitting(true);
@@ -234,15 +313,51 @@ export default function SmartAccessTemplatesPage() {
         template_version: detail.template_version,
         smartaccess_node_id: values.smartaccess_node_id || resolveDefaultNode(detail),
         target_device_id: values.target_device_id || resolveDefaultDevice(detail),
+        runtime_inputs: runtimeInputs,
         requested_by: "web",
       });
       message.success("SmartAccess 运行已发起");
+      return true;
     } catch (error) {
       message.error(
         `SmartAccess 运行发起失败：${getRequestErrorMessage(error, "请稍后重试")}`
       );
+      return false;
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  /**
+   * 根据工作流占位符决定直接发起运行或弹出运行时输入框。
+   *
+   * Args:
+   *     values: 运行表单数据。
+   */
+  async function handleRunSubmit(values) {
+    const fields = getRuntimeInputFields(detail?.workflow);
+    if (fields.length === 0) {
+      await submitRun(values);
+      return;
+    }
+    runtimeInputForm.resetFields();
+    setRuntimeInputFields(fields);
+    setPendingRunValues(values);
+    setRuntimeInputModalOpen(true);
+  }
+
+  /**
+   * 校验运行时输入并创建远程运行任务。
+   */
+  async function submitRuntimeInputs() {
+    const values = await runtimeInputForm.validateFields();
+    const started = await submitRun(
+      pendingRunValues,
+      values.runtime_inputs || {}
+    );
+    if (started) {
+      setRuntimeInputModalOpen(false);
+      setPendingRunValues(null);
     }
   }
 
@@ -378,7 +493,7 @@ export default function SmartAccessTemplatesPage() {
               {detail?.published_at || "--"}
             </Descriptions.Item>
           </Descriptions>
-          <Form form={runForm} layout="vertical" onFinish={submitRun}>
+          <Form form={runForm} layout="vertical" onFinish={handleRunSubmit}>
             <Form.Item
               label="SmartAccess 执行端电脑"
               name="smartaccess_node_id"
@@ -422,6 +537,32 @@ export default function SmartAccessTemplatesPage() {
           </Card>
         </Space>
       </Drawer>
+      <Modal
+        title="填写运行时输入"
+        open={runtimeInputModalOpen}
+        okText="确认发起"
+        cancelText="取消"
+        confirmLoading={submitting}
+        onOk={submitRuntimeInputs}
+        onCancel={() => setRuntimeInputModalOpen(false)}
+        destroyOnClose
+      >
+        <Text type="secondary">
+          请填写工作流本次运行所需的输入内容。
+        </Text>
+        <Form form={runtimeInputForm} layout="vertical" style={{ marginTop: 16 }}>
+          {runtimeInputFields.map((field) => (
+            <Form.Item
+              key={field.stepId}
+              label={field.label}
+              name={["runtime_inputs", field.stepId]}
+              rules={[{ required: true, message: "请输入运行时文本" }]}
+            >
+              <Input placeholder="请输入内容" allowClear />
+            </Form.Item>
+          ))}
+        </Form>
+      </Modal>
     </section>
   );
 }

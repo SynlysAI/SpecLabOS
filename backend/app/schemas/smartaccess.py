@@ -54,6 +54,7 @@ class SmartAccessRunCreateRequest(BaseModel):
     template_version: str
     smartaccess_node_id: str
     target_device_id: str
+    runtime_inputs: dict[str, str] = Field(default_factory=dict)
     requested_by: str = "system"
 
 
