@@ -48,6 +48,10 @@ const BASE_MENU_ITEMS = [
       {
         key: "/tasks/smartaccess-runs",
         label: "SmartAccess 任务"
+      },
+      {
+        key: "/tasks/external-experiment-dispatches",
+        label: "外部实验任务"
       }
     ]
   },

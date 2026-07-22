@@ -65,6 +65,12 @@ class SmartAccessSettings(BaseModel):
     node_sweep_interval_seconds: int = 30
 
 
+class ExternalApiSettings(BaseModel):
+    """供其他平台调用 SpecLabOS 的统一 API 配置。"""
+
+    api_token: str = ""
+
+
 class RabbitMQSettings(BaseModel):
     """RabbitMQ 连接配置。"""
 
@@ -187,6 +193,7 @@ class Settings(BaseModel):
     datahub: DataHubSettings = Field(default_factory=DataHubSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     smartaccess: SmartAccessSettings = Field(default_factory=SmartAccessSettings)
+    external_api: ExternalApiSettings = Field(default_factory=ExternalApiSettings)
     rabbitmq: RabbitMQSettings = Field(default_factory=RabbitMQSettings)
     device_images: DeviceImagesSettings = Field(default_factory=DeviceImagesSettings)
     device_logs: DeviceLogSettings = Field(default_factory=DeviceLogSettings)

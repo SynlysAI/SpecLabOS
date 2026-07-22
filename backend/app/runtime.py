@@ -12,6 +12,9 @@ from app.repositories.device_permission_repository import (
     DevicePermissionRepository,
 )
 from app.repositories.event_repository import EventRepository
+from app.repositories.external_experiment_dispatch_repository import (
+    ExternalExperimentDispatchRepository,
+)
 from app.repositories.smartaccess_node_repository import (
     SmartAccessNodeRepository,
 )
@@ -26,6 +29,9 @@ from app.services.device_permission_service import DevicePermissionService
 from app.services.device_service import DeviceService
 from app.services.device_status_service import DeviceStatusService
 from app.services.event_bus import EventBus
+from app.services.external_experiment_dispatch_service import (
+    ExternalExperimentDispatchService,
+)
 from app.services.smartaccess_mq import (
     SmartAccessNullPublisher,
     SmartAccessRabbitMQPublisher,
@@ -75,6 +81,20 @@ def get_workflow_repository() -> WorkflowRepository:
 def get_smartaccess_repository() -> SmartAccessRepository:
     """构建并缓存 SmartAccess 仓储。"""
     return SmartAccessRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_external_experiment_dispatch_repository() -> ExternalExperimentDispatchRepository:
+    """构建并缓存外部实验任务仓储。"""
+    return ExternalExperimentDispatchRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_external_experiment_dispatch_service() -> ExternalExperimentDispatchService:
+    """构建并缓存外部实验任务服务。"""
+    return ExternalExperimentDispatchService(
+        repository=get_external_experiment_dispatch_repository(),
+    )
 
 
 @lru_cache(maxsize=1)

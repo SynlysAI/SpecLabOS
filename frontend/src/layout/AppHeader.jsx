@@ -21,7 +21,7 @@ const HEADER_META = [
   {
     match: (pathname) => pathname.startsWith("/tasks"),
     title: "任务中心",
-    subtitle: "统一查看编排任务与 SmartAccess 远程任务运行记录。"
+    subtitle: "统一查看编排任务、SmartAccess 远程任务和外部实验任务。"
   },
   {
     match: (pathname) => pathname.startsWith("/data"),
