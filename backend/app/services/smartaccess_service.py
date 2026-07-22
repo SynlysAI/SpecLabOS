@@ -17,6 +17,7 @@ from app.schemas.smartaccess import (
     SmartAccessRunEventRequest,
     SmartAccessTemplatePublishRequest,
 )
+from app.services.smartaccess_workflow_resolver import resolve_runtime_placeholders
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +164,13 @@ class SmartAccessService:
             运行记录。
         """
         template = self.get_template(payload.template_id, payload.template_version)
+        try:
+            template["workflow"] = resolve_runtime_placeholders(
+                template.get("workflow") or {},
+                payload.runtime_inputs,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         run = self._repository.create_run(template, payload)
         self._publisher.publish_run_requested(
             {
