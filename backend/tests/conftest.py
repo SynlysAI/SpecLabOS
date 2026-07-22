@@ -6,6 +6,8 @@ import pytest
 from app.api.routes import smartaccess, workflows
 from app.core.config import get_settings
 from app.repositories.smartaccess_repository import SmartAccessRepository
+from app.repositories.smartaccess_node_repository import SmartAccessNodeRepository
+from app.services.smartaccess_node_service import SmartAccessNodeService
 from app.services.smartaccess_service import SmartAccessService
 
 
@@ -58,4 +60,13 @@ def fake_smartaccess_service(fake_database, monkeypatch):
     )
     monkeypatch.setattr(smartaccess, "get_smartaccess_service", lambda: service)
     monkeypatch.setattr(workflows, "get_smartaccess_service", lambda: service)
+    return service
+
+
+@pytest.fixture
+def fake_smartaccess_node_service(fake_database, monkeypatch):
+    """为路由测试提供隔离的 SmartAccess 节点服务。"""
+
+    service = SmartAccessNodeService(SmartAccessNodeRepository(fake_database))
+    monkeypatch.setattr(smartaccess, "get_smartaccess_node_service", lambda: service)
     return service

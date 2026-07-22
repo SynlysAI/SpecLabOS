@@ -263,6 +263,43 @@ def test_list_smartaccess_template_filters_source_device_id(
     assert [item["source_device_id"] for item in items] == ["pc-xiaoxu"]
 
 
+def test_register_smartaccess_node_detects_fingerprint_conflict(
+    fake_smartaccess_node_service,
+) -> None:
+    """验证相同节点 ID 绑定不同机器指纹时返回冲突。"""
+
+    client = TestClient(app)
+    first_response = client.post(
+        "/api/smartaccess/nodes/register",
+        json={
+            "node_id": "pc-xiaoxu",
+            "machine_fingerprint": "fingerprint-a",
+            "device_info": {"hostname": "host-a"},
+        },
+    )
+    same_response = client.post(
+        "/api/smartaccess/nodes/register",
+        json={
+            "node_id": "pc-xiaoxu",
+            "machine_fingerprint": "fingerprint-a",
+            "device_info": {"hostname": "host-a"},
+        },
+    )
+    conflict_response = client.post(
+        "/api/smartaccess/nodes/register",
+        json={
+            "node_id": "pc-xiaoxu",
+            "machine_fingerprint": "fingerprint-b",
+            "device_info": {"hostname": "host-b"},
+        },
+    )
+
+    assert first_response.status_code == 200
+    assert same_response.status_code == 200
+    assert conflict_response.status_code == 409
+    assert conflict_response.json()["detail"]["conflict"] is True
+
+
 def test_smartaccess_routes_require_bearer_token_when_configured(
     fake_smartaccess_service,
     monkeypatch,
