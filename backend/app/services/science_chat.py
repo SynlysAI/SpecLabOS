@@ -137,45 +137,15 @@ def _wrap_mcp_tools(raw_tools: list[dict]) -> list[dict]:
     ]
 
 
-def _llm_request(messages: list[dict], tools: list[dict] | None = None) -> dict:
-    """同步调用 LLM API（OpenAI 兼容接口）。
+def _llm_stream(messages: list[dict], tools: list[dict] | None = None):
+    """流式调用 LLM API，逐行 yield 原始 SSE 数据载荷字符串（去掉 'data: ' 前缀）。
 
     Args:
         messages: 对话消息列表。
-        tools: 可选工具定义列表。
+        tools: 可选工具定义列表，传入则启用 function calling（tool_choice=auto）。
 
-    Returns:
-        API 响应的 JSON 字典。
-    """
-    llm = get_settings().llm
-    body = {
-        "model": llm.model,
-        "messages": messages,
-        "temperature": 0,
-        "max_tokens": 4096,
-    }
-    if tools:
-        body["tools"] = tools
-        body["tool_choice"] = "auto"
-
-    resp = requests.post(
-        f"{llm.base_url}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {llm.api_key}",
-            "Content-Type": "application/json",
-        },
-        json=body,
-        timeout=120,
-    )
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _llm_stream(messages: list[dict]):
-    """流式调用 LLM API，逐行 yield JSON chunk 字符串。
-
-    Args:
-        messages: 对话消息列表。
+    Yields:
+        每个 SSE 事件的 data 载荷字符串（可能是 JSON 或 '[DONE]'）。
     """
     llm = get_settings().llm
     body = {
@@ -185,6 +155,10 @@ def _llm_stream(messages: list[dict]):
         "max_tokens": 4096,
         "stream": True,
     }
+    if tools:
+        body["tools"] = tools
+        body["tool_choice"] = "auto"
+
     resp = requests.post(
         f"{llm.base_url}/chat/completions",
         headers={
@@ -198,7 +172,7 @@ def _llm_stream(messages: list[dict]):
     resp.raise_for_status()
     for line in resp.iter_lines(decode_unicode=True):
         if line and line.startswith("data: "):
-            yield line
+            yield line[len("data: "):]
 
 
 def _execute_tool(product: str, name: str, arguments: dict) -> str:
@@ -264,16 +238,19 @@ def _system_prompt(product: str) -> str:
 
 
 def generate_chat(product: str, user_message: str):
-    """生成 SSE 流式对话响应 — 支持多轮 Agent 工具调用。
+    """生成 SSE 流式对话响应 — 支持多轮 Agent 工具调用，最终回复真流式输出。
 
     流程：
-    1. 发送消息 + 工具定义给 LLM
-    2. 如果 LLM 返回工具调用，执行并反馈结果，回到 1（最多 5 轮）
-    3. LLM 返回文本回复时，流式输出给前端
+    1. 流式发送消息 + 工具定义给 LLM，边收边判断是文本回复还是工具调用
+    2. 如果 LLM 返回工具调用（流式累积 tool_calls 分片），执行并反馈结果，回到 1（最多 max_rounds 轮）
+    3. 如果 LLM 返回文本回复，content 已逐字流式输出给前端
 
     Args:
         product: 产品标识，"sciverse" 或 "dianshi"。
         user_message: 用户输入的自然语言消息。
+
+    Yields:
+        形如 ``data: {"type": "chunk|done|error", ...}\\n\\n`` 的 SSE 事件字符串。
     """
     tools = SCIVERSE_TOOLS if product == "sciverse" else _wrap_mcp_tools(dianshi_mcp.DIANSHI_TOOLS)
 
@@ -293,64 +270,105 @@ def generate_chat(product: str, user_message: str):
     max_rounds = 10
     consecutive_errors = 0
     for _round in range(max_rounds):
+        full_content = ""
+        tool_calls_acc: list[dict] = []
+        has_tool_calls = False
+
         try:
-            decision = _llm_request(messages, tools)
+            for payload in _llm_stream(messages, tools):
+                if payload == "[DONE]":
+                    break
+                try:
+                    data = json.loads(payload)
+                except json.JSONDecodeError:
+                    continue
+
+                choices = data.get("choices") or []
+                if not choices:
+                    continue
+                delta = choices[0].get("delta", {}) or {}
+
+                # 累积工具调用分片（OpenAI 流式按 index 分片下发 arguments）
+                delta_tcs = delta.get("tool_calls")
+                if delta_tcs:
+                    has_tool_calls = True
+                    for tc in delta_tcs:
+                        idx = tc.get("index", 0)
+                        while len(tool_calls_acc) <= idx:
+                            tool_calls_acc.append({"id": "", "name": "", "arguments": ""})
+                        if tc.get("id"):
+                            tool_calls_acc[idx]["id"] = tc["id"]
+                        func = tc.get("function", {}) or {}
+                        if func.get("name"):
+                            tool_calls_acc[idx]["name"] = func["name"]
+                        if func.get("arguments"):
+                            tool_calls_acc[idx]["arguments"] += func["arguments"]
+
+                # 文本内容：仅在未触发工具调用时分段实时下发
+                content_delta = delta.get("content")
+                if content_delta and not has_tool_calls:
+                    full_content += content_delta
+                    yield f"data: {json.dumps({'type': 'chunk', 'text': content_delta}, ensure_ascii=False)}\n\n"
         except Exception as exc:
-            _logger.exception("LLM 调用失败（第 %d 轮）", _round + 1)
+            _logger.exception("LLM 流式调用失败（第 %d 轮）", _round + 1)
             yield f"data: {json.dumps({'type': 'error', 'message': f'LLM 调用失败: {exc}'}, ensure_ascii=False)}\n\n"
             return
 
-        choice = decision.get("choices", [{}])[0]
-        msg = choice.get("message", {})
-        tool_calls = msg.get("tool_calls", [])
+        # 本轮有工具调用 → 执行并继续循环
+        if has_tool_calls:
+            assistant_msg = {
+                "role": "assistant",
+                "content": full_content or None,
+                "tool_calls": [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {"name": tc["name"], "arguments": tc["arguments"]},
+                    }
+                    for tc in tool_calls_acc
+                ],
+            }
+            messages.append(assistant_msg)
 
-        if tool_calls:
-            # 本轮有工具调用 → 执行并继续循环
-            messages.append(msg)
-            has_error = False
-            for tc in tool_calls:
-                func_info = tc.get("function", {})
-                func_name = func_info.get("name", "")
+            round_errors = 0
+            for tc in tool_calls_acc:
+                func_name = tc["name"]
                 try:
-                    func_args = json.loads(func_info.get("arguments", "{}"))
+                    func_args = json.loads(tc["arguments"] or "{}")
                 except json.JSONDecodeError:
                     func_args = {}
 
-                text = f'正在调用 {func_name}...\n\n'
+                text = f'\n正在调用 {func_name}...\n\n'
                 yield f"data: {json.dumps({'type': 'chunk', 'text': text}, ensure_ascii=False)}\n\n"
 
                 tool_result = _execute_tool(product, func_name, func_args)
 
                 # 检测执行失败，连续错误 2 次则终止
                 if isinstance(tool_result, str) and tool_result.startswith("[执行失败]"):
-                    has_error = True
+                    round_errors += 1
                     consecutive_errors += 1
                 else:
                     consecutive_errors = 0
 
                 messages.append({
                     "role": "tool",
-                    "tool_call_id": tc.get("id", ""),
+                    "tool_call_id": tc["id"],
                     "content": tool_result,
                 })
 
-            if has_error and consecutive_errors >= 2:
+            if round_errors > 0 and consecutive_errors >= 2:
                 yield f"data: {json.dumps({'type': 'error', 'message': '接口连续返回错误，请检查查询参数或稍后重试'}, ensure_ascii=False)}\n\n"
                 return
 
             continue
 
-        # 没有工具调用 → 本轮是文本回复，需要流式输出
-        content = msg.get("content", "")
-
-        if not content:
-            # 空回复：LLM 可能还想继续，但没带 tool_calls 也没 content
+        # 没有工具调用 → 本轮是最终文本回复，已流式输出完毕
+        if not full_content:
+            # 空回复：LLM 既没带 tool_calls 也没 content
             yield f"data: {json.dumps({'type': 'error', 'message': '模型未返回有效结果，请重试'}, ensure_ascii=False)}\n\n"
             return
 
-        # 直接用本轮 content 作为回复，流式输出
-        yield f"data: {json.dumps({'type': 'chunk', 'text': content}, ensure_ascii=False)}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'full_text': content}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'full_text': full_content}, ensure_ascii=False)}\n\n"
         return
 
     # 超出最大轮数仍未结束
