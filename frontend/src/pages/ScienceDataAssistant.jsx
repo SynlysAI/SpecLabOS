@@ -8,6 +8,10 @@ import {
   SendOutlined,
   TableOutlined
 } from "@ant-design/icons";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github.css";
 import { streamScienceChat } from "../services/scienceChatApi";
 
 const { Text, Paragraph } = Typography;
@@ -42,6 +46,29 @@ const PRODUCT_TABS = [
     )
   }
 ];
+
+/**
+ * 渲染 Markdown 内容（助手回复气泡专用）。
+ * 支持 GFM 表格、代码块（rehype-highlight 高亮）、列表、链接等。
+ *
+ * Args:
+ *     content: 待渲染的 Markdown 字符串。
+ */
+function MessageContent({ content }) {
+  return (
+    <div className="chat-markdown">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          a: ({ node, ...props }) => <a target="_blank" rel="noreferrer" {...props} />
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 /**
  * 科学数据助手页面 — 统一的自然语言科学数据查询入口。
@@ -199,14 +226,15 @@ export default function ScienceDataAssistant() {
                       borderRadius: 12,
                       background: msg.role === "user" ? "#1677ff" : "#f0f2f5",
                       color: msg.role === "user" ? "#fff" : "#333",
-                      whiteSpace: "pre-wrap",
                       fontSize: 14,
                       lineHeight: 1.7
                     }}
                   >
-                    <Text style={{ color: msg.role === "user" ? "#fff" : "#333" }}>
-                      {msg.content}
-                    </Text>
+                    {msg.role === "user" ? (
+                      <span style={{ whiteSpace: "pre-wrap" }}>{msg.content}</span>
+                    ) : (
+                      <MessageContent content={msg.content} />
+                    )}
                   </div>
                 </div>
               ))}
@@ -220,12 +248,12 @@ export default function ScienceDataAssistant() {
                       padding: "8px 14px",
                       borderRadius: 12,
                       background: "#f0f2f5",
-                      whiteSpace: "pre-wrap",
+                      color: "#333",
                       fontSize: 14,
                       lineHeight: 1.7
                     }}
                   >
-                    <Text>{streamingText}</Text>
+                    <MessageContent content={streamingText} />
                   </div>
                 </div>
               )}
