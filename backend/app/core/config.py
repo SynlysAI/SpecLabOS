@@ -1,5 +1,6 @@
 """应用配置加载模块。"""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -305,6 +306,42 @@ def _merge_devices_config(raw_data: dict, config_file: Path) -> None:
     raw_data["devices"] = merged_devices
 
 
+# 敏感字段的环境变量覆盖映射（环境变量名 -> yaml 路径）。
+# 服务器上由 lab-common.env 经 ecosystem 注入进程环境变量，
+# 优先于 config.yaml；本地未注入时完全使用 yaml 值。
+ENV_OVERRIDE_MAP: dict[str, tuple[str, str]] = {
+    "AUTH_SECRET": ("auth", "secret"),
+    "MONGODB_URI": ("mongo", "uri"),
+    "MINIO_ACCESS_KEY": ("minio", "access_key"),
+    "MINIO_SECRET_KEY": ("minio", "secret_key"),
+    "LLM_API_KEY": ("llm", "api_key"),
+    "RABBITMQ_USERNAME": ("rabbitmq", "username"),
+    "RABBITMQ_PASSWORD": ("rabbitmq", "password"),
+    "SPECLABOS_API_KEY": ("external_api", "api_token"),
+}
+
+
+def _apply_env_overrides(raw_data: dict) -> None:
+    """用环境变量覆盖 yaml 中的敏感字段。
+
+    仅当对应环境变量存在且非空时覆盖；未注入时本函数不做任何修改，
+    因此本地开发完全走 config.yaml，行为不受影响。
+
+    Args:
+        raw_data: yaml 解析出的原始配置字典，原地修改。
+    """
+    for env_name, (section_name, field_name) in ENV_OVERRIDE_MAP.items():
+        value = os.environ.get(env_name)
+        if not value:
+            continue
+        section = raw_data.setdefault(section_name, {})
+        section[field_name] = value
+        if env_name == "MONGODB_URI":
+            # 用户库与主库同实例，统一认证共用同一条连接串
+            auth_section = raw_data.setdefault("auth", {})
+            auth_section["user_mongo_uri"] = value
+
+
 def load_settings(config_path: str | Path) -> Settings:
     """从 YAML 文件加载系统配置。
 
@@ -319,6 +356,7 @@ def load_settings(config_path: str | Path) -> Settings:
     if isinstance(raw_data, dict):
         _resolve_device_image_dir(raw_data, config_file)
         _merge_devices_config(raw_data, config_file)
+        _apply_env_overrides(raw_data)
     return Settings.model_validate(raw_data)
 
 

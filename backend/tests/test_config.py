@@ -138,3 +138,99 @@ def test_create_app_uses_settings_title(monkeypatch: pytest.MonkeyPatch) -> None
     application = main.create_app()
 
     assert application.title == "SpecLabOS Test"
+
+
+def _write_override_test_config(tmp_path: Path) -> Path:
+    """写入用于环境变量覆盖测试的最小配置文件。"""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text(
+        """
+app:
+  name: SpecLabOS
+  host: 127.0.0.1
+  port: 8000
+mongo:
+  uri: mongodb://yaml-user:yaml-pass@127.0.0.1:27018
+  database: spectrum_alab
+auth:
+  enabled: true
+  secret: yaml-secret
+  user_mongo_uri: mongodb://yaml-user:yaml-pass@127.0.0.1:27018/ai4ms
+  user_database: ai4ms
+minio:
+  endpoint: 127.0.0.1:9000
+  access_key: yaml-access
+  secret_key: yaml-minio-secret
+rabbitmq:
+  host: 127.0.0.1
+  port: 5672
+  username: yaml-mq-user
+  password: yaml-mq-pass
+runtime:
+  sim_mode: true
+llm:
+  api_key: yaml-llm-key
+  base_url: http://yaml-llm/v1
+  model: test-model
+external_api:
+  api_token: yaml-external-token
+""".strip(),
+        encoding="utf-8",
+    )
+    return config_file
+
+
+def test_env_overrides_take_precedence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验证注入的环境变量覆盖 yaml 敏感字段，未覆盖字段保持 yaml 值。"""
+    config_file = _write_override_test_config(tmp_path)
+
+    monkeypatch.setenv("AUTH_SECRET", "env-secret")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://env-user:env-pass@127.0.0.1:29000/ai4ms")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "env-minio-secret")
+    monkeypatch.setenv("RABBITMQ_PASSWORD", "env-mq-pass")
+    monkeypatch.setenv("LLM_API_KEY", "env-llm-key")
+    monkeypatch.setenv("SPECLABOS_API_KEY", "env-external-token")
+
+    settings = load_settings(config_file)
+
+    assert settings.auth.secret == "env-secret"
+    assert settings.mongo.uri == "mongodb://env-user:env-pass@127.0.0.1:29000/ai4ms"
+    assert settings.auth.user_mongo_uri == settings.mongo.uri
+    assert settings.minio.secret_key == "env-minio-secret"
+    assert settings.rabbitmq.password == "env-mq-pass"
+    assert settings.llm.api_key == "env-llm-key"
+    assert settings.external_api.api_token == "env-external-token"
+    # 未被覆盖的字段仍来自 yaml
+    assert settings.minio.endpoint == "127.0.0.1:9000"
+    assert settings.minio.access_key == "yaml-access"
+    assert settings.rabbitmq.username == "yaml-mq-user"
+
+
+def test_env_absent_keeps_yaml_values(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """验证未注入环境变量时完全使用 yaml 值（本地开发场景）。"""
+    config_file = _write_override_test_config(tmp_path)
+
+    for env_name in (
+        "AUTH_SECRET",
+        "MONGODB_URI",
+        "MINIO_ACCESS_KEY",
+        "MINIO_SECRET_KEY",
+        "LLM_API_KEY",
+        "RABBITMQ_USERNAME",
+        "RABBITMQ_PASSWORD",
+        "SPECLABOS_API_KEY",
+    ):
+        monkeypatch.delenv(env_name, raising=False)
+
+    settings = load_settings(config_file)
+
+    assert settings.auth.secret == "yaml-secret"
+    assert settings.mongo.uri == "mongodb://yaml-user:yaml-pass@127.0.0.1:27018"
+    assert settings.auth.user_mongo_uri.endswith("/ai4ms")
+    assert settings.minio.secret_key == "yaml-minio-secret"
+    assert settings.llm.api_key == "yaml-llm-key"
+    assert settings.external_api.api_token == "yaml-external-token"
