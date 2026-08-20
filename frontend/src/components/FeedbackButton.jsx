@@ -188,10 +188,7 @@ export default function FeedbackButton() {
             gap: 8,
             marginTop: 14,
             fontSize: 12,
-            color: "rgba(0,0,0,0.45)",
-            background: "#f8fafc",
-            borderRadius: 8,
-            padding: "8px 12px"
+            color: "rgba(0,0,0,0.45)"
           }}
         >
           提交人：<b style={{ color: "rgba(0,0,0,0.65)", fontWeight: 500 }}>{username}</b>
