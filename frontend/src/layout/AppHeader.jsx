@@ -4,6 +4,7 @@ import { BellOutlined, LogoutOutlined, SearchOutlined } from "@ant-design/icons"
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
+import FeedbackButton from "../components/FeedbackButton";
 
 const { Text, Title } = Typography;
 
@@ -115,6 +116,7 @@ export default function AppHeader() {
           实验室网络已连接
         </Tag>
         <Button shape="circle" icon={<BellOutlined />} />
+        <FeedbackButton />
         <Dropdown
           trigger={["click"]}
           menu={{
