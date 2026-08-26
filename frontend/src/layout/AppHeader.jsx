@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
 import FeedbackButton from "../components/FeedbackButton";
+import GuideButton from "../components/GuideButton";
 
 const { Text, Title } = Typography;
 
@@ -116,6 +117,7 @@ export default function AppHeader() {
           实验室网络已连接
         </Tag>
         <Button shape="circle" icon={<BellOutlined />} />
+        <GuideButton />
         <FeedbackButton />
         <Dropdown
           trigger={["click"]}
