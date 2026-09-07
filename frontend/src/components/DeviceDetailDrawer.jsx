@@ -33,7 +33,7 @@ export default function DeviceDetailDrawer({ open, device, onClose }) {
               style={{ width: "100%", borderRadius: 12 }}
             />
           ) : null}
-          <Descriptions column={1} bordered size="small">
+          <Descriptions column={1} bordered size="small" labelStyle={{ width: 96 }}>
             <Descriptions.Item label="设备名称">{device.name}</Descriptions.Item>
             <Descriptions.Item label="设备分类">{device.category}</Descriptions.Item>
             <Descriptions.Item label="设备类型">{device.device_type}</Descriptions.Item>
