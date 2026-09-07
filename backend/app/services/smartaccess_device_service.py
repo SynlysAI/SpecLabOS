@@ -139,10 +139,10 @@ class SmartAccessDeviceService:
         Returns:
             设备资源。
         """
-        display_name = source.get("target_device_id") or source.get("name") or device_id
+        display_name = source.get("anchor_profile") or source.get("name") or device_id
         return DeviceResource(
             device_id=f"smartaccess:{device_id}",
-            name=f"SmartAccess - {display_name}",
+            name=display_name,
             category="SmartAccess 远程设备",
             device_type="SmartAccessDevice",
             location=source.get("smartaccess_node_id") or source.get("anchor_profile") or "远程",
