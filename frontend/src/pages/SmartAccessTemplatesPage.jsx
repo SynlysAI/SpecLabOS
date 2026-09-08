@@ -283,7 +283,8 @@ export default function SmartAccessTemplatesPage() {
     try {
       const data = await fetchSmartAccessTemplateDetail(
         record.template_id,
-        record.template_version
+        record.template_version,
+        record.source_device_id
       );
       setDetail(data);
       runForm.setFieldsValue({
@@ -376,7 +377,11 @@ export default function SmartAccessTemplatesPage() {
       cancelText: "取消",
       onOk: async () => {
         try {
-          await deleteSmartAccessTemplate(record.template_id, record.template_version);
+          await deleteSmartAccessTemplate(
+            record.template_id,
+            record.template_version,
+            record.source_device_id
+          );
           message.success("模板已删除");
           loadTemplates();
         } catch {
@@ -449,7 +454,9 @@ export default function SmartAccessTemplatesPage() {
         }
       >
         <Table
-          rowKey={(record) => `${record.template_id}:${record.template_version}`}
+          rowKey={(record) =>
+            `${record.template_id}:${record.template_version}:${record.source_device_id || ""}`
+          }
           columns={columns}
           dataSource={templates}
           loading={loading}
