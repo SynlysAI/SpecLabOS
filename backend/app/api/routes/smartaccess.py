@@ -185,10 +185,15 @@ def list_templates(
 def get_template(
     template_id: str,
     template_version: str,
+    source_device_id: str | None = Query(default=None),
 ) -> SmartAccessTemplateDetailResponse:
     """读取 SmartAccess 模板详情。"""
     return SmartAccessTemplateDetailResponse.model_validate(
-        get_smartaccess_service().get_template(template_id, template_version)
+        get_smartaccess_service().get_template(
+            template_id,
+            template_version,
+            source_device_id,
+        )
     )
 
 
@@ -196,9 +201,14 @@ def get_template(
 def delete_template(
     template_id: str,
     template_version: str,
+    source_device_id: str | None = Query(default=None),
 ) -> dict:
     """删除 SmartAccess 模板。"""
-    get_smartaccess_service().delete_template(template_id, template_version)
+    get_smartaccess_service().delete_template(
+        template_id,
+        template_version,
+        source_device_id,
+    )
     return {"detail": "模板已删除"}
 
 

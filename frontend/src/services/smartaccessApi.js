@@ -26,13 +26,19 @@ export async function fetchSmartAccessTemplates(filters = {}) {
  * Args:
  *     templateId: 模板 ID。
  *     templateVersion: 模板版本。
+ *     sourceDeviceId: 发布模板的执行端 ID，用于区分不同执行端的同名模板。
  *
  * Returns:
  *     模板详情。
  */
-export async function fetchSmartAccessTemplateDetail(templateId, templateVersion) {
+export async function fetchSmartAccessTemplateDetail(
+  templateId,
+  templateVersion,
+  sourceDeviceId
+) {
   const response = await http.get(
-    `/api/smartaccess/templates/${templateId}/versions/${templateVersion}`
+    `/api/smartaccess/templates/${templateId}/versions/${templateVersion}`,
+    { params: { source_device_id: sourceDeviceId || undefined } }
   );
   return response.data;
 }
@@ -43,10 +49,16 @@ export async function fetchSmartAccessTemplateDetail(templateId, templateVersion
  * Args:
  *     templateId: 模板 ID。
  *     templateVersion: 模板版本。
+ *     sourceDeviceId: 发布模板的执行端 ID，仅删除该执行端的记录。
  */
-export async function deleteSmartAccessTemplate(templateId, templateVersion) {
+export async function deleteSmartAccessTemplate(
+  templateId,
+  templateVersion,
+  sourceDeviceId
+) {
   const response = await http.delete(
-    `/api/smartaccess/templates/${templateId}/versions/${templateVersion}`
+    `/api/smartaccess/templates/${templateId}/versions/${templateVersion}`,
+    { params: { source_device_id: sourceDeviceId || undefined } }
   );
   return response.data;
 }

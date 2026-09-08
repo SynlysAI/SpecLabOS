@@ -128,30 +128,50 @@ class SmartAccessService:
             item["published_at"] = format_datetime(item.get("published_at"))
         return records
 
-    def get_template(self, template_id: str, template_version: str) -> dict:
+    def get_template(
+        self,
+        template_id: str,
+        template_version: str,
+        source_device_id: str | None = None,
+    ) -> dict:
         """读取模板详情。
 
         Args:
             template_id: 模板 ID。
             template_version: 模板版本。
+            source_device_id: 发布模板的执行端 ID；提供时优先匹配该执行端的记录。
 
         Returns:
             模板记录。
         """
-        template = self._repository.get_template(template_id, template_version)
+        template = self._repository.get_template(
+            template_id,
+            template_version,
+            source_device_id,
+        )
         if template is None:
             raise HTTPException(status_code=404, detail="SmartAccess 模板不存在")
         template["published_at"] = format_datetime(template.get("published_at"))
         return template
 
-    def delete_template(self, template_id: str, template_version: str) -> None:
+    def delete_template(
+        self,
+        template_id: str,
+        template_version: str,
+        source_device_id: str | None = None,
+    ) -> None:
         """删除 SmartAccess 模板。
 
         Args:
             template_id: 模板 ID。
             template_version: 模板版本。
+            source_device_id: 发布模板的执行端 ID；提供时仅删除该执行端的记录。
         """
-        if not self._repository.delete_template(template_id, template_version):
+        if not self._repository.delete_template(
+            template_id,
+            template_version,
+            source_device_id,
+        ):
             raise HTTPException(status_code=404, detail="SmartAccess 模板不存在")
 
     def create_run(self, payload: SmartAccessRunCreateRequest) -> dict:
@@ -163,7 +183,11 @@ class SmartAccessService:
         Returns:
             运行记录。
         """
-        template = self.get_template(payload.template_id, payload.template_version)
+        template = self.get_template(
+            payload.template_id,
+            payload.template_version,
+            payload.target_device_id,
+        )
         try:
             template["workflow"] = resolve_runtime_placeholders(
                 template.get("workflow") or {},

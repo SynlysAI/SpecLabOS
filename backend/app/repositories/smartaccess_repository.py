@@ -72,6 +72,7 @@ class SmartAccessRepository:
             {
                 "template_id": payload.template_id,
                 "template_version": payload.template_version,
+                "source_device_id": payload.source_device_id,
             }
         )
         if existing:
@@ -82,6 +83,7 @@ class SmartAccessRepository:
             {
                 "template_id": payload.template_id,
                 "template_version": payload.template_version,
+                "source_device_id": payload.source_device_id,
             },
             {"$set": record},
             upsert=True,
@@ -130,33 +132,54 @@ class SmartAccessRepository:
             ]
         return records
 
-    def get_template(self, template_id: str, template_version: str) -> dict | None:
+    def get_template(
+        self,
+        template_id: str,
+        template_version: str,
+        source_device_id: str | None = None,
+    ) -> dict | None:
         """读取指定模板版本。
 
         Args:
             template_id: 模板 ID。
             template_version: 模板版本。
+            source_device_id: 发布模板的执行端 ID；提供时优先精确匹配该执行端的
+                记录，未命中时回退到同 ID+版本中最近更新的记录，兼容历史数据
+                中 source_device_id 为空的模板。
 
         Returns:
             模板记录，不存在时返回 None。
         """
-        return self._templates.find_one(
-            {"template_id": template_id, "template_version": template_version}
-        )
+        query = {"template_id": template_id, "template_version": template_version}
+        if source_device_id:
+            exact = self._templates.find_one(
+                {**query, "source_device_id": source_device_id}
+            )
+            if exact is not None:
+                return exact
+        return self._templates.find_one(query, sort=[("updated_at", -1)])
 
-    def delete_template(self, template_id: str, template_version: str) -> bool:
+    def delete_template(
+        self,
+        template_id: str,
+        template_version: str,
+        source_device_id: str | None = None,
+    ) -> bool:
         """删除指定模板版本。
 
         Args:
             template_id: 模板 ID。
             template_version: 模板版本。
+            source_device_id: 发布模板的执行端 ID；提供时仅删除该执行端的
+                记录且不回退，避免误删其他执行端的同名模板。
 
         Returns:
             是否成功删除。
         """
-        result = self._templates.delete_one(
-            {"template_id": template_id, "template_version": template_version}
-        )
+        query = {"template_id": template_id, "template_version": template_version}
+        if source_device_id:
+            query["source_device_id"] = source_device_id
+        result = self._templates.delete_one(query)
         return result.deleted_count > 0
 
     def create_run(
