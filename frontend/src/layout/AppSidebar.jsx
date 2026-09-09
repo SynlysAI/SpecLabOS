@@ -202,7 +202,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
         style={{ borderInlineEnd: "none", background: "transparent" }}
       />
       <div className="sidebar-version">
-        {!collapsed && <Text type="secondary">版本 v1.1.1</Text>}
+        {!collapsed && <Text type="secondary">版本 v1.2.0</Text>}
       </div>
     </div>
   );

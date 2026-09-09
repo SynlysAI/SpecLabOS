@@ -128,8 +128,8 @@ def _grant_first_publisher_control(
         auth_context: SmartAccess 接口认证上下文。
         permission_service: 设备权限服务。
     """
-    user = auth_context.get("user")
-    if auth_context.get("auth_type") != "user" or permission_service.is_admin(user):
+    user = _resolve_publish_user(payload, auth_context)
+    if user is None or permission_service.is_admin(user):
         return
 
     device_key = _resolve_template_device_key(payload)
@@ -138,6 +138,30 @@ def _grant_first_publisher_control(
     if permission_service.list_grants_by_device(device_key):
         return
     permission_service.grant(user["user_id"], device_key, user["user_id"])
+
+
+def _resolve_publish_user(payload: SmartAccessTemplatePublishRequest, auth_context: dict) -> dict | None:
+    """解析发布模板的用户。
+
+    用户令牌认证时从认证上下文取发布人；静态 API 令牌认证时回退到
+    payload 中的 ``published_by`` 用户名查找，兼容执行端统一使用静态令牌的场景。
+
+    Args:
+        payload: SmartAccess 模板发布请求。
+        auth_context: SmartAccess 接口认证上下文。
+
+    Returns:
+        发布用户文档；无法确定发布人时返回 None。
+    """
+    if auth_context.get("auth_type") == "user":
+        return auth_context.get("user")
+    published_by = str(payload.published_by or "").strip()
+    if not published_by or published_by == "smartaccess":
+        return None
+    user = UserRepository.find_by_username(published_by)
+    if user and user.get("status") == "active":
+        return user
+    return None
 
 
 router = APIRouter(
