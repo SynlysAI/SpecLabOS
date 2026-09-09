@@ -42,9 +42,16 @@ def require_smartaccess_auth(
         认证上下文字典，包含认证类型与当前用户信息。
     """
     settings = get_settings()
-    api_token = settings.smartaccess.api_token
+    # 同时接受 smartaccess 专属令牌与外部平台统一 API 令牌,
+    # 便于执行端只维护 SPECLABOS_API_KEY 一个静态令牌即可接入。
+    api_tokens = {
+        token for token in (
+            settings.smartaccess.api_token,
+            settings.external_api.api_token,
+        ) if token
+    }
     auth_enabled = getattr(getattr(settings, "auth", None), "enabled", True)
-    if not auth_enabled and not api_token:
+    if not auth_enabled and not api_tokens:
         return {
             "auth_type": "dev",
             "user": {
@@ -62,7 +69,7 @@ def require_smartaccess_auth(
         )
 
     # 优先校验 API Token（供外部调用）
-    if api_token and authorization == f"Bearer {api_token}":
+    if authorization in {f"Bearer {token}" for token in api_tokens}:
         return {"auth_type": "api_token", "user": None}
 
     # 其次校验用户 Token（供前端调用）
