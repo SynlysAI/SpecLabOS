@@ -30,8 +30,8 @@ def test_builtin_registry_counts_are_complete():
     load_builtin_devices()
 
     assert len(list_devices()) == 12
-    assert len(list_capabilities()) == 39
-    assert len(list_local_executor_keys()) == 47
+    assert len(list_capabilities()) == 42
+    assert len(list_local_executor_keys()) == 50
 
 
 def test_local_executor_registered_for_lcms_action():

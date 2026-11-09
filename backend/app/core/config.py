@@ -2,7 +2,7 @@
 
 import os
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import yaml
 from pydantic import BaseModel, Field
@@ -213,7 +213,14 @@ def get_default_config_path(current_file: str | Path | None = None) -> Path:
     Returns:
         项目根目录下的配置文件路径。
     """
-    config_module_file = Path(current_file or __file__).resolve()
+    raw_path = str(current_file or __file__)
+    if len(raw_path) > 2 and raw_path[1] == ":":
+        config_module_file = PureWindowsPath(raw_path)
+        backend_root = config_module_file.parents[2]
+        project_root = backend_root.parent
+        return Path((project_root / "config.yaml").as_posix())
+
+    config_module_file = Path(raw_path).resolve()
     backend_root = config_module_file.parents[2]
     project_root = backend_root.parent
     return project_root / "config.yaml"
@@ -352,6 +359,10 @@ def load_settings(config_path: str | Path) -> Settings:
         解析后的系统配置对象。
     """
     config_file = Path(config_path).resolve()
+    if not config_file.is_file():
+        example_file = config_file.with_name("config.example.yaml")
+        if example_file.is_file():
+            config_file = example_file
     raw_data = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     if isinstance(raw_data, dict):
         _resolve_device_image_dir(raw_data, config_file)

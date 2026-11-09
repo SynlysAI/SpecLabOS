@@ -13,6 +13,9 @@ class DataAssetFileItem(BaseModel):
     asset_id: str
     device_id: str
     collector_id: str
+    dataset_id: str = ""
+    category_id: str = ""
+    data_type: str = ""
     asset_group_id: str
     root_name: str
     relative_path: str
@@ -28,6 +31,13 @@ class DataAssetFileItem(BaseModel):
     created_at: str = ""
     ingested_at: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
+    experiment_id: str = ""
+    workflow_run_id: str = ""
+    task_id: str = ""
+    device_run_id: str = ""
+    sample_id: str = ""
+    operator: str = ""
+    tags: list[str] = Field(default_factory=list)
 
 
 class DataAssetItem(BaseModel):
@@ -40,6 +50,8 @@ class DataAssetItem(BaseModel):
     device_id: str = ""
     collector_id: str = ""
     data_type: str = ""
+    dataset_id: str = ""
+    category_id: str = ""
     root_name: str = ""
     filename: str = ""
     file_count: int = 1
@@ -53,6 +65,13 @@ class DataAssetItem(BaseModel):
     created_at: str = ""
     ingested_at: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
+    experiment_id: str = ""
+    workflow_run_id: str = ""
+    task_id: str = ""
+    device_run_id: str = ""
+    sample_id: str = ""
+    operator: str = ""
+    tags: list[str] = Field(default_factory=list)
 
 
 class DataAssetDistributionItem(BaseModel):
@@ -85,6 +104,25 @@ class DataAssetOverviewResponse(BaseModel):
     data_type_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
     device_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
     collector_distribution: list[DataAssetDistributionItem] = Field(default_factory=list)
+
+
+class DataAssetDeviceStatsItem(BaseModel):
+    """SmartDataHub 设备维度统计项。"""
+
+    device_id: str
+    asset_count: int = 0
+    file_count: int = 0
+    total_size: int = 0
+    collector_count: int = 0
+    data_type_count: int = 0
+    latest_ingested_at: str = ""
+
+
+class DataAssetDeviceStatsResponse(BaseModel):
+    """SmartDataHub 设备维度统计响应。"""
+
+    overall: DataAssetOverviewResponse = Field(default_factory=DataAssetOverviewResponse)
+    items: list[DataAssetDeviceStatsItem] = Field(default_factory=list)
 
 
 class DataAssetFileListResponse(BaseModel):

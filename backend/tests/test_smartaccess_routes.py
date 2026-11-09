@@ -309,7 +309,8 @@ def test_smartaccess_routes_require_bearer_token_when_configured(
         smartaccess,
         "get_settings",
         lambda: SimpleNamespace(
-            smartaccess=SimpleNamespace(api_token="dev-smartaccess-token")
+            smartaccess=SimpleNamespace(api_token="dev-smartaccess-token"),
+            external_api=SimpleNamespace(api_token=""),
         ),
         raising=False,
     )
@@ -323,6 +324,28 @@ def test_smartaccess_routes_require_bearer_token_when_configured(
 
     assert rejected_response.status_code == 401
     assert accepted_response.status_code == 200
+
+
+def test_smartaccess_routes_allow_dev_mode_when_auth_disabled(
+    fake_smartaccess_service,
+    monkeypatch,
+) -> None:
+    """验证显式关闭鉴权时即使配置令牌也保持本地免认证。"""
+    monkeypatch.setattr(
+        smartaccess,
+        "get_settings",
+        lambda: SimpleNamespace(
+            smartaccess=SimpleNamespace(api_token="configured-token"),
+            external_api=SimpleNamespace(api_token="external-token"),
+            auth=SimpleNamespace(enabled=False),
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/smartaccess/templates")
+
+    assert response.status_code == 200
 
 
 def test_create_smartaccess_run_and_append_event(fake_smartaccess_service) -> None:
