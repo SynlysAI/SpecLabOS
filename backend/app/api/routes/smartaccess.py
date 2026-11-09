@@ -51,7 +51,8 @@ def require_smartaccess_auth(
         ) if token
     }
     auth_enabled = getattr(getattr(settings, "auth", None), "enabled", True)
-    if not auth_enabled and not api_tokens:
+    # auth.enabled=False 表示本地/测试环境显式免认证；生产配置令牌仍走下方校验。
+    if not auth_enabled:
         return {
             "auth_type": "dev",
             "user": {

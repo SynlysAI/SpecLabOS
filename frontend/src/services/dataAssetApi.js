@@ -12,6 +12,20 @@ export async function fetchDataAssetOverview() {
 }
 
 /**
+ * 获取 SmartDataHub 按设备聚合的数据统计。
+ *
+ * Returns:
+ *     overall 与设备统计列表。
+ */
+export async function fetchDataDeviceStats() {
+  const response = await http.get("/api/data/device-stats");
+  return {
+    overall: response.data?.overall || {},
+    items: response.data?.items || []
+  };
+}
+
+/**
  * 获取 SmartDataHub 数据资产列表。
  *
  * Args:
@@ -23,10 +37,7 @@ export async function fetchDataAssetOverview() {
 export async function fetchDataAssets(filters = {}) {
   const response = await http.get("/api/data/assets", {
     params: {
-      keyword: filters.keyword || undefined,
       device_id: filters.device_id || undefined,
-      collector_id: filters.collector_id || undefined,
-      data_type: filters.data_type && filters.data_type !== "all" ? filters.data_type : undefined,
       limit: filters.limit || 100
     }
   });
