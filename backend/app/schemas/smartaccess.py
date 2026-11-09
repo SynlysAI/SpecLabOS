@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SmartAccessTemplatePublishRequest(BaseModel):
@@ -52,10 +52,20 @@ class SmartAccessRunCreateRequest(BaseModel):
 
     template_id: str
     template_version: str
-    smartaccess_node_id: str
-    target_device_id: str
+    smartaccess_node_id: str = ""
+    target_device_id: str = ""
     runtime_inputs: dict[str, str] = Field(default_factory=dict)
     requested_by: str = "system"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _support_legacy_device_id(cls, data):
+        """兼容旧版调用方只传 device_id 的请求体。"""
+        if isinstance(data, dict) and data.get("device_id"):
+            data = dict(data)
+            data.setdefault("smartaccess_node_id", data["device_id"])
+            data.setdefault("target_device_id", data["device_id"])
+        return data
 
 
 class SmartAccessRunCreateResponse(BaseModel):

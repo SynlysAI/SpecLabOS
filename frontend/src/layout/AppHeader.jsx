@@ -1,6 +1,6 @@
 import React from "react";
-import { Avatar, Button, Dropdown, Input, Space, Tag, Typography } from "antd";
-import { BellOutlined, LogoutOutlined, SearchOutlined } from "@ant-design/icons";
+import { Avatar, Button, Dropdown, Space, Tag, Typography } from "antd";
+import { BellOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
@@ -76,7 +76,7 @@ const HEADER_META = [
  * 顶部操作区组件。
  *
  * Returns:
- *     展示控制台标题、搜索、通知与当前登录人信息。
+ *     展示控制台标题、通知与当前登录人信息。
  */
 export default function AppHeader() {
   const location = useLocation();
@@ -107,12 +107,6 @@ export default function AppHeader() {
         </Text>
       </div>
       <Space size={16} className="app-header-actions">
-        <Input
-          allowClear
-          prefix={<SearchOutlined />}
-          placeholder="搜索设备、流程或日志"
-          style={{ width: 280 }}
-        />
         <Tag color="blue" bordered={false}>
           实验室网络已连接
         </Tag>

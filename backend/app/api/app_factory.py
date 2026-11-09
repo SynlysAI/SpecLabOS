@@ -160,6 +160,9 @@ class _SPAStaticFiles(StaticFiles):
         Returns:
             静态资源响应或 index.html 回退响应。
         """
+        if path.startswith("api/"):
+            raise StarletteHTTPException(status_code=404)
+
         response = None
         try:
             response = await super().get_response(path, scope)
