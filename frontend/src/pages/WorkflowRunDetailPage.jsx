@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Descriptions, Empty, List, message, Modal, Row, Space, Table, Tag, Typography } from "antd";
-import { ArrowLeftOutlined, LinkOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Card, Col, Descriptions, Drawer, Empty, List, message, Modal, Row, Space, Table, Tag, Tooltip, Typography } from "antd";
+import {
+  ArrowLeftOutlined,
+  LinkOutlined,
+  ProfileOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
@@ -32,7 +37,7 @@ function formatFileSize(size) {
 }
 
 /**
- * 构建数据文件表格列。
+ * 构建数据文件表格列（左列窄宽度布局，详情信息收进 Tooltip）。
  *
  * Args:
  *     onBind: 建议关联条目的确认绑定回调；为空时不渲染操作列。
@@ -42,34 +47,34 @@ function formatFileSize(size) {
  */
 function buildDataFileColumns(onBind) {
   const columns = [
-    { title: "文件名", dataIndex: "filename", key: "filename", ellipsis: true },
     {
-      title: "数据类型",
-      dataIndex: "data_type",
-      key: "data_type",
-      width: 110,
-      render: (value) => value || "--",
+      title: "文件名",
+      dataIndex: "filename",
+      key: "filename",
+      ellipsis: true,
+      render: (value, record) => (
+        <Tooltip
+          title={`${record.relative_path || value} · ${record.data_type || "--"} · ${
+            record.ingested_at || "--"
+          }`}
+        >
+          {value || "--"}
+        </Tooltip>
+      ),
     },
     {
       title: "大小",
       dataIndex: "file_size",
       key: "file_size",
-      width: 90,
+      width: 80,
       render: (value) => formatFileSize(value),
-    },
-    {
-      title: "入库时间",
-      dataIndex: "ingested_at",
-      key: "ingested_at",
-      width: 170,
-      render: (value) => value || "--",
     },
   ];
   if (onBind) {
     columns.push({
       title: "操作",
       key: "actions",
-      width: 90,
+      width: 80,
       render: (_, record) => (
         <Button
           type="link"
@@ -217,6 +222,7 @@ export default function WorkflowRunDetailPage() {
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [eventsDrawerOpen, setEventsDrawerOpen] = useState(false);
   const isSmartAccess = detail?.source === "smartaccess";
 
   /**
@@ -309,6 +315,50 @@ export default function WorkflowRunDetailPage() {
               </Descriptions.Item>
             </Descriptions>
           </Card>
+          {isSmartAccess ? (
+            <Card
+              title="数据结果"
+              style={{ marginTop: 16 }}
+              loading={loading}
+              extra={
+                <Space>
+                  <Tag bordered={false}>已绑定 {(detail?.data_files || []).length}</Tag>
+                  <Tag bordered={false}>建议 {(detail?.data_suggestions || []).length}</Tag>
+                </Space>
+              }
+            >
+              <Table
+                size="small"
+                rowKey="file_id"
+                columns={buildDataFileColumns()}
+                dataSource={detail?.data_files || []}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+                style={{ marginBottom: 16 }}
+              />
+              <Space style={{ marginBottom: 8 }} wrap>
+                <Text strong>建议关联</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  任务时间窗内该设备新增、未绑定的文件，确认后归入本次任务
+                </Text>
+              </Space>
+              <Table
+                size="small"
+                rowKey="file_id"
+                columns={buildDataFileColumns(handleBindFile)}
+                dataSource={detail?.data_suggestions || []}
+                pagination={false}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      description="时间窗内暂无可关联文件；需 SmartAccess 数据采集器上传该设备的数据文件"
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  ),
+                }}
+              />
+            </Card>
+          ) : null}
         </Col>
         <Col xs={24} xl={14}>
           <Card
@@ -316,6 +366,14 @@ export default function WorkflowRunDetailPage() {
             loading={loading}
             extra={
               <Space>
+                {isSmartAccess ? (
+                  <Button
+                    icon={<ProfileOutlined />}
+                    onClick={() => setEventsDrawerOpen(true)}
+                  >
+                    事件摘要
+                  </Button>
+                ) : null}
                 <Button
                   icon={<ArrowLeftOutlined />}
                   onClick={() =>
@@ -331,95 +389,55 @@ export default function WorkflowRunDetailPage() {
             }
           >
             <RunStepTimeline steps={detail?.steps || []} />
-            {isSmartAccess ? (
-              <List
-                style={{ marginTop: 16 }}
-                header="事件摘要"
-                dataSource={detail?.events || []}
-                locale={{ emptyText: "暂无事件记录" }}
-                renderItem={(event) => {
-                  const stepName = resolveStepName(event, detail?.steps);
-                  const detailText = formatEventDetail(event);
-                  return (
-                    <List.Item>
-                      <Space direction="vertical" size={4} style={{ width: "100%" }}>
-                        <Space style={{ justifyContent: "space-between", width: "100%" }} wrap>
-                          <Space wrap>
-                            <StatusTag status={event?.status || event?.level || "info"} />
-                            <Text strong>
-                              {stepName ? `${stepName} · ` : ""}{formatEventLabel(event)}
-                            </Text>
-                          </Space>
-                          <Button
-                            type="link"
-                            size="small"
-                            onClick={() => setSelectedEvent(event)}
-                          >
-                            查看数据
-                          </Button>
-                        </Space>
-                        <Text type="secondary">{formatEventTime(event)}</Text>
-                        {detailText ? (
-                          <Text
-                            type={event?.status === "failed" ? "danger" : "secondary"}
-                            style={{ fontSize: 12, wordBreak: "break-all" }}
-                          >
-                            {detailText}
-                          </Text>
-                        ) : null}
-                      </Space>
-                    </List.Item>
-                  );
-                }}
-              />
-            ) : null}
           </Card>
         </Col>
       </Row>
-      {isSmartAccess ? (
-        <Card
-          title="数据结果"
-          style={{ marginTop: 16 }}
-          loading={loading}
-          extra={
-            <Space>
-              <Tag bordered={false}>已绑定 {(detail?.data_files || []).length}</Tag>
-              <Tag bordered={false}>建议关联 {(detail?.data_suggestions || []).length}</Tag>
-            </Space>
-          }
-        >
-          <Table
-            size="small"
-            rowKey="file_id"
-            columns={buildDataFileColumns()}
-            dataSource={detail?.data_files || []}
-            pagination={false}
-            locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-            style={{ marginBottom: 16 }}
-          />
-          <Space style={{ marginBottom: 8 }}>
-            <Text strong>建议关联</Text>
-            <Text type="secondary">
-              任务执行时间窗口内该设备新增、尚未绑定任务的数据文件
-            </Text>
-          </Space>
-          <Table
-            size="small"
-            rowKey="file_id"
-            columns={buildDataFileColumns(handleBindFile)}
-            dataSource={detail?.data_suggestions || []}
-            pagination={false}
-            locale={{
-              emptyText: (
-                <Empty
-                  description="时间窗内暂无可关联文件；需 SmartAccess 数据采集器上传该设备的数据文件"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
-              ),
-            }}
-          />
-        </Card>
-      ) : null}
+      <Drawer
+        title="事件摘要"
+        placement="right"
+        width={560}
+        open={eventsDrawerOpen}
+        onClose={() => setEventsDrawerOpen(false)}
+      >
+        <List
+          dataSource={detail?.events || []}
+          locale={{ emptyText: "暂无事件记录" }}
+          renderItem={(event) => {
+            const stepName = resolveStepName(event, detail?.steps);
+            const detailText = formatEventDetail(event);
+            return (
+              <List.Item>
+                <Space direction="vertical" size={4} style={{ width: "100%" }}>
+                  <Space style={{ justifyContent: "space-between", width: "100%" }} wrap>
+                    <Space wrap>
+                      <StatusTag status={event?.status || event?.level || "info"} />
+                      <Text strong>
+                        {stepName ? `${stepName} · ` : ""}{formatEventLabel(event)}
+                      </Text>
+                    </Space>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setSelectedEvent(event)}
+                    >
+                      查看数据
+                    </Button>
+                  </Space>
+                  <Text type="secondary">{formatEventTime(event)}</Text>
+                  {detailText ? (
+                    <Text
+                      type={event?.status === "failed" ? "danger" : "secondary"}
+                      style={{ fontSize: 12, wordBreak: "break-all" }}
+                    >
+                      {detailText}
+                    </Text>
+                  ) : null}
+                </Space>
+              </List.Item>
+            );
+          }}
+        />
+      </Drawer>
       <Modal
         title="事件数据"
         open={Boolean(selectedEvent)}
