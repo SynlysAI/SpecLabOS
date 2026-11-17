@@ -37,7 +37,7 @@ function formatFileSize(size) {
 }
 
 /**
- * 构建数据文件表格列（左列窄宽度布局，详情信息收进 Tooltip）。
+ * 构建数据文件表格列。
  *
  * Args:
  *     onBind: 建议关联条目的确认绑定回调；为空时不渲染操作列。
@@ -53,21 +53,32 @@ function buildDataFileColumns(onBind) {
       key: "filename",
       ellipsis: true,
       render: (value, record) => (
-        <Tooltip
-          title={`${record.relative_path || value} · ${record.data_type || "--"} · ${
-            record.ingested_at || "--"
-          }`}
-        >
+        <Tooltip title={record.relative_path || value || ""}>
           {value || "--"}
         </Tooltip>
       ),
     },
     {
+      title: "类型",
+      dataIndex: "data_type",
+      key: "data_type",
+      width: 100,
+      ellipsis: true,
+      render: (value) => value || "--",
+    },
+    {
       title: "大小",
       dataIndex: "file_size",
       key: "file_size",
-      width: 80,
+      width: 90,
       render: (value) => formatFileSize(value),
+    },
+    {
+      title: "入库时间",
+      dataIndex: "ingested_at",
+      key: "ingested_at",
+      width: 170,
+      render: (value) => value || "--",
     },
   ];
   if (onBind) {
@@ -274,9 +285,9 @@ export default function WorkflowRunDetailPage() {
           style={{ marginBottom: 16 }}
         />
       ) : null}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} align="stretch">
         <Col xs={24} xl={10}>
-          <Card title="基础信息" loading={loading}>
+          <Card title="基础信息" loading={loading} style={{ height: "100%" }}>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="运行编号">{detail?.run_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="工作流名称">
@@ -315,55 +326,13 @@ export default function WorkflowRunDetailPage() {
               </Descriptions.Item>
             </Descriptions>
           </Card>
-          {isSmartAccess ? (
-            <Card
-              title="数据结果"
-              style={{ marginTop: 16 }}
-              loading={loading}
-              extra={
-                <Space>
-                  <Tag bordered={false}>已绑定 {(detail?.data_files || []).length}</Tag>
-                  <Tag bordered={false}>建议 {(detail?.data_suggestions || []).length}</Tag>
-                </Space>
-              }
-            >
-              <Table
-                size="small"
-                rowKey="file_id"
-                columns={buildDataFileColumns()}
-                dataSource={detail?.data_files || []}
-                pagination={false}
-                locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-                style={{ marginBottom: 16 }}
-              />
-              <Space style={{ marginBottom: 8 }} wrap>
-                <Text strong>建议关联</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  任务时间窗内该设备新增、未绑定的文件，确认后归入本次任务
-                </Text>
-              </Space>
-              <Table
-                size="small"
-                rowKey="file_id"
-                columns={buildDataFileColumns(handleBindFile)}
-                dataSource={detail?.data_suggestions || []}
-                pagination={false}
-                locale={{
-                  emptyText: (
-                    <Empty
-                      description="时间窗内暂无可关联文件；需 SmartAccess 数据采集器上传该设备的数据文件"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    />
-                  ),
-                }}
-              />
-            </Card>
-          ) : null}
         </Col>
         <Col xs={24} xl={14}>
           <Card
             title={isSmartAccess ? "SmartAccess 步骤与 Trace" : "步骤执行时间线"}
             loading={loading}
+            style={{ height: "100%" }}
+            styles={{ body: { maxHeight: 420, overflowY: "auto" } }}
             extra={
               <Space>
                 {isSmartAccess ? (
@@ -392,6 +361,55 @@ export default function WorkflowRunDetailPage() {
           </Card>
         </Col>
       </Row>
+      {isSmartAccess ? (
+        <Card
+          title="数据结果"
+          style={{ marginTop: 16 }}
+          loading={loading}
+          extra={
+            <Space>
+              <Tag bordered={false}>已绑定 {(detail?.data_files || []).length}</Tag>
+              <Tag bordered={false}>建议关联 {(detail?.data_suggestions || []).length}</Tag>
+            </Space>
+          }
+        >
+          <Row gutter={[16, 16]}>
+            <Col xs={24} xl={12}>
+              <Text strong style={{ display: "block", marginBottom: 8 }}>
+                已绑定
+              </Text>
+              <Table
+                size="small"
+                rowKey="file_id"
+                columns={buildDataFileColumns()}
+                dataSource={detail?.data_files || []}
+                pagination={false}
+                locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+              />
+            </Col>
+            <Col xs={24} xl={12}>
+              <Text strong style={{ display: "block", marginBottom: 8 }}>
+                建议关联
+              </Text>
+              <Table
+                size="small"
+                rowKey="file_id"
+                columns={buildDataFileColumns(handleBindFile)}
+                dataSource={detail?.data_suggestions || []}
+                pagination={false}
+                locale={{
+                  emptyText: (
+                    <Empty
+                      description="任务时间窗内该设备新增的未绑定文件，确认后归入本次任务"
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  ),
+                }}
+              />
+            </Col>
+          </Row>
+        </Card>
+      ) : null}
       <Drawer
         title="事件摘要"
         placement="right"
