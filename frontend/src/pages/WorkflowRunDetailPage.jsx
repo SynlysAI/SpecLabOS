@@ -373,41 +373,35 @@ export default function WorkflowRunDetailPage() {
             </Space>
           }
         >
-          <Row gutter={[16, 16]}>
-            <Col xs={24} xl={12}>
-              <Text strong style={{ display: "block", marginBottom: 8 }}>
-                已绑定
-              </Text>
-              <Table
-                size="small"
-                rowKey="file_id"
-                columns={buildDataFileColumns()}
-                dataSource={detail?.data_files || []}
-                pagination={false}
-                locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
-              />
-            </Col>
-            <Col xs={24} xl={12}>
-              <Text strong style={{ display: "block", marginBottom: 8 }}>
-                建议关联
-              </Text>
-              <Table
-                size="small"
-                rowKey="file_id"
-                columns={buildDataFileColumns(handleBindFile)}
-                dataSource={detail?.data_suggestions || []}
-                pagination={false}
-                locale={{
-                  emptyText: (
-                    <Empty
-                      description="任务时间窗内该设备新增的未绑定文件，确认后归入本次任务"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    />
-                  ),
-                }}
-              />
-            </Col>
-          </Row>
+          <Text strong style={{ display: "block", marginBottom: 8 }}>
+            已绑定
+          </Text>
+          <Table
+            size="small"
+            rowKey="file_id"
+            columns={buildDataFileColumns()}
+            dataSource={detail?.data_files || []}
+            pagination={false}
+            locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          />
+          <Text strong style={{ display: "block", margin: "16px 0 8px" }}>
+            建议关联
+          </Text>
+          <Table
+            size="small"
+            rowKey="file_id"
+            columns={buildDataFileColumns(handleBindFile)}
+            dataSource={detail?.data_suggestions || []}
+            pagination={false}
+            locale={{
+              emptyText: (
+                <Empty
+                  description="任务时间窗内该设备新增的未绑定文件，确认后归入本次任务"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              ),
+            }}
+          />
         </Card>
       ) : null}
       <Drawer
