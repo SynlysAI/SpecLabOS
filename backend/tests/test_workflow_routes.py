@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from app.repositories.data_asset_repository import DataAssetRepository
 from main import app
 
 
@@ -170,6 +171,65 @@ def test_get_workflow_run_detail_supports_smartaccess_source(
     assert data["anchor_profile"] == "weixin"
     assert isinstance(data["events"], list)
     assert isinstance(data["steps"], list)
+    # 数据结果字段必须透出，否则前端无法展示已绑定/建议关联文件
+    assert data["data_files"] == []
+    assert data["data_suggestions"] == []
+
+
+def test_get_workflow_run_detail_returns_smartaccess_data_files(
+    fake_smartaccess_service,
+    fake_database,
+):
+    """验证统一运行详情接口透出 SmartAccess 已绑定数据文件。"""
+    client = TestClient(app)
+    data_repository = DataAssetRepository(fake_database)
+    client.post(
+        "/api/smartaccess/templates/publish",
+        json={
+            "template_id": "tpl_data_result",
+            "template_version": "1.0.0",
+            "anchor_profile": "vpn软件",
+            "source_device_id": "pc-workstation",
+            "workflow": {
+                "metadata": {"workflow_id": "wf_vpn", "anchor_profile": "vpn软件"},
+                "steps": [{"id": "open", "anchor_id": "open", "action": "click"}],
+            },
+        },
+    )
+    run_id = client.post(
+        "/api/smartaccess/runs",
+        json={
+            "template_id": "tpl_data_result",
+            "template_version": "1.0.0",
+            "smartaccess_node_id": "pc-workstation",
+            "target_device_id": "vpn软件",
+        },
+    ).json()["run_id"]
+    file_record = data_repository.create_file_asset(
+        collector_id="pc-collector",
+        device_id="pc-workstation",
+        data_type="result_data",
+        asset_kind="file",
+        asset_group_id="111.csv",
+        root_name="111.csv",
+        relative_path="111.csv",
+        filename="111.csv",
+        content_type="text/csv",
+        file_size=16,
+        file_hash="hash-111",
+        storage_bucket="speclabos-data",
+        storage_key="vpn/111.csv",
+        storage_uri="minio://speclabos-data/vpn/111.csv",
+        metadata={"device_run_id": run_id},
+    )
+    fake_smartaccess_service.bind_data_file(run_id, file_record["file_id"])
+
+    response = client.get(f"/api/workflow-runs/{run_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [item["filename"] for item in data["data_files"]] == ["111.csv"]
+    assert data["data_files"][0]["bound"] is True
 
 
 def test_list_workflow_runs_supports_smartaccess_source_filter(
