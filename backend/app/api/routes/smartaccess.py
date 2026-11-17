@@ -346,6 +346,21 @@ def append_event(run_id: str, payload: SmartAccessRunEventRequest) -> dict:
     }
 
 
+@router.post("/runs/{run_id}/data-bindings")
+def bind_run_data_file(run_id: str, payload: dict) -> dict:
+    """人工确认把数据文件绑定到 SmartAccess 运行。"""
+    file_id = str(payload.get("file_id") or "").strip()
+    if not file_id:
+        raise HTTPException(status_code=400, detail="file_id 不能为空")
+    record = get_smartaccess_service().bind_data_file(run_id, file_id)
+    return {
+        "run_id": run_id,
+        "file_id": record.get("file_id", ""),
+        "bound": record.get("bound", False),
+        "detail": "数据文件已绑定到运行",
+    }
+
+
 @router.post("/nodes/heartbeat")
 def receive_node_heartbeat(payload: SmartAccessNodeHeartbeatRequest) -> dict:
     """接收 SmartAccess 执行端心跳上报。"""

@@ -11,6 +11,7 @@ from app.devices import load_builtin_devices
 from app.repositories.device_permission_repository import (
     DevicePermissionRepository,
 )
+from app.repositories.data_asset_repository import DataAssetRepository
 from app.repositories.event_repository import EventRepository
 from app.repositories.external_experiment_dispatch_repository import (
     ExternalExperimentDispatchRepository,
@@ -154,6 +155,7 @@ def get_smartaccess_service() -> SmartAccessService:
     return SmartAccessService(
         repository=get_smartaccess_repository(),
         publisher=get_smartaccess_publisher(),
+        data_repository=DataAssetRepository(),
     )
 
 

@@ -38,6 +38,7 @@ class DataAssetRepository:
         self._files.create_index([("asset_group_id", 1), ("relative_path", 1)])
         self._files.create_index([("device_id", 1), ("created_at", -1)])
         self._files.create_index([("dataset_id", 1), ("ingested_at", -1)])
+        self._files.create_index([("device_run_id", 1)], sparse=True)
 
     def create_file_asset(
         self,
@@ -214,6 +215,83 @@ class DataAssetRepository:
         return list(
             self._files.find({"asset_id": asset_id}).sort("relative_path", 1).limit(limit)
         )
+
+    def find_files_by_run(self, run_id: str, limit: int = 200) -> list[dict]:
+        """查询绑定到指定任务运行的数据文件。
+
+        Args:
+            run_id: SmartAccess 运行 ID。
+            limit: 最大返回数量。
+
+        Returns:
+            按入库时间倒序的数据文件列表。
+        """
+        if not run_id:
+            return []
+        return list(
+            self._files.find({"device_run_id": run_id})
+            .sort("ingested_at", -1)
+            .limit(limit)
+        )
+
+    def find_unbound_files_in_window(
+        self,
+        device_ids: list[str],
+        start_iso: str,
+        end_iso: str,
+        limit: int = 50,
+    ) -> list[dict]:
+        """查询时间窗内指定设备且未绑定任务的入库文件。
+
+        Args:
+            device_ids: 设备标识候选列表（目标设备/锚点/执行端）。
+            start_iso: 窗口开始时间（UTC ISO 文本，含）。
+            end_iso: 窗口结束时间（UTC ISO 文本，含）。
+            limit: 最大返回数量。
+
+        Returns:
+            按入库时间倒序的未绑定数据文件列表。
+        """
+        candidates = [item for item in device_ids if item]
+        if not candidates or not start_iso or not end_iso:
+            return []
+        query = {
+            "device_id": {"$in": candidates},
+            "ingested_at": {"$gte": start_iso, "$lte": end_iso},
+            "$or": [
+                {"device_run_id": {"$exists": False}},
+                {"device_run_id": ""},
+                {"device_run_id": None},
+            ],
+        }
+        return list(
+            self._files.find(query).sort("ingested_at", -1).limit(limit)
+        )
+
+    def bind_file_to_run(self, file_id: str, run_id: str) -> dict | None:
+        """把数据文件（及其所属资产）绑定到任务运行。
+
+        Args:
+            file_id: 数据文件 ID。
+            run_id: SmartAccess 运行 ID。
+
+        Returns:
+            绑定后的文件记录；文件不存在时返回 None。
+        """
+        file_doc = self._files.find_one({"file_id": file_id})
+        if file_doc is None:
+            return None
+        self._files.update_one(
+            {"file_id": file_id},
+            {"$set": {"device_run_id": run_id}},
+        )
+        self._assets.update_one(
+            {"asset_id": file_doc.get("asset_id", "")},
+            {"$set": {"device_run_id": run_id}},
+        )
+        updated = dict(file_doc)
+        updated["device_run_id"] = run_id
+        return updated
 
     def _normalize_asset(self, item: dict[str, Any]) -> dict[str, Any]:
         """补齐旧资产缺失的目录和关系字段。"""

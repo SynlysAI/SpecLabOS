@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from app.core.config import get_settings
 from app.core.datetime_utils import format_datetime
+from app.repositories.data_asset_repository import DataAssetRepository
 from app.repositories.smartaccess_repository import (
     SmartAccessRepository,
     SmartAccessRunNotFoundError,
@@ -20,6 +21,11 @@ from app.schemas.smartaccess import (
 from app.services.smartaccess_workflow_resolver import resolve_runtime_placeholders
 
 logger = logging.getLogger(__name__)
+
+# 任务结束后数据文件仍可能延迟入库的宽限时间(秒)
+DATA_BINDING_GRACE_SECONDS = 600
+# 运行详情附带的数据结果数量上限
+DATA_RESULT_LIMIT = 50
 
 
 def _build_steps_from_workflow(
@@ -74,18 +80,76 @@ def _build_steps_from_workflow(
     return items
 
 
+def _project_data_file(item: dict) -> dict:
+    """把数据文件记录投影为运行详情展示对象。
+
+    Args:
+        item: 数据资产文件记录。
+
+    Returns:
+        展示字段字典。
+    """
+    return {
+        "file_id": item.get("file_id", ""),
+        "asset_id": item.get("asset_id", ""),
+        "filename": item.get("filename", ""),
+        "relative_path": item.get("relative_path", ""),
+        "asset_group_id": item.get("asset_group_id", ""),
+        "device_id": item.get("device_id", ""),
+        "data_type": item.get("data_type", ""),
+        "file_size": int(item.get("file_size") or 0),
+        "storage_uri": item.get("storage_uri", ""),
+        "ingested_at": format_datetime(item.get("ingested_at")),
+        "bound": bool(item.get("device_run_id")),
+    }
+
+
+def _binding_window(run_record: dict) -> tuple[str, str]:
+    """计算运行的数据关联时间窗。
+
+    窗口从任务开始（或请求）时间起，到任务结束时间加宽限期止；
+    未结束的任务以当前时间为界。
+
+    Args:
+        run_record: SmartAccess 运行记录。
+
+    Returns:
+        (开始 ISO 文本, 结束 ISO 文本)；时间不可解析时返回空串使查询跳过。
+    """
+    start_raw = run_record.get("started_at") or run_record.get("requested_at")
+    end_raw = run_record.get("finished_at")
+    try:
+        start = datetime.fromisoformat(str(start_raw))
+        end = (
+            datetime.fromisoformat(str(end_raw))
+            if end_raw
+            else datetime.now(timezone.utc)
+        )
+    except (TypeError, ValueError):
+        return "", ""
+    window_end = end + timedelta(seconds=DATA_BINDING_GRACE_SECONDS)
+    return start.isoformat(), window_end.isoformat()
+
+
 class SmartAccessService:
     """SmartAccess 模板和远程运行业务服务。"""
 
-    def __init__(self, repository: SmartAccessRepository, publisher) -> None:
+    def __init__(
+        self,
+        repository: SmartAccessRepository,
+        publisher,
+        data_repository: DataAssetRepository | None = None,
+    ) -> None:
         """初始化服务。
 
         Args:
             repository: SmartAccess 仓储。
             publisher: SmartAccess MQ 发布器。
+            data_repository: SmartDataHub 数据资产仓储，用于任务数据结果关联。
         """
         self._repository = repository
         self._publisher = publisher
+        self._data_repository = data_repository
 
     def publish_template(self, payload: SmartAccessTemplatePublishRequest) -> dict:
         """发布 SmartAccess 模板。
@@ -270,7 +334,7 @@ class SmartAccessService:
         workflow_snapshot["current_step_index"] = int(
             record.get("current_step_index") or 0
         )
-        return {
+        detail = {
             "run_id": record["run_id"],
             "workflow_name": record.get("workflow_name", ""),
             "status": record.get("status", "queued"),
@@ -293,6 +357,67 @@ class SmartAccessService:
             "events": events,
             "steps": _build_steps_from_workflow(workflow_snapshot, events),
         }
+        data_files, data_suggestions = self._resolve_data_results(record)
+        detail["data_files"] = data_files
+        detail["data_suggestions"] = data_suggestions
+        return detail
+
+    def bind_data_file(self, run_id: str, file_id: str) -> dict:
+        """人工确认把数据文件绑定到任务运行。
+
+        Args:
+            run_id: 平台运行 ID。
+            file_id: 数据文件 ID。
+
+        Returns:
+            绑定后的文件投影。
+
+        Raises:
+            HTTPException: 运行或文件不存在时抛出。
+        """
+        if self._repository.get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail="SmartAccess 运行不存在")
+        if self._data_repository is None:
+            raise HTTPException(status_code=503, detail="数据资产服务不可用")
+        record = self._data_repository.bind_file_to_run(file_id, run_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="数据文件不存在")
+        return _project_data_file(record)
+
+    def _resolve_data_results(
+        self,
+        run_record: dict,
+    ) -> tuple[list[dict], list[dict]]:
+        """解析运行关联的数据文件与时间窗建议关联。
+
+        Args:
+            run_record: SmartAccess 运行记录。
+
+        Returns:
+            (已绑定文件列表, 建议关联文件列表) 二元组。
+        """
+        if self._data_repository is None:
+            return [], []
+        data_files = [
+            _project_data_file(item)
+            for item in self._data_repository.find_files_by_run(
+                run_record["run_id"],
+                limit=DATA_RESULT_LIMIT,
+            )
+        ]
+        suggestions = [
+            _project_data_file(item)
+            for item in self._data_repository.find_unbound_files_in_window(
+                [
+                    run_record.get("target_device_id"),
+                    run_record.get("anchor_profile"),
+                    run_record.get("smartaccess_node_id"),
+                ],
+                *_binding_window(run_record),
+                limit=DATA_RESULT_LIMIT,
+            )
+        ]
+        return data_files, suggestions
 
     def append_event(
         self,

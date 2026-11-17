@@ -1,14 +1,89 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Col, Descriptions, Empty, List, Modal, Row, Space, Typography } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Button, Card, Col, Descriptions, Empty, List, message, Modal, Row, Space, Table, Tag, Typography } from "antd";
+import { ArrowLeftOutlined, LinkOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 
 import PageToolbar from "../components/PageToolbar";
 import RunStepTimeline from "../components/RunStepTimeline";
 import StatusTag from "../components/StatusTag";
+import { bindSmartAccessDataFile } from "../services/smartaccessApi";
 import { fetchWorkflowRunDetail } from "../services/workflowApi";
 
 const { Text } = Typography;
+
+/**
+ * 格式化文件大小展示文本。
+ *
+ * Args:
+ *     size: 文件字节数。
+ *
+ * Returns:
+ *     可读的大小文本。
+ */
+function formatFileSize(size) {
+  const value = Number(size) || 0;
+  if (value >= 1024 * 1024) {
+    return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  }
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${value} B`;
+}
+
+/**
+ * 构建数据文件表格列。
+ *
+ * Args:
+ *     onBind: 建议关联条目的确认绑定回调；为空时不渲染操作列。
+ *
+ * Returns:
+ *     antd Table 列配置数组。
+ */
+function buildDataFileColumns(onBind) {
+  const columns = [
+    { title: "文件名", dataIndex: "filename", key: "filename", ellipsis: true },
+    {
+      title: "数据类型",
+      dataIndex: "data_type",
+      key: "data_type",
+      width: 110,
+      render: (value) => value || "--",
+    },
+    {
+      title: "大小",
+      dataIndex: "file_size",
+      key: "file_size",
+      width: 90,
+      render: (value) => formatFileSize(value),
+    },
+    {
+      title: "入库时间",
+      dataIndex: "ingested_at",
+      key: "ingested_at",
+      width: 170,
+      render: (value) => value || "--",
+    },
+  ];
+  if (onBind) {
+    columns.push({
+      title: "操作",
+      key: "actions",
+      width: 90,
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<LinkOutlined />}
+          onClick={() => onBind(record)}
+        >
+          关联
+        </Button>
+      ),
+    });
+  }
+  return columns;
+}
 
 /**
  * SmartAccess 事件类型到中文标签的映射。
@@ -168,6 +243,22 @@ export default function WorkflowRunDetailPage() {
     loadDetail();
   }, [runId]);
 
+  /**
+   * 确认把建议关联的数据文件绑定到当前运行。
+   *
+   * Args:
+   *     record: 数据文件记录。
+   */
+  async function handleBindFile(record) {
+    try {
+      await bindSmartAccessDataFile(runId, record.file_id);
+      message.success(`已关联数据文件：${record.filename}`);
+      await loadDetail();
+    } catch (error) {
+      message.error("数据文件关联失败，请稍后重试");
+    }
+  }
+
   return (
     <section className="page-section">
       <PageToolbar />
@@ -285,6 +376,46 @@ export default function WorkflowRunDetailPage() {
           </Card>
         </Col>
       </Row>
+      {isSmartAccess ? (
+        <Card
+          title="数据结果"
+          style={{ marginTop: 16 }}
+          loading={loading}
+          extra={
+            <Space>
+              <Tag bordered={false}>已绑定 {(detail?.data_files || []).length}</Tag>
+              <Tag bordered={false}>建议关联 {(detail?.data_suggestions || []).length}</Tag>
+            </Space>
+          }
+        >
+          <Table
+            size="small"
+            rowKey="file_id"
+            columns={buildDataFileColumns()}
+            dataSource={detail?.data_files || []}
+            pagination={false}
+            locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            style={{ marginBottom: 16 }}
+          />
+          {(detail?.data_suggestions || []).length > 0 ? (
+            <>
+              <Space style={{ marginBottom: 8 }}>
+                <Text strong>建议关联</Text>
+                <Text type="secondary">
+                  任务执行时间窗口内该设备新增、尚未绑定任务的数据文件
+                </Text>
+              </Space>
+              <Table
+                size="small"
+                rowKey="file_id"
+                columns={buildDataFileColumns(handleBindFile)}
+                dataSource={detail?.data_suggestions || []}
+                pagination={false}
+              />
+            </>
+          ) : null}
+        </Card>
+      ) : null}
       <Modal
         title="事件数据"
         open={Boolean(selectedEvent)}

@@ -120,3 +120,21 @@ export async function fetchSmartAccessNodes() {
   const response = await http.get("/api/smartaccess/nodes");
   return response.data.items || [];
 }
+
+/**
+ * 人工确认把数据文件绑定到 SmartAccess 运行。
+ *
+ * Args:
+ *     runId: 运行编号。
+ *     fileId: 数据文件 ID。
+ *
+ * Returns:
+ *     绑定结果。
+ */
+export async function bindSmartAccessDataFile(runId, fileId) {
+  const response = await http.post(
+    `/api/smartaccess/runs/${runId}/data-bindings`,
+    { file_id: fileId }
+  );
+  return response.data;
+}
