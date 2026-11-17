@@ -140,3 +140,12 @@ class SmartAccessNodeListResponse(BaseModel):
     """SmartAccess 执行端节点列表响应。"""
 
     items: list[SmartAccessNodeItem] = Field(default_factory=list)
+
+
+class SmartAccessDeviceImageResponse(BaseModel):
+    """SmartAccess 执行端设备图片上传响应。"""
+
+    source_device_id: str
+    image_url: str = ""
+    updated_at: str = ""
+    sha256: str = ""

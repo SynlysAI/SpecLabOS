@@ -1,16 +1,28 @@
 """SmartAccess 集成接口。"""
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 
 from app.core.auth import parse_access_token
 from app.core.config import get_settings
 from app.repositories.identity_repository import UserRepository
 from app.runtime import (
     get_device_permission_service,
+    get_smartaccess_image_service,
     get_smartaccess_node_service,
     get_smartaccess_service,
 )
 from app.schemas.smartaccess import (
+    SmartAccessDeviceImageResponse,
     SmartAccessNodeHeartbeatRequest,
     SmartAccessNodeItem,
     SmartAccessNodeListResponse,
@@ -25,6 +37,7 @@ from app.schemas.smartaccess import (
     SmartAccessTemplatePublishRequest,
 )
 from app.services.device_permission_service import DevicePermissionService
+from app.services.smartaccess_image_service import MAX_IMAGE_BYTES
 
 
 SMARTACCESS_DEVICE_PREFIX = "smartaccess:"
@@ -244,6 +257,35 @@ def delete_template(
     return {"detail": "模板已删除"}
 
 
+@router.post("/device-images", response_model=SmartAccessDeviceImageResponse)
+def upload_device_image(
+    file: UploadFile = File(...),
+    source_device_id: str = Form(...),
+) -> SmartAccessDeviceImageResponse:
+    """接收执行端上传的设备图片。
+
+    Args:
+        file: 设备图片文件。
+        source_device_id: 上传图片的执行端 ID。
+
+    Returns:
+        设备图片记录及访问地址。
+    """
+    content = file.file.read(MAX_IMAGE_BYTES + 1)
+    record = get_smartaccess_image_service().save_image(
+        source_device_id,
+        file.filename or "",
+        file.content_type or "",
+        content,
+    )
+    return SmartAccessDeviceImageResponse(
+        source_device_id=record.get("source_device_id", ""),
+        image_url=record.get("image_url", ""),
+        updated_at=record.get("updated_at", ""),
+        sha256=record.get("sha256", ""),
+    )
+
+
 @router.post("/runs", response_model=SmartAccessRunCreateResponse)
 def create_run(
     payload: SmartAccessRunCreateRequest,
@@ -301,6 +343,33 @@ def append_event(run_id: str, payload: SmartAccessRunEventRequest) -> dict:
         "status": event.get("status", ""),
         "payload": event.get("payload", {}),
         "created_at": event.get("created_at", ""),
+    }
+
+
+@router.post("/runs/{run_id}/data-bindings")
+def bind_run_data_file(run_id: str, payload: dict) -> dict:
+    """人工确认把数据文件绑定到 SmartAccess 运行。"""
+    file_id = str(payload.get("file_id") or "").strip()
+    if not file_id:
+        raise HTTPException(status_code=400, detail="file_id 不能为空")
+    record = get_smartaccess_service().bind_data_file(run_id, file_id)
+    return {
+        "run_id": run_id,
+        "file_id": record.get("file_id", ""),
+        "bound": record.get("bound", False),
+        "detail": "数据文件已绑定到运行",
+    }
+
+
+@router.delete("/runs/{run_id}/data-bindings/{file_id}")
+def unbind_run_data_file(run_id: str, file_id: str) -> dict:
+    """解除数据文件与 SmartAccess 运行的绑定。"""
+    record = get_smartaccess_service().unbind_data_file(run_id, file_id)
+    return {
+        "run_id": run_id,
+        "file_id": record.get("file_id", ""),
+        "bound": record.get("bound", False),
+        "detail": "数据文件已解除绑定",
     }
 
 

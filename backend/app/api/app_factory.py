@@ -160,7 +160,9 @@ class _SPAStaticFiles(StaticFiles):
         Returns:
             静态资源响应或 index.html 回退响应。
         """
-        if path.startswith("api/"):
+        # Windows 下 Starlette 传入的 path 可能使用反斜杠分隔，统一归一为
+        # POSIX 斜杠后再判断，避免未注册的 API 路径被 SPA 回退吞成 index.html(200)。
+        if str(path).replace("\\", "/").lstrip("/").startswith("api/"):
             raise StarletteHTTPException(status_code=404)
 
         response = None

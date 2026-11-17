@@ -1,42 +1,37 @@
-"""日志相关 Schema。"""
+"""设备日志相关 Schema。"""
 
 from pydantic import BaseModel, Field
 
 
-class LogItem(BaseModel):
-    """日志列表项。"""
+class DeviceLogFileItem(BaseModel):
+    """数据中心日志文件项。"""
 
-    id: str
-    level: str
-    message: str
-    source: str = "system"
-    source_label: str = "System"
-    service_name: str = "system"
-    created_at: str = "--"
-    file_path: str = ""
-    raw_content: str = ""
-
-
-class LogListResponse(BaseModel):
-    """日志列表响应。"""
-
-    items: list[LogItem] = Field(default_factory=list)
+    file_id: str
+    filename: str = ""
+    device_id: str = ""
+    collector_id: str = ""
+    watcher_name: str = ""
+    relative_path: str = ""
+    content_type: str = ""
+    file_size: int = 0
+    ingested_at: str = ""
+    created_at: str = ""
 
 
-class AutomationRateMetric(BaseModel):
-    """单个设备自动化率指标。"""
+class DeviceLogFileListResponse(BaseModel):
+    """日志文件列表响应。"""
 
-    key: str
-    label: str
-    rate: float = 0.0
-    sample_count: int = 0
-    completed_count: int = 0
-    source_type: str = ""
-    description: str = ""
+    items: list[DeviceLogFileItem] = Field(default_factory=list)
+    total: int = 0
 
 
-class AutomationRateSummaryResponse(BaseModel):
-    """自动化率摘要响应。"""
+class DeviceLogContentResponse(BaseModel):
+    """日志文件内容响应。"""
 
-    overall_rate: float = 0.0
-    metrics: list[AutomationRateMetric] = Field(default_factory=list)
+    file_id: str
+    filename: str = ""
+    device_id: str = ""
+    content_type: str = ""
+    file_size: int = 0
+    truncated: bool = False
+    content: str = ""

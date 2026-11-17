@@ -53,6 +53,7 @@ npm run dev
 SpecLabOS 提供独立的 SmartAccess 模板中心，用于接收 SmartAccess 桌面端发布的 workflow 模板，并发起远程运行任务。
 
 - 模板发布接口：`POST /api/smartaccess/templates/publish`
+- 设备图片上传接口：`POST /api/smartaccess/device-images`（multipart：`file` + `source_device_id`）
 - 模板查看入口：前端“SmartAccess 模板”页
 - 运行状态回传：`POST /api/smartaccess/runs/{run_id}/events`
 - RabbitMQ exchange：`smartaccess.commands`
@@ -62,6 +63,8 @@ SpecLabOS 提供独立的 SmartAccess 模板中心，用于接收 SmartAccess �
 `config.yaml` 中配置 `smartaccess.api_token` 后，SmartAccess HTTP 接口会要求请求携带 `Authorization: Bearer <token>`。平台发起运行时，后端创建 `smartaccess_runs` 记录，并通过 RabbitMQ 把任务投递给指定 `smartaccess_node_id` 的 SmartAccess worker。
 
 `smartaccess_node_id` 表示安装并运行 SmartAccess worker 的执行端电脑 ID；`target_device_id` 表示该电脑控制的目标设备或目标软件，例如 `vpn软件`、`weixin`。任务运行列表中的“目标设备”展示 `target_device_id`，“执行端”展示 `smartaccess_node_id`。
+
+SmartAccess 桌面端可在系统设置中配置执行端设备图片，发布模板时会自动上传到该接口；图片保存在 `device_images.image_dir` 目录，并在设备监控页的 SmartAccess 设备行展示。
 
 ## SmartDataHub 数据入库
 

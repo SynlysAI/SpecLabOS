@@ -74,6 +74,22 @@ class WorkflowRunStepItem(BaseModel):
     result: Any = None
 
 
+class WorkflowRunDataFileItem(BaseModel):
+    """运行关联的数据文件项。"""
+
+    file_id: str
+    asset_id: str = ""
+    filename: str = ""
+    relative_path: str = ""
+    asset_group_id: str = ""
+    device_id: str = ""
+    data_type: str = ""
+    file_size: int = 0
+    storage_uri: str = ""
+    ingested_at: str = "--"
+    bound: bool = False
+
+
 class WorkflowRunDetailResponse(BaseModel):
     """工作流运行详情响应。"""
 
@@ -94,6 +110,9 @@ class WorkflowRunDetailResponse(BaseModel):
     target_device_id: str = ""
     events: list[dict] = Field(default_factory=list)
     steps: list[WorkflowRunStepItem] = Field(default_factory=list)
+    # SmartAccess 运行的数据结果：已绑定文件与时间窗建议关联文件
+    data_files: list[WorkflowRunDataFileItem] = Field(default_factory=list)
+    data_suggestions: list[WorkflowRunDataFileItem] = Field(default_factory=list)
 
 
 class WorkflowCreateResponse(BaseModel):

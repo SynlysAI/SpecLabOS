@@ -1,120 +1,80 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Button,
   Card,
-  Col,
   DatePicker,
   Empty,
   Form,
   Input,
-  Row,
+  List,
   Select,
   Space,
-  Table,
+  Tag,
   Typography
 } from "antd";
 import dayjs from "dayjs";
 
 import PageToolbar from "../components/PageToolbar";
-import StatusTag from "../components/StatusTag";
-import { fetchAutomationRateSummary, fetchSystemLogs } from "../services/logApi";
+import { fetchLogContent, fetchSystemLogs } from "../services/logApi";
 
 const { Paragraph, Text } = Typography;
 
-const LEVEL_OPTIONS = [
-  { label: "全部级别", value: "all" },
-  { label: "信息", value: "info" },
-  { label: "告警", value: "warning" },
-  { label: "错误", value: "error" }
-];
-
-const SOURCE_OPTIONS = [
-  { label: "全部来源", value: "all" },
-  { label: "Raman", value: "raman" },
-  { label: "GPC/LCMS", value: "gpc-lcms" },
-  { label: "NMR", value: "nmr" }
-];
-
-const DEFAULT_DATE = dayjs();
-const FALLBACK_AUTOMATION_SUMMARY = {
-  overall_rate: 0,
-  metrics: [
-    {
-      key: "gpc",
-      label: "GPC",
-      rate: 0,
-      sample_count: 0,
-      completed_count: 0,
-      source_type: "csv",
-      description: "等待远程表接入。"
-    },
-    {
-      key: "lcms",
-      label: "LCMS",
-      rate: 0,
-      sample_count: 0,
-      completed_count: 0,
-      source_type: "csv",
-      description: "等待远程表接入。"
-    },
-    {
-      key: "nmr",
-      label: "NMR",
-      rate: 0,
-      sample_count: 0,
-      completed_count: 0,
-      source_type: "csv",
-      description: "等待远程表接入。"
-    },
-    {
-      key: "raman",
-      label: "Raman",
-      rate: 0,
-      sample_count: 0,
-      completed_count: 0,
-      source_type: "log",
-      description: "等待日志统计。"
-    }
-  ]
+const DEFAULT_FILTERS = {
+  keyword: "",
+  device_id: "",
+  date: null,
+  days: 7
 };
 
-const columns = [
-  {
-    title: "级别",
-    dataIndex: "level",
-    key: "level",
-    width: 120,
-    render: (value) => <StatusTag status={value} />
-  },
-  { title: "日志来源", dataIndex: "source_label", key: "source_label", width: 120 },
-  { title: "服务模块", dataIndex: "service_name", key: "service_name", width: 180 },
-  {
-    title: "日志内容",
-    dataIndex: "message",
-    key: "message",
-    render: (_, record) => (
-      <div>
-        <Paragraph style={{ marginBottom: 4 }}>{record.message}</Paragraph>
-        {record.file_path ? (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            来源文件：{record.file_path}
-          </Text>
-        ) : null}
-        {record.raw_content ? (
-          <Paragraph
-            type="secondary"
-            ellipsis={{ rows: 2, expandable: true, symbol: "展开原始日志" }}
-            style={{ marginTop: 4, marginBottom: 0, fontSize: 12 }}
-          >
-            原始内容：{record.raw_content}
-          </Paragraph>
-        ) : null}
-      </div>
-    )
-  },
-  { title: "时间", dataIndex: "created_at", key: "created_at", width: 180 }
-];
+/**
+ * 从常见日志行首提取时间。
+ *
+ * Args:
+ *     line: 单行日志文本。
+ *
+ * Returns:
+ *     识别到的时间文本；无法识别时返回空字符串。
+ */
+function extractLineTime(line) {
+  const match = String(line || "").match(
+    /(\d{4}[-/]\d{2}[-/]\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,6})?)/
+  );
+  return match ? match[1].replace("T", " ") : "";
+}
+
+/**
+ * 格式化文件大小。
+ *
+ * Args:
+ *     value: 字节数。
+ *
+ * Returns:
+ *     带单位的文件大小文本。
+ */
+function formatBytes(value) {
+  const size = Number(value || 0);
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 ** 2).toFixed(1)} MB`;
+}
+
+/**
+ * 格式化时间文本。
+ *
+ * Args:
+ *     value: 后端返回的时间文本。
+ *
+ * Returns:
+ *     去掉时区和微秒后的短时间文本。
+ */
+function formatDateTime(value) {
+  if (!value) return "--";
+  return String(value)
+    .replace(/([+-]\d{2}:?\d{2}|Z)$/u, "")
+    .replace("T", " ")
+    .split(".")[0];
+}
 
 /**
  * 提取接口请求失败原因。
@@ -126,278 +86,225 @@ const columns = [
  *     可直接展示给用户的失败原因文本。
  */
 function buildRequestErrorMessage(error) {
-  const baseUrl = error?.config?.baseURL || "http://127.0.0.1:8000";
-  const requestPath = error?.config?.url || "";
-  const requestTarget = requestPath ? `${baseUrl}${requestPath}` : baseUrl;
   const detail = error?.response?.data?.detail;
-
   if (typeof detail === "string" && detail.trim()) {
-    return `后端返回 ${error.response.status}：${detail}`;
+    return detail;
   }
-
-  if (error?.code === "ECONNABORTED") {
-    return `请求 ${requestTarget} 超时，请检查后端服务状态或远程日志目录是否响应缓慢。`;
-  }
-
   if (error?.message === "Network Error") {
-    return `无法连接 ${baseUrl}，请确认后端服务已启动。`;
+    return "无法连接后端服务，请确认服务已启动。";
   }
-
-  if (error?.response?.status) {
-    return `请求 ${requestTarget} 失败，HTTP ${error.response.status}。`;
-  }
-
-  if (typeof error?.message === "string" && error.message.trim()) {
-    return `请求 ${requestTarget} 失败：${error.message}`;
-  }
-
-  return `请求 ${requestTarget} 失败，请检查后端服务状态。`;
+  return error?.message || "请求失败，请检查后端服务状态。";
 }
 
 /**
- * 规范日志数据。
+ * 按关键字拆分文本，保留匹配片段用于高亮。
  *
  * Args:
- *     items: 原始日志列表。
+ *     text: 原始文本。
+ *     keyword: 搜索关键字。
  *
  * Returns:
- *     可直接供表格使用的日志列表。
+ *     文本片段列表。
  */
-function normalizeLogs(items) {
-  return items.map((item, index) => ({
-    id: item.id || `log-${index}`,
-    level: item.level || "idle",
-    source: item.source || "system",
-    source_label: item.source_label || item.source || "System",
-    service_name: item.service_name || item.service || "unknown",
-    message: item.message || "无日志内容",
-    created_at: item.created_at || "--",
-    file_path: item.file_path || "",
-    raw_content: item.raw_content || ""
-  }));
+function splitByKeyword(text, keyword) {
+  const normalizedKeyword = keyword.trim();
+  if (!normalizedKeyword) return [text];
+  const pattern = new RegExp(`(${normalizedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig");
+  return text.split(pattern);
 }
 
 /**
- * 规范自动化率摘要。
- *
- * Args:
- *     summary: 原始自动化率摘要。
+ * 设备日志页。
  *
  * Returns:
- *     适配页面展示的自动化率摘要。
- */
-function normalizeAutomationSummary(summary) {
-  const normalizedMetrics = (summary?.metrics || FALLBACK_AUTOMATION_SUMMARY.metrics).map((metric) => ({
-    key: metric.key,
-    label: metric.label,
-    rate: Number(metric.rate || 0),
-    sample_count: Number(metric.sample_count || 0),
-    completed_count: Number(metric.completed_count || 0),
-    source_type: metric.source_type || "",
-    description: metric.description || ""
-  }));
-  return {
-    overall_rate: Number(summary?.overall_rate || 0),
-    metrics: normalizedMetrics
-  };
-}
-
-/**
- * 格式化百分比文本。
- *
- * Args:
- *     value: 比例数值。
- *
- * Returns:
- *     百分比字符串。
- */
-function formatRate(value) {
-  return `${(Number(value || 0) * 100).toFixed(1)}%`;
-}
-
-/**
- * 系统日志页。
- *
- * Returns:
- *     展示自动化率摘要、日志筛选栏和日志表格。
+ *     展示数据中心日志文件和原文内容。
  */
 export default function SystemLogsPage() {
   const [form] = Form.useForm();
-  const [logs, setLogs] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [content, setContent] = useState("");
+  const [truncated, setTruncated] = useState(false);
+  const [contentKeyword, setContentKeyword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [logsErrorMessage, setLogsErrorMessage] = useState("");
-  const [summary, setSummary] = useState(FALLBACK_AUTOMATION_SUMMARY);
-  const [summaryLoading, setSummaryLoading] = useState(false);
-  const [summaryFailed, setSummaryFailed] = useState(false);
-  const [summaryErrorMessage, setSummaryErrorMessage] = useState("");
+  const [contentLoading, setContentLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [deviceIds, setDeviceIds] = useState([]);
+
+  const deviceOptions = useMemo(() => ([
+    { label: "全部设备", value: "" },
+    ...deviceIds.map((deviceId) => ({ label: deviceId, value: deviceId }))
+  ]), [deviceIds]);
 
   /**
-   * 加载系统日志。
+   * 加载日志文件列表。
    *
    * Args:
-   *     filters: 日志筛选条件。
-   *
-   * Returns:
-   *     无返回值。
+   *     filters: 查询筛选条件。
    */
-  async function loadLogs(filters = form.getFieldsValue()) {
+  async function loadFiles(filters = form.getFieldsValue()) {
     setLoading(true);
     try {
-      const normalizedFilters = {
+      const response = await fetchSystemLogs({
+        ...DEFAULT_FILTERS,
         ...filters,
-        date: filters.date && typeof filters.date === "object" && typeof filters.date.format === "function"
-          ? filters.date.format("YYYY-MM-DD")
-          : filters.date || DEFAULT_DATE.format("YYYY-MM-DD")
-      };
-      const items = await fetchSystemLogs(normalizedFilters);
-      setLogs(normalizeLogs(items));
-      setLoadFailed(false);
-      setLogsErrorMessage("");
+        date: filters.date?.format ? filters.date.format("YYYY-MM-DD") : undefined,
+        days: filters.date ? undefined : 7
+      });
+      setFiles(response.items);
+      if (!filters.device_id) {
+        setDeviceIds([...new Set(response.items.map((item) => item.device_id).filter(Boolean))]);
+      }
+      setErrorMessage("");
+      const nextFile = response.items.find((item) => item.file_id === selectedFile?.file_id) || response.items[0];
+      if (nextFile) {
+        openFile(nextFile);
+      } else {
+        setSelectedFile(null);
+        setContent("");
+      }
     } catch (error) {
-      console.error("加载系统日志失败", error);
-      setLogs([]);
-      setLoadFailed(true);
-      setLogsErrorMessage(buildRequestErrorMessage(error));
+      setFiles([]);
+      setSelectedFile(null);
+      setContent("");
+      setErrorMessage(buildRequestErrorMessage(error));
     } finally {
       setLoading(false);
     }
   }
 
   /**
-   * 加载自动化率摘要。
+   * 打开日志文件内容。
    *
-   * Returns:
-   *     无返回值。
+   * Args:
+   *     file: 日志文件记录。
    */
-  async function loadAutomationSummary() {
-    setSummaryLoading(true);
+  async function openFile(file) {
+    setSelectedFile(file);
+    setContentLoading(true);
     try {
-      const response = await fetchAutomationRateSummary();
-      setSummary(normalizeAutomationSummary(response));
-      setSummaryFailed(false);
-      setSummaryErrorMessage("");
+      const response = await fetchLogContent(file.file_id);
+      setContent(response.content || "");
+      setTruncated(Boolean(response.truncated));
+      setErrorMessage("");
     } catch (error) {
-      console.error("加载自动化率摘要失败", error);
-      setSummary(FALLBACK_AUTOMATION_SUMMARY);
-      setSummaryFailed(true);
-      setSummaryErrorMessage(buildRequestErrorMessage(error));
+      setContent("");
+      setErrorMessage(buildRequestErrorMessage(error));
     } finally {
-      setSummaryLoading(false);
+      setContentLoading(false);
     }
   }
 
   useEffect(() => {
-    form.setFieldsValue({
-      keyword: "",
-      level: "all",
-      source: "all",
-      date: DEFAULT_DATE
-    });
-    loadAutomationSummary();
-    loadLogs({
-      keyword: "",
-      level: "all",
-      source: "all",
-      date: DEFAULT_DATE.format("YYYY-MM-DD")
-    });
+    form.setFieldsValue(DEFAULT_FILTERS);
+    loadFiles(DEFAULT_FILTERS);
   }, []);
+
+  const lines = content.split(/\r?\n/);
+  const visibleLines = contentKeyword.trim()
+    ? lines.filter((line) => line.toLowerCase().includes(contentKeyword.trim().toLowerCase()))
+    : lines;
 
   return (
     <section className="page-section">
       <PageToolbar />
-      {summaryFailed ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="自动化率接口暂不可用，当前展示占位统计。"
-          description={summaryErrorMessage}
-          style={{ marginBottom: 16 }}
-        />
+      {errorMessage ? (
+        <Alert type="error" showIcon message="日志加载失败" description={errorMessage} style={{ marginBottom: 16 }} />
       ) : null}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={12} xl={8}>
-          <Card className="automation-summary-card" loading={summaryLoading}>
-            <Text className="automation-summary-label">总体自动化率</Text>
-            <div className="automation-summary-rate">{formatRate(summary.overall_rate)}</div>
-            <Text type="secondary">按 GPC、LCMS、NMR、Raman 四类指标平均计算</Text>
-          </Card>
-        </Col>
-        {summary.metrics.map((metric) => (
-          <Col xs={24} sm={12} xl={4} key={metric.key}>
-            <Card className="automation-metric-card" loading={summaryLoading}>
-              <Text className="automation-metric-label">{metric.label}</Text>
-              <div className="automation-metric-rate">{formatRate(metric.rate)}</div>
-              <Text className="automation-metric-meta">
-                样本 {metric.sample_count} / 完整 {metric.completed_count}
-              </Text>
-              <Paragraph
-                ellipsis={{ rows: 2, tooltip: metric.description }}
-                type="secondary"
-                style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}
-              >
-                {metric.description}
-              </Paragraph>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-      <Card title="日志检索">
-        <Form form={form} layout="inline" onFinish={loadLogs} style={{ marginBottom: 16 }}>
-          <Form.Item name="keyword" style={{ marginBottom: 0 }}>
-            <Input allowClear placeholder="关键字搜索" style={{ width: 240 }} />
+      <Card title="设备日志" className="device-log-card">
+        <Form form={form} layout="inline" onFinish={loadFiles} style={{ marginBottom: 16 }}>
+          <Form.Item name="device_id" style={{ marginBottom: 8 }}>
+            <Select options={deviceOptions} style={{ width: 180 }} placeholder="全部设备" />
           </Form.Item>
-          <Form.Item name="level" style={{ marginBottom: 0 }}>
-            <Select options={LEVEL_OPTIONS} style={{ width: 140 }} />
+          <Form.Item name="date" style={{ marginBottom: 8 }}>
+            <DatePicker placeholder="指定日期" style={{ width: 150 }} />
           </Form.Item>
-          <Form.Item name="source" style={{ marginBottom: 0 }}>
-            <Select options={SOURCE_OPTIONS} style={{ width: 160 }} />
+          <Form.Item name="keyword" style={{ marginBottom: 8 }}>
+            <Input allowClear placeholder="文件名 / 路径" style={{ width: 220 }} />
           </Form.Item>
-          <Form.Item name="date" style={{ marginBottom: 0 }}>
-            <DatePicker style={{ width: 160 }} />
-          </Form.Item>
-          <Form.Item style={{ marginBottom: 0 }}>
+          <Form.Item style={{ marginBottom: 8 }}>
             <Space>
-              <Button htmlType="submit" type="primary">
-                查询
-              </Button>
+              <Button htmlType="submit" type="primary">查询</Button>
               <Button
                 onClick={() => {
-                  form.resetFields();
-                  form.setFieldsValue({
-                    keyword: "",
-                    level: "all",
-                    source: "all",
-                    date: DEFAULT_DATE
-                  });
-                  loadAutomationSummary();
-                  loadLogs({
-                    keyword: "",
-                    level: "all",
-                    source: "all",
-                    date: DEFAULT_DATE.format("YYYY-MM-DD")
-                  });
+                  form.setFieldsValue(DEFAULT_FILTERS);
+                  loadFiles(DEFAULT_FILTERS);
                 }}
               >
-                重置
+                最近 7 天
               </Button>
             </Space>
           </Form.Item>
         </Form>
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={logs}
-          loading={loading}
-          pagination={{ pageSize: 20, showSizeChanger: false }}
-          locale={{
-            emptyText: loadFailed ? (
-              <Empty description={logsErrorMessage || "日志接口暂不可用"} />
+        <div className="device-log-layout">
+          <Card size="small" title={`日志文件 ${files.length}`} className="device-log-list" loading={loading}>
+            {files.length ? (
+              <List
+                dataSource={files}
+                renderItem={(item) => (
+                  <List.Item
+                    className={item.file_id === selectedFile?.file_id ? "device-log-item is-active" : "device-log-item"}
+                    onClick={() => openFile(item)}
+                  >
+                    <div>
+                      <Text strong>{item.filename || "未命名日志"}</Text>
+                      <div className="device-log-meta">
+                        <Tag>{item.device_id || "未知设备"}</Tag>
+                        <span>{formatBytes(item.file_size)}</span>
+                      </div>
+                      <Text type="secondary">{formatDateTime(item.ingested_at)}</Text>
+                    </div>
+                  </List.Item>
+                )}
+              />
             ) : (
-              <Empty description="暂无设备日志" />
-            ),
-          }}
-        />
+              <Empty description="最近没有日志文件" />
+            )}
+          </Card>
+          <Card
+            size="small"
+            className="device-log-viewer"
+            loading={contentLoading}
+            title={selectedFile ? selectedFile.filename : "日志内容"}
+            extra={(
+              <Input
+                allowClear
+                value={contentKeyword}
+                placeholder="在内容中搜索"
+                style={{ width: 180 }}
+                onChange={(event) => setContentKeyword(event.target.value)}
+              />
+            )}
+          >
+            {selectedFile ? (
+              <>
+                <Paragraph type="secondary" className="device-log-path">
+                  {selectedFile.device_id} / {selectedFile.relative_path || selectedFile.filename}
+                  {truncated ? " · 仅显示文件尾部" : ""}
+                </Paragraph>
+                <div className="device-log-content">
+                  {visibleLines.map((line, index) => {
+                    const lineTime = extractLineTime(line);
+                    return (
+                      <div className="device-log-line" key={`${index}-${line.slice(0, 24)}`}>
+                        <span className="device-log-time">{lineTime || "--"}</span>
+                        <span>
+                          {splitByKeyword(line, contentKeyword).map((part, partIndex) => (
+                            part.toLowerCase() === contentKeyword.trim().toLowerCase() && contentKeyword.trim()
+                              ? <mark key={partIndex}>{part}</mark>
+                              : <span key={partIndex}>{part || " "}</span>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <Empty description="选择左侧日志文件查看内容" />
+            )}
+          </Card>
+        </div>
       </Card>
     </section>
   );

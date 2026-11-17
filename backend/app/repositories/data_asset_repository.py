@@ -38,6 +38,7 @@ class DataAssetRepository:
         self._files.create_index([("asset_group_id", 1), ("relative_path", 1)])
         self._files.create_index([("device_id", 1), ("created_at", -1)])
         self._files.create_index([("dataset_id", 1), ("ingested_at", -1)])
+        self._files.create_index([("device_run_id", 1)], sparse=True)
 
     def create_file_asset(
         self,
@@ -136,13 +137,75 @@ class DataAssetRepository:
         self,
         *,
         limit: int = 50,
+        keyword: str | None = None,
         device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
+        asset_kind: str | None = None,
     ) -> tuple[list[dict], int]:
-        """查询 SmartDataHub 数据资产列表。"""
-        query = {"device_id": device_id} if device_id else {}
+        """查询 SmartDataHub 数据资产列表。
+
+        Args:
+            limit: 最大返回数量。
+            keyword: 关键词，匹配资产名、文件名或资产组。
+            device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
+            asset_kind: 资产类型，文件或目录。
+
+        Returns:
+            资产记录列表和匹配总数。
+        """
+        query = self._build_asset_query(
+            keyword=keyword,
+            device_id=device_id,
+            collector_id=collector_id,
+            data_type=data_type,
+            asset_kind=asset_kind,
+        )
         total = int(self._assets.count_documents(query))
         items = list(self._assets.find(query).sort("ingested_at", -1).limit(limit))
         return [self._normalize_asset(item) for item in items], total
+
+    @staticmethod
+    def _build_asset_query(
+        *,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
+        asset_kind: str | None = None,
+    ) -> dict[str, Any]:
+        """构造资产列表查询条件。
+
+        Args:
+            keyword: 关键词，匹配资产名、文件名或资产组。
+            device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
+            asset_kind: 资产类型，文件或目录。
+
+        Returns:
+            MongoDB 查询条件。
+        """
+        query: dict[str, Any] = {}
+        if device_id:
+            query["device_id"] = device_id
+        if collector_id:
+            query["collector_id"] = collector_id
+        if data_type:
+            query["data_type"] = data_type
+        if asset_kind:
+            query["asset_kind"] = asset_kind
+        if keyword:
+            keyword_filter = {"$regex": keyword, "$options": "i"}
+            query["$or"] = [
+                {"root_name": keyword_filter},
+                {"filename": keyword_filter},
+                {"asset_group_id": keyword_filter},
+                {"asset_key": keyword_filter},
+            ]
+        return query
 
     def get_overview(self) -> dict[str, Any]:
         """获取 SmartDataHub 数据资产全量概览。"""
@@ -214,6 +277,195 @@ class DataAssetRepository:
         return list(
             self._files.find({"asset_id": asset_id}).sort("relative_path", 1).limit(limit)
         )
+
+    def list_files_by_type(
+        self,
+        data_type: str,
+        *,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        start_at: str | None = None,
+        end_at: str | None = None,
+        limit: int = 100,
+    ) -> tuple[list[dict], int]:
+        """按数据类型查询文件，并按入库时间倒序返回。
+
+        Args:
+            data_type: 数据类型。
+            keyword: 文件名或路径关键字。
+            device_id: 设备 ID。
+            start_at: 入库时间下限，ISO 文本。
+            end_at: 入库时间上限，ISO 文本。
+            limit: 最大返回数量。
+
+        Returns:
+            文件记录列表和匹配总数。
+        """
+        query = self._build_file_query(
+            data_type=data_type,
+            keyword=keyword,
+            device_id=device_id,
+            start_at=start_at,
+            end_at=end_at,
+        )
+        total = int(self._files.count_documents(query))
+        items = list(self._files.find(query).sort("ingested_at", -1).limit(limit))
+        return items, total
+
+    def get_file(self, file_id: str) -> dict | None:
+        """按文件 ID 查询单条文件记录。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            文件记录；不存在时返回 None。
+        """
+        return self._files.find_one({"file_id": file_id})
+
+    @staticmethod
+    def _build_file_query(
+        *,
+        data_type: str,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        start_at: str | None = None,
+        end_at: str | None = None,
+    ) -> dict[str, Any]:
+        """构造日志文件查询条件。
+
+        Args:
+            data_type: 数据类型。
+            keyword: 文件名或路径关键字。
+            device_id: 设备 ID。
+            start_at: 入库时间下限。
+            end_at: 入库时间上限。
+
+        Returns:
+            MongoDB 查询条件。
+        """
+        query: dict[str, Any] = {"data_type": data_type}
+        if device_id:
+            query["device_id"] = device_id
+        if start_at or end_at:
+            time_filter: dict[str, str] = {}
+            if start_at:
+                time_filter["$gte"] = start_at
+            if end_at:
+                time_filter["$lte"] = end_at
+            query["ingested_at"] = time_filter
+        if keyword:
+            keyword_filter = {"$regex": keyword, "$options": "i"}
+            query["$or"] = [
+                {"filename": keyword_filter},
+                {"relative_path": keyword_filter},
+                {"root_name": keyword_filter},
+            ]
+        return query
+
+    def find_files_by_run(self, run_id: str, limit: int = 200) -> list[dict]:
+        """查询绑定到指定任务运行的数据文件。
+
+        Args:
+            run_id: SmartAccess 运行 ID。
+            limit: 最大返回数量。
+
+        Returns:
+            按入库时间倒序的数据文件列表。
+        """
+        if not run_id:
+            return []
+        return list(
+            self._files.find({"device_run_id": run_id})
+            .sort("ingested_at", -1)
+            .limit(limit)
+        )
+
+    def find_unbound_files_in_window(
+        self,
+        device_ids: list[str],
+        start_iso: str,
+        end_iso: str,
+        limit: int = 50,
+    ) -> list[dict]:
+        """查询时间窗内指定设备且未绑定任务的入库文件。
+
+        Args:
+            device_ids: 设备标识候选列表（目标设备/锚点/执行端）。
+            start_iso: 窗口开始时间（UTC ISO 文本，含）。
+            end_iso: 窗口结束时间（UTC ISO 文本，含）。
+            limit: 最大返回数量。
+
+        Returns:
+            按入库时间倒序的未绑定数据文件列表。
+        """
+        candidates = [item for item in device_ids if item]
+        if not candidates or not start_iso or not end_iso:
+            return []
+        query = {
+            "device_id": {"$in": candidates},
+            "ingested_at": {"$gte": start_iso, "$lte": end_iso},
+            "$or": [
+                {"device_run_id": {"$exists": False}},
+                {"device_run_id": ""},
+                {"device_run_id": None},
+            ],
+        }
+        return list(
+            self._files.find(query).sort("ingested_at", -1).limit(limit)
+        )
+
+    def bind_file_to_run(self, file_id: str, run_id: str) -> dict | None:
+        """把数据文件（及其所属资产）绑定到任务运行。
+
+        Args:
+            file_id: 数据文件 ID。
+            run_id: SmartAccess 运行 ID。
+
+        Returns:
+            绑定后的文件记录；文件不存在时返回 None。
+        """
+        file_doc = self._files.find_one({"file_id": file_id})
+        if file_doc is None:
+            return None
+        self._files.update_one(
+            {"file_id": file_id},
+            {"$set": {"device_run_id": run_id}},
+        )
+        self._assets.update_one(
+            {"asset_id": file_doc.get("asset_id", "")},
+            {"$set": {"device_run_id": run_id}},
+        )
+        updated = dict(file_doc)
+        updated["device_run_id"] = run_id
+        return updated
+
+    def unbind_file_from_run(self, file_id: str, run_id: str) -> dict | None:
+        """解除数据文件与任务运行的绑定。
+
+        仅当文件当前绑定的是指定运行时才解除，避免误解除其他任务的绑定。
+
+        Args:
+            file_id: 数据文件 ID。
+            run_id: SmartAccess 运行 ID。
+
+        Returns:
+            解绑后的文件记录；文件不存在或未绑定该运行时返回 None。
+        """
+        file_doc = self._files.find_one({"file_id": file_id, "device_run_id": run_id})
+        if file_doc is None:
+            return None
+        self._files.update_one(
+            {"file_id": file_id},
+            {"$set": {"device_run_id": ""}},
+        )
+        self._assets.update_one(
+            {"asset_id": file_doc.get("asset_id", "")},
+            {"$set": {"device_run_id": ""}},
+        )
+        updated = dict(file_doc)
+        updated["device_run_id"] = ""
+        return updated
 
     def _normalize_asset(self, item: dict[str, Any]) -> dict[str, Any]:
         """补齐旧资产缺失的目录和关系字段。"""

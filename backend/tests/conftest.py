@@ -5,6 +5,7 @@ import pytest
 
 from app.api.routes import smartaccess, workflows
 from app.core.config import get_settings
+from app.repositories.data_asset_repository import DataAssetRepository
 from app.repositories.smartaccess_repository import SmartAccessRepository
 from app.repositories.smartaccess_node_repository import SmartAccessNodeRepository
 from app.services.smartaccess_node_service import SmartAccessNodeService
@@ -57,6 +58,7 @@ def fake_smartaccess_service(fake_database, monkeypatch):
     service = SmartAccessService(
         repository=SmartAccessRepository(fake_database),
         publisher=FakeSmartAccessPublisher(),
+        data_repository=DataAssetRepository(fake_database),
     )
     monkeypatch.setattr(smartaccess, "get_smartaccess_service", lambda: service)
     monkeypatch.setattr(workflows, "get_smartaccess_service", lambda: service)

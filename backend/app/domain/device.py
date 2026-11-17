@@ -29,6 +29,8 @@ class DeviceResource(BaseModel):
 
     capabilities: list[str] = Field(default_factory=list)
     adapter_type: str | None = None
+    # 设备图片访问地址;为空时由配置或设备类型兜底解析
+    image_url: str = ""
     status_sources: list[str] = Field(default_factory=list)
     status_updated_at: datetime | None = None
     status_message: str = ""

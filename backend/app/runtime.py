@@ -11,9 +11,13 @@ from app.devices import load_builtin_devices
 from app.repositories.device_permission_repository import (
     DevicePermissionRepository,
 )
+from app.repositories.data_asset_repository import DataAssetRepository
 from app.repositories.event_repository import EventRepository
 from app.repositories.external_experiment_dispatch_repository import (
     ExternalExperimentDispatchRepository,
+)
+from app.repositories.smartaccess_image_repository import (
+    SmartAccessImageRepository,
 )
 from app.repositories.smartaccess_node_repository import (
     SmartAccessNodeRepository,
@@ -37,6 +41,7 @@ from app.services.smartaccess_mq import (
     SmartAccessRabbitMQPublisher,
 )
 from app.services.smartaccess_device_service import SmartAccessDeviceService
+from app.services.smartaccess_image_service import SmartAccessImageService
 from app.services.smartaccess_node_service import SmartAccessNodeService
 from app.services.smartaccess_service import SmartAccessService
 
@@ -68,6 +73,7 @@ def get_smartaccess_device_service() -> SmartAccessDeviceService:
     return SmartAccessDeviceService(
         smartaccess_service=get_smartaccess_service(),
         node_service=get_smartaccess_node_service(),
+        image_service=get_smartaccess_image_service(),
     )
 
 
@@ -81,6 +87,18 @@ def get_workflow_repository() -> WorkflowRepository:
 def get_smartaccess_repository() -> SmartAccessRepository:
     """构建并缓存 SmartAccess 仓储。"""
     return SmartAccessRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_image_repository() -> SmartAccessImageRepository:
+    """构建并缓存 SmartAccess 设备图片仓储。"""
+    return SmartAccessImageRepository(get_database())
+
+
+@lru_cache(maxsize=1)
+def get_smartaccess_image_service() -> SmartAccessImageService:
+    """构建并缓存 SmartAccess 设备图片服务。"""
+    return SmartAccessImageService(get_smartaccess_image_repository())
 
 
 @lru_cache(maxsize=1)
@@ -137,6 +155,7 @@ def get_smartaccess_service() -> SmartAccessService:
     return SmartAccessService(
         repository=get_smartaccess_repository(),
         publisher=get_smartaccess_publisher(),
+        data_repository=DataAssetRepository(),
     )
 
 

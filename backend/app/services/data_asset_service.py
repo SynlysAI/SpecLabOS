@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException, UploadFile
+from minio.error import S3Error
 
 from app.core.config import get_settings
 from app.core.minio_storage import get_minio_bucket, get_minio_client
@@ -72,8 +73,6 @@ class DataAssetService:
 
         self._ensure_bucket(storage_bucket)
         try:
-            from minio.error import S3Error
-
             uploaded_file.file.seek(0)
             self._minio_client.put_object(
                 storage_bucket,
@@ -108,20 +107,32 @@ class DataAssetService:
         self,
         *,
         limit: int = 50,
+        keyword: str | None = None,
         device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
+        asset_kind: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """查询数据资产列表。
 
         Args:
             limit: 最大返回数量。
+            keyword: 关键词，匹配资产名、文件名或资产组。
             device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
+            asset_kind: 资产类型，文件或目录。
 
         Returns:
             资产记录列表和匹配总数。
         """
         return self._repository.list_assets(
             limit=limit,
+            keyword=keyword,
             device_id=device_id,
+            collector_id=collector_id,
+            data_type=data_type,
+            asset_kind=asset_kind,
         )
 
     def get_overview(self) -> dict[str, Any]:
@@ -136,6 +147,103 @@ class DataAssetService:
         """获取 SmartDataHub 按设备聚合的数据统计。"""
         return self._repository.get_device_stats()
 
+
+    def list_files_by_type(
+        self,
+        data_type: str,
+        *,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        start_at: str | None = None,
+        end_at: str | None = None,
+        limit: int = 100,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """按数据类型查询文件。
+
+        Args:
+            data_type: 数据类型。
+            keyword: 文件名或路径关键字。
+            device_id: 设备 ID。
+            start_at: 入库时间下限。
+            end_at: 入库时间上限。
+            limit: 最大返回数量。
+
+        Returns:
+            文件记录列表和匹配总数。
+        """
+        return self._repository.list_files_by_type(
+            data_type,
+            keyword=keyword,
+            device_id=device_id,
+            start_at=start_at,
+            end_at=end_at,
+            limit=limit,
+        )
+
+    def read_text_file(self, file_id: str, *, max_bytes: int = 200_000) -> dict[str, Any]:
+        """读取文本文件尾部内容。
+
+        Args:
+            file_id: 数据文件 ID。
+            max_bytes: 最多读取的尾部字节数。
+
+        Returns:
+            文件元信息和可展示的文本内容。
+        """
+        record = self._repository.get_file(file_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="日志文件不存在")
+
+        content_type = str(record.get("content_type") or "")
+        filename = str(record.get("filename") or "")
+        if not self._is_text_file(content_type, filename):
+            raise HTTPException(status_code=415, detail="该文件不是可直接查看的文本日志")
+
+        bucket_name = str(record.get("storage_bucket") or get_minio_bucket())
+        storage_key = str(record.get("storage_key") or "")
+        response = None
+        try:
+            response = self._minio_client.get_object(bucket_name, storage_key)
+            payload = response.read()
+        except S3Error as exc:
+            raise HTTPException(status_code=502, detail=f"读取日志文件失败: {exc}") from exc
+        finally:
+            if response is not None:
+                response.close()
+                response.release_conn()
+
+        truncated = len(payload) > max_bytes
+        text = payload[-max_bytes:].decode("utf-8", errors="replace") if truncated else payload.decode(
+            "utf-8",
+            errors="replace",
+        )
+        if truncated:
+            text = text.split("\n", 1)[-1]
+        return {
+            "file_id": file_id,
+            "filename": filename,
+            "device_id": record.get("device_id", ""),
+            "content_type": content_type,
+            "file_size": int(record.get("file_size") or len(payload)),
+            "truncated": truncated,
+            "content": text,
+        }
+
+    @staticmethod
+    def _is_text_file(content_type: str, filename: str) -> bool:
+        """判断文件是否适合按文本日志展示。
+
+        Args:
+            content_type: 文件 MIME 类型。
+            filename: 文件名。
+
+        Returns:
+            文本文件返回 True。
+        """
+        normalized_type = content_type.lower()
+        if normalized_type.startswith("text/") or "json" in normalized_type or "xml" in normalized_type:
+            return True
+        return filename.lower().endswith((".log", ".txt", ".csv", ".json", ".xml"))
 
     def list_files(self, asset_id: str, limit: int = 200) -> list[dict[str, Any]]:
         """查询指定资产的文件明细。

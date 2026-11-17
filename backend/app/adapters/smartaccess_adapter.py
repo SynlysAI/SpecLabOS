@@ -78,19 +78,20 @@ class SmartAccessAdapter(ExecutionAdapter):
                     error=f"SmartAccess 能力标识无效: {params.capability_key}",
                 )
 
+            # 虚拟设备 ID 以执行端为维度,剥离前缀后即模板的 source_device_id。
+            source_device_id = _strip_virtual_device_prefix(params.device_id)
             target_device_id = (
-                params.config.get("target_device_id")
-                or _strip_virtual_device_prefix(params.device_id)
+                params.config.get("target_device_id") or source_device_id
             )
             template = self._service.get_template(
                 template_id,
                 template_version,
-                target_device_id,
+                source_device_id,
             )
             smartaccess_node_id = (
                 params.config.get("smartaccess_node_id")
+                or source_device_id
                 or template.get("anchor_profile")
-                or target_device_id
             )
             payload = SmartAccessRunCreateRequest(
                 template_id=template_id,
