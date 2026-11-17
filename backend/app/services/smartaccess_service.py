@@ -183,10 +183,13 @@ class SmartAccessService:
         Returns:
             运行记录。
         """
+        # 模板按执行端(source_device_id)隔离,优先用执行端 ID 精确匹配;
+        # 兼容旧调用方只传 target_device_id 的场景。
+        source_device_id = payload.smartaccess_node_id or payload.target_device_id
         template = self.get_template(
             payload.template_id,
             payload.template_version,
-            payload.target_device_id,
+            source_device_id,
         )
         try:
             template["workflow"] = resolve_runtime_placeholders(

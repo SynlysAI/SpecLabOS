@@ -56,8 +56,11 @@ class FakePublisher:
         self.messages.append(payload)
 
 
-def _workflow_payload() -> dict:
+def _workflow_payload(step_id: str = "open") -> dict:
     """构造最小 SmartAccess workflow 快照。
+
+    Args:
+        step_id: 首步骤 ID,用于区分不同执行端的模板内容。
 
     Returns:
         workflow 字典。
@@ -70,7 +73,7 @@ def _workflow_payload() -> dict:
             "anchor_profile": "weixin",
         },
         "steps": [
-            {"id": "open", "anchor_id": "open", "action": "click"},
+            {"id": step_id, "anchor_id": "open", "action": "click"},
             {"id": "observe", "anchor_id": "status", "action": "observe"},
         ],
     }
@@ -159,6 +162,58 @@ def test_create_run_publishes_device_message(fake_database) -> None:
     assert run["smartaccess_node_id"] == "weixin"
     assert publisher.messages[0]["run_id"] == run["run_id"]
     assert publisher.messages[0]["workflow"]["metadata"]["workflow_id"] == "wf_weixin"
+
+
+def test_create_run_uses_template_of_selected_execution_node(fake_database) -> None:
+    """验证同名同版本模板按执行端隔离时读取目标执行端的快照。"""
+    publisher = FakePublisher()
+    service = SmartAccessService(
+        repository=SmartAccessRepository(fake_database),
+        publisher=publisher,
+    )
+    service.publish_template(
+        SmartAccessTemplatePublishRequest(
+            template_id="tpl_shared",
+            template_version="1.0.0",
+            workflow_id="wf_shared",
+            name="共享流程",
+            anchor_profile="CCswitch软件",
+            source_device_id="pc-workstation",
+            published_by="smartaccess",
+            workflow=_workflow_payload(step_id="pc-local"),
+        )
+    )
+    service.publish_template(
+        SmartAccessTemplatePublishRequest(
+            template_id="tpl_shared",
+            template_version="1.0.0",
+            workflow_id="wf_shared",
+            name="共享流程",
+            anchor_profile="CCswitch软件",
+            source_device_id="lab-pc-02",
+            published_by="smartaccess",
+            workflow=_workflow_payload(step_id="lab-remote"),
+        )
+    )
+    # 让另一台执行端的模板成为最近更新记录,验证不会回退到它
+    fake_database["smartaccess_templates"].update_one(
+        {"source_device_id": "lab-pc-02"},
+        {"$set": {"updated_at": "2999-01-01T00:00:00+00:00"}},
+    )
+
+    run = service.create_run(
+        SmartAccessRunCreateRequest(
+            template_id="tpl_shared",
+            template_version="1.0.0",
+            smartaccess_node_id="pc-workstation",
+            target_device_id="CCswitch软件",
+            requested_by="admin",
+        )
+    )
+
+    assert run["smartaccess_node_id"] == "pc-workstation"
+    assert run["workflow_snapshot"]["steps"][0]["id"] == "pc-local"
+    assert publisher.messages[0]["workflow"]["steps"][0]["id"] == "pc-local"
 
 
 def test_append_event_updates_run_status(fake_database) -> None:
