@@ -41,6 +41,7 @@ export async function fetchDataAssets(filters = {}) {
       device_id: filters.device_id || undefined,
       collector_id: filters.collector_id || undefined,
       data_type: filters.data_type && filters.data_type !== "all" ? filters.data_type : undefined,
+      asset_kind: filters.asset_kind && filters.asset_kind !== "all" ? filters.asset_kind : undefined,
       limit: filters.limit || 100
     }
   });

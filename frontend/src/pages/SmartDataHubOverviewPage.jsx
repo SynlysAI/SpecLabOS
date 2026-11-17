@@ -52,8 +52,23 @@ const DEFAULT_FILTERS = {
   device_id: "",
   collector_id: "",
   data_type: "all",
+  asset_kind: "all",
   limit: 100
 };
+
+/**
+ * 资产类型中文标签，与 SmartAccess 采集器监听类型保持一致。
+ */
+const ASSET_KIND_LABELS = {
+  file: "文件",
+  directory: "目录资产"
+};
+
+const ASSET_KIND_OPTIONS = [
+  { label: "全部资产类型", value: "all" },
+  { label: "文件", value: "file" },
+  { label: "目录资产", value: "directory" }
+];
 
 const CHART_COLORS = ["#1677ff", "#52c41a", "#faad14", "#722ed1", "#13c2c2", "#f5222d"];
 
@@ -393,7 +408,7 @@ export default function SmartDataHubOverviewPage() {
       dataIndex: "asset_kind",
       key: "asset_kind",
       width: 110,
-      render: (value) => value || "file"
+      render: (value) => ASSET_KIND_LABELS[value] || ""
     },
     { title: "文件数", dataIndex: "file_count", key: "file_count", width: 90 },
     {
@@ -606,6 +621,9 @@ export default function SmartDataHubOverviewPage() {
           </Form.Item>
           <Form.Item name="data_type" style={{ marginBottom: 8 }}>
             <Select options={dataTypeOptions} style={{ width: 150 }} />
+          </Form.Item>
+          <Form.Item name="asset_kind" style={{ marginBottom: 8 }}>
+            <Select options={ASSET_KIND_OPTIONS} style={{ width: 150 }} />
           </Form.Item>
           <Form.Item style={{ marginBottom: 8 }}>
             <Space>

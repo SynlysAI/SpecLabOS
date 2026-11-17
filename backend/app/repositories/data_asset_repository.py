@@ -141,6 +141,7 @@ class DataAssetRepository:
         device_id: str | None = None,
         collector_id: str | None = None,
         data_type: str | None = None,
+        asset_kind: str | None = None,
     ) -> tuple[list[dict], int]:
         """查询 SmartDataHub 数据资产列表。
 
@@ -150,6 +151,7 @@ class DataAssetRepository:
             device_id: 设备 ID。
             collector_id: 采集器 ID。
             data_type: 数据类型。
+            asset_kind: 资产类型，文件或目录。
 
         Returns:
             资产记录列表和匹配总数。
@@ -159,6 +161,7 @@ class DataAssetRepository:
             device_id=device_id,
             collector_id=collector_id,
             data_type=data_type,
+            asset_kind=asset_kind,
         )
         total = int(self._assets.count_documents(query))
         items = list(self._assets.find(query).sort("ingested_at", -1).limit(limit))
@@ -171,6 +174,7 @@ class DataAssetRepository:
         device_id: str | None = None,
         collector_id: str | None = None,
         data_type: str | None = None,
+        asset_kind: str | None = None,
     ) -> dict[str, Any]:
         """构造资产列表查询条件。
 
@@ -179,6 +183,7 @@ class DataAssetRepository:
             device_id: 设备 ID。
             collector_id: 采集器 ID。
             data_type: 数据类型。
+            asset_kind: 资产类型，文件或目录。
 
         Returns:
             MongoDB 查询条件。
@@ -190,6 +195,8 @@ class DataAssetRepository:
             query["collector_id"] = collector_id
         if data_type:
             query["data_type"] = data_type
+        if asset_kind:
+            query["asset_kind"] = asset_kind
         if keyword:
             keyword_filter = {"$regex": keyword, "$options": "i"}
             query["$or"] = [
@@ -270,6 +277,91 @@ class DataAssetRepository:
         return list(
             self._files.find({"asset_id": asset_id}).sort("relative_path", 1).limit(limit)
         )
+
+    def list_files_by_type(
+        self,
+        data_type: str,
+        *,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        start_at: str | None = None,
+        end_at: str | None = None,
+        limit: int = 100,
+    ) -> tuple[list[dict], int]:
+        """按数据类型查询文件，并按入库时间倒序返回。
+
+        Args:
+            data_type: 数据类型。
+            keyword: 文件名或路径关键字。
+            device_id: 设备 ID。
+            start_at: 入库时间下限，ISO 文本。
+            end_at: 入库时间上限，ISO 文本。
+            limit: 最大返回数量。
+
+        Returns:
+            文件记录列表和匹配总数。
+        """
+        query = self._build_file_query(
+            data_type=data_type,
+            keyword=keyword,
+            device_id=device_id,
+            start_at=start_at,
+            end_at=end_at,
+        )
+        total = int(self._files.count_documents(query))
+        items = list(self._files.find(query).sort("ingested_at", -1).limit(limit))
+        return items, total
+
+    def get_file(self, file_id: str) -> dict | None:
+        """按文件 ID 查询单条文件记录。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            文件记录；不存在时返回 None。
+        """
+        return self._files.find_one({"file_id": file_id})
+
+    @staticmethod
+    def _build_file_query(
+        *,
+        data_type: str,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        start_at: str | None = None,
+        end_at: str | None = None,
+    ) -> dict[str, Any]:
+        """构造日志文件查询条件。
+
+        Args:
+            data_type: 数据类型。
+            keyword: 文件名或路径关键字。
+            device_id: 设备 ID。
+            start_at: 入库时间下限。
+            end_at: 入库时间上限。
+
+        Returns:
+            MongoDB 查询条件。
+        """
+        query: dict[str, Any] = {"data_type": data_type}
+        if device_id:
+            query["device_id"] = device_id
+        if start_at or end_at:
+            time_filter: dict[str, str] = {}
+            if start_at:
+                time_filter["$gte"] = start_at
+            if end_at:
+                time_filter["$lte"] = end_at
+            query["ingested_at"] = time_filter
+        if keyword:
+            keyword_filter = {"$regex": keyword, "$options": "i"}
+            query["$or"] = [
+                {"filename": keyword_filter},
+                {"relative_path": keyword_filter},
+                {"root_name": keyword_filter},
+            ]
+        return query
 
     def find_files_by_run(self, run_id: str, limit: int = 200) -> list[dict]:
         """查询绑定到指定任务运行的数据文件。

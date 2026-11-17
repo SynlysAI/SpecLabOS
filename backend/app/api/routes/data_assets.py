@@ -78,6 +78,7 @@ def list_assets(
     device_id: str | None = Query(default=None),
     collector_id: str | None = Query(default=None),
     data_type: str | None = Query(default=None),
+    asset_kind: str | None = Query(default=None),
 ) -> DataAssetListResponse:
     """查询数据资产列表。
 
@@ -87,6 +88,7 @@ def list_assets(
         device_id: 设备 ID。
         collector_id: 采集器 ID。
         data_type: 数据类型。
+        asset_kind: 资产类型，文件或目录。
 
     Returns:
         数据资产列表和匹配总数。
@@ -97,6 +99,7 @@ def list_assets(
         device_id=device_id,
         collector_id=collector_id,
         data_type=data_type,
+        asset_kind=asset_kind,
     )
     return DataAssetListResponse(items=items, total=total)
 

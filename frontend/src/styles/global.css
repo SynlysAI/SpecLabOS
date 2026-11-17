@@ -359,42 +359,74 @@ a {
   width: 100%;
 }
 
-.automation-summary-card,
-.automation-metric-card {
-  min-height: 164px;
-  border-radius: 22px !important;
-  background:
-    radial-gradient(circle at top right, rgba(31, 94, 255, 0.14), transparent 34%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+.device-log-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
+  min-height: 640px;
 }
 
-.automation-summary-label,
-.automation-metric-label {
-  display: inline-block;
-  color: #6a7d91;
+.device-log-list,
+.device-log-viewer {
+  min-height: 640px;
+}
+
+.device-log-list .ant-card-body {
+  max-height: 680px;
+  overflow: auto;
+  padding: 8px;
+}
+
+.device-log-item {
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 12px !important;
+}
+
+.device-log-item.is-active {
+  background: #eef5ff;
+}
+
+.device-log-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.device-log-path {
+  margin-bottom: 12px !important;
+}
+
+.device-log-content {
+  max-height: 620px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: Consolas, "Courier New", monospace;
   font-size: 13px;
-  letter-spacing: 0.02em;
+  line-height: 1.7;
 }
 
-.automation-summary-rate {
-  margin: 14px 0 10px;
-  color: #10233f;
-  font-size: 38px;
-  font-weight: 700;
-  line-height: 1;
+.device-log-line {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.automation-metric-rate {
-  margin: 12px 0 6px;
-  color: #10233f;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
+.device-log-time {
+  color: #93c5fd;
 }
 
-.automation-metric-meta {
-  color: #4b6076;
-  font-size: 13px;
+.device-log-content mark {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: #facc15;
+  color: #111827;
 }
 
 .auth-page {

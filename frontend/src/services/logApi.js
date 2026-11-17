@@ -1,55 +1,46 @@
 import { http } from "./http";
 
-/** 日志接口涉及远程文件读取，超时设置较长。 */
+/** 日志接口涉及对象存储读取，超时设置较长。 */
 const LOG_API_TIMEOUT = 60000;
 
 /**
- * 获取系统日志列表。
+ * 获取数据中心日志文件列表。
  *
  * Args:
  *     filters: 日志筛选条件。
  *
  * Returns:
- *     日志列表数据。
+ *     日志文件列表和匹配总数。
  */
 export async function fetchSystemLogs(filters = {}) {
   const response = await http.get("/api/logs", {
     params: {
       keyword: filters.keyword || undefined,
-      level: filters.level && filters.level !== "all" ? filters.level : undefined,
-      source: filters.source && filters.source !== "all" ? filters.source : undefined,
-      date: filters.date || undefined
+      device_id: filters.device_id || undefined,
+      date: filters.date || undefined,
+      days: filters.days ?? 7,
+      limit: filters.limit || 100
     },
     timeout: LOG_API_TIMEOUT
   });
-  return response.data.items || [];
+  return {
+    items: response.data?.items || [],
+    total: response.data?.total || 0
+  };
 }
 
 /**
- * 获取设备自动化率摘要。
- *
- * Returns:
- *     自动化率摘要数据。
- */
-export async function fetchAutomationRateSummary() {
-  const response = await http.get("/api/logs/automation-rate", {
-    timeout: LOG_API_TIMEOUT
-  });
-  return response.data || { overall_rate: 0, metrics: [] };
-}
-
-/**
- * 获取单条日志详情。
+ * 获取日志文件文本内容。
  *
  * Args:
- *     logId: 日志唯一标识。
+ *     fileId: 日志文件 ID。
  *
  * Returns:
- *     单条日志详情。
+ *     日志文件内容和截断标记。
  */
-export async function fetchLogDetail(logId) {
-  const response = await http.get(`/api/logs/${logId}`, {
+export async function fetchLogContent(fileId) {
+  const response = await http.get(`/api/logs/${fileId}/content`, {
     timeout: LOG_API_TIMEOUT
   });
-  return response.data;
+  return response.data || { content: "", truncated: false };
 }
