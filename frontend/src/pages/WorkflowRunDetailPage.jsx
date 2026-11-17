@@ -397,23 +397,27 @@ export default function WorkflowRunDetailPage() {
             locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
             style={{ marginBottom: 16 }}
           />
-          {(detail?.data_suggestions || []).length > 0 ? (
-            <>
-              <Space style={{ marginBottom: 8 }}>
-                <Text strong>建议关联</Text>
-                <Text type="secondary">
-                  任务执行时间窗口内该设备新增、尚未绑定任务的数据文件
-                </Text>
-              </Space>
-              <Table
-                size="small"
-                rowKey="file_id"
-                columns={buildDataFileColumns(handleBindFile)}
-                dataSource={detail?.data_suggestions || []}
-                pagination={false}
-              />
-            </>
-          ) : null}
+          <Space style={{ marginBottom: 8 }}>
+            <Text strong>建议关联</Text>
+            <Text type="secondary">
+              任务执行时间窗口内该设备新增、尚未绑定任务的数据文件
+            </Text>
+          </Space>
+          <Table
+            size="small"
+            rowKey="file_id"
+            columns={buildDataFileColumns(handleBindFile)}
+            dataSource={detail?.data_suggestions || []}
+            pagination={false}
+            locale={{
+              emptyText: (
+                <Empty
+                  description="时间窗内暂无可关联文件；需 SmartAccess 数据采集器上传该设备的数据文件"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
+              ),
+            }}
+          />
         </Card>
       ) : null}
       <Modal
