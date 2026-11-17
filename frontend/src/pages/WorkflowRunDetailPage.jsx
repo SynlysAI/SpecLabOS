@@ -90,7 +90,7 @@ function buildDataFileColumns(onBind, onUnbind) {
     columns.push({
       title: "操作",
       key: "actions",
-      width: 80,
+      width: 100,
       render: (_, record) => (
         <Button
           type="link"
@@ -418,6 +418,7 @@ export default function WorkflowRunDetailPage() {
           <Table
             size="small"
             rowKey="file_id"
+            tableLayout="fixed"
             columns={buildDataFileColumns(null, handleUnbindFile)}
             dataSource={detail?.data_files || []}
             pagination={false}
@@ -429,6 +430,7 @@ export default function WorkflowRunDetailPage() {
           <Table
             size="small"
             rowKey="file_id"
+            tableLayout="fixed"
             columns={buildDataFileColumns(handleBindFile)}
             dataSource={detail?.data_suggestions || []}
             pagination={false}
