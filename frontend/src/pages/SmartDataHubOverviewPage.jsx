@@ -58,6 +58,31 @@ const DEFAULT_FILTERS = {
 const CHART_COLORS = ["#1677ff", "#52c41a", "#faad14", "#722ed1", "#13c2c2", "#f5222d"];
 
 /**
+ * 数据类型中文标签，与 SmartAccess 采集器 DATA_TYPE_OPTIONS 保持一致。
+ */
+const DATA_TYPE_LABELS = {
+  device_log: "日志类",
+  sample_record: "样品类",
+  report: "报告类",
+  result_data: "数据结果类",
+  other: "其它"
+};
+
+/**
+ * 把数据类型键转换为中文标签。
+ *
+ * Args:
+ *     value: 后端返回的数据类型键。
+ *
+ * Returns:
+ *     中文标签；未收录的类型原样返回。
+ */
+function formatDataTypeLabel(value) {
+  if (!value) return "unknown";
+  return DATA_TYPE_LABELS[value] || value;
+}
+
+/**
  * 格式化文件大小。
  *
  * Args:
@@ -209,9 +234,10 @@ function buildConicGradient(items) {
  * Returns:
  *     数据分布展示卡片。
  */
-function DistributionCard({ title, items }) {
+function DistributionCard({ title, items, labelFormatter }) {
   const totalCount = (items || []).reduce((sum, item) => sum + Number(item.asset_count || 0), 0);
   const visibleItems = (items || []).slice(0, CHART_COLORS.length);
+  const formatLabel = labelFormatter || ((item) => item.label || item.key);
   return (
     <Card title={title} size="small" style={{ height: "100%" }}>
       {items?.length ? (
@@ -257,7 +283,7 @@ function DistributionCard({ title, items }) {
                       flex: "0 0 auto"
                     }}
                   />
-                  <Text ellipsis style={{ maxWidth: 160 }}>{item.label || item.key}</Text>
+                  <Text ellipsis style={{ maxWidth: 160 }}>{formatLabel(item)}</Text>
                 </Space>
                 <Tooltip title={`资产 ${item.asset_count} · 文件 ${item.file_count}`}>
                   <Text type="secondary" style={{ whiteSpace: "nowrap" }}>
@@ -322,10 +348,17 @@ export default function SmartDataHubOverviewPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
 
-  const dataTypeOptions = useMemo(
-    () => buildOptions(overview.data_type_distribution),
-    [overview.data_type_distribution]
-  );
+  const dataTypeOptions = useMemo(() => {
+    const knownKeys = new Set(Object.keys(DATA_TYPE_LABELS));
+    const extraKeys = (overview.data_type_distribution || [])
+      .map((item) => item.key)
+      .filter((key) => key && !knownKeys.has(key));
+    return [
+      { label: "全部类型", value: "all" },
+      ...Object.entries(DATA_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+      ...extraKeys.map((value) => ({ value, label: value }))
+    ];
+  }, [overview.data_type_distribution]);
   const deviceOptions = useMemo(
     () => buildDeviceOptions(overview.device_distribution),
     [overview.device_distribution]
@@ -351,7 +384,7 @@ export default function SmartDataHubOverviewPage() {
       dataIndex: "data_type",
       key: "data_type",
       width: 140,
-      render: (value) => <Tag color="blue">{value || "unknown"}</Tag>
+      render: (value) => <Tag color="blue">{formatDataTypeLabel(value)}</Tag>
     },
     { title: "设备", dataIndex: "device_id", key: "device_id", width: 160 },
     { title: "采集器", dataIndex: "collector_id", key: "collector_id", width: 160 },
@@ -526,7 +559,11 @@ export default function SmartDataHubOverviewPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={8}>
-          <DistributionCard title="按数据类型分布" items={overview.data_type_distribution} />
+          <DistributionCard
+            title="按数据类型分布"
+            items={overview.data_type_distribution}
+            labelFormatter={(item) => formatDataTypeLabel(item.key || item.label)}
+          />
         </Col>
         <Col xs={24} lg={8}>
           <DistributionCard title="按设备分布" items={overview.device_distribution} />
@@ -619,7 +656,9 @@ export default function SmartDataHubOverviewPage() {
             <Descriptions bordered column={2} size="small" title="资产信息">
               <Descriptions.Item label="资产 ID" span={2}>{selectedAsset.asset_id}</Descriptions.Item>
               <Descriptions.Item label="资产组">{selectedAsset.asset_group_id || "--"}</Descriptions.Item>
-              <Descriptions.Item label="数据类型">{selectedAsset.data_type || "--"}</Descriptions.Item>
+              <Descriptions.Item label="数据类型">
+                {formatDataTypeLabel(selectedAsset.data_type)}
+              </Descriptions.Item>
               <Descriptions.Item label="设备 ID">{selectedAsset.device_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="Collector ID">{selectedAsset.collector_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="文件数">{selectedAsset.file_count}</Descriptions.Item>
