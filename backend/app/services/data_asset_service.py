@@ -108,20 +108,29 @@ class DataAssetService:
         self,
         *,
         limit: int = 50,
+        keyword: str | None = None,
         device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """查询数据资产列表。
 
         Args:
             limit: 最大返回数量。
+            keyword: 关键词，匹配资产名、文件名或资产组。
             device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
 
         Returns:
             资产记录列表和匹配总数。
         """
         return self._repository.list_assets(
             limit=limit,
+            keyword=keyword,
             device_id=device_id,
+            collector_id=collector_id,
+            data_type=data_type,
         )
 
     def get_overview(self) -> dict[str, Any]:

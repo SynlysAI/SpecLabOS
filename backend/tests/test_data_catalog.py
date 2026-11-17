@@ -184,3 +184,53 @@ def test_data_catalog_migration_dry_run_and_apply(fake_database):
     assert asset["dataset_id"] == "raman_spectrum"
     assert asset["category_id"] == "spectrum"
     assert file_record["dataset_id"] == "raman_spectrum"
+
+
+def test_list_assets_supports_keyword_collector_and_type_filters(
+    fake_database,
+    monkeypatch,
+):
+    """验证资产列表恢复 keyword/采集器/数据类型筛选参数。"""
+    repository = DataAssetRepository(fake_database)
+    _create_asset(repository, asset_group_id="group-raman", root_name="raman-a.txt")
+    _create_asset(
+        repository,
+        asset_group_id="group-nmr",
+        root_name="nmr-b.txt",
+        data_type="nmr_raw",
+        collector_id="collector-b",
+        device_id="nmr_1000",
+    )
+    monkeypatch.setattr(
+        "app.services.data_asset_service.DataAssetRepository",
+        lambda: repository,
+    )
+    client = TestClient(app)
+
+    keyword_response = client.get(
+        "/api/data/assets",
+        params={"keyword": "nmr"},
+    )
+    type_response = client.get(
+        "/api/data/assets",
+        params={"data_type": "nmr_raw"},
+    )
+    collector_response = client.get(
+        "/api/data/assets",
+        params={"collector_id": "collector-b"},
+    )
+    combined_response = client.get(
+        "/api/data/assets",
+        params={"keyword": "nmr", "collector_id": "collector-b", "data_type": "nmr_raw"},
+    )
+    empty_response = client.get(
+        "/api/data/assets",
+        params={"keyword": "不存在的资产"},
+    )
+
+    assert keyword_response.json()["total"] == 1
+    assert keyword_response.json()["items"][0]["root_name"] == "nmr-b.txt"
+    assert type_response.json()["total"] == 1
+    assert collector_response.json()["total"] == 1
+    assert combined_response.json()["total"] == 1
+    assert empty_response.json()["total"] == 0

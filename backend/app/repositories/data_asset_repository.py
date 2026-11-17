@@ -137,13 +137,68 @@ class DataAssetRepository:
         self,
         *,
         limit: int = 50,
+        keyword: str | None = None,
         device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
     ) -> tuple[list[dict], int]:
-        """查询 SmartDataHub 数据资产列表。"""
-        query = {"device_id": device_id} if device_id else {}
+        """查询 SmartDataHub 数据资产列表。
+
+        Args:
+            limit: 最大返回数量。
+            keyword: 关键词，匹配资产名、文件名或资产组。
+            device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
+
+        Returns:
+            资产记录列表和匹配总数。
+        """
+        query = self._build_asset_query(
+            keyword=keyword,
+            device_id=device_id,
+            collector_id=collector_id,
+            data_type=data_type,
+        )
         total = int(self._assets.count_documents(query))
         items = list(self._assets.find(query).sort("ingested_at", -1).limit(limit))
         return [self._normalize_asset(item) for item in items], total
+
+    @staticmethod
+    def _build_asset_query(
+        *,
+        keyword: str | None = None,
+        device_id: str | None = None,
+        collector_id: str | None = None,
+        data_type: str | None = None,
+    ) -> dict[str, Any]:
+        """构造资产列表查询条件。
+
+        Args:
+            keyword: 关键词，匹配资产名、文件名或资产组。
+            device_id: 设备 ID。
+            collector_id: 采集器 ID。
+            data_type: 数据类型。
+
+        Returns:
+            MongoDB 查询条件。
+        """
+        query: dict[str, Any] = {}
+        if device_id:
+            query["device_id"] = device_id
+        if collector_id:
+            query["collector_id"] = collector_id
+        if data_type:
+            query["data_type"] = data_type
+        if keyword:
+            keyword_filter = {"$regex": keyword, "$options": "i"}
+            query["$or"] = [
+                {"root_name": keyword_filter},
+                {"filename": keyword_filter},
+                {"asset_group_id": keyword_filter},
+                {"asset_key": keyword_filter},
+            ]
+        return query
 
     def get_overview(self) -> dict[str, Any]:
         """获取 SmartDataHub 数据资产全量概览。"""

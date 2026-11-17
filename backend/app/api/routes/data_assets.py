@@ -74,20 +74,29 @@ def get_overview() -> DataAssetOverviewResponse:
 @router.get("/assets", response_model=DataAssetListResponse)
 def list_assets(
     limit: int = Query(default=50, ge=1, le=500),
+    keyword: str | None = Query(default=None),
     device_id: str | None = Query(default=None),
+    collector_id: str | None = Query(default=None),
+    data_type: str | None = Query(default=None),
 ) -> DataAssetListResponse:
     """查询数据资产列表。
 
     Args:
         limit: 最大返回数量。
+        keyword: 关键词，匹配资产名、文件名或资产组。
         device_id: 设备 ID。
+        collector_id: 采集器 ID。
+        data_type: 数据类型。
 
     Returns:
         数据资产列表和匹配总数。
     """
     items, total = DataAssetService().list_assets(
         limit=limit,
+        keyword=keyword,
         device_id=device_id,
+        collector_id=collector_id,
+        data_type=data_type,
     )
     return DataAssetListResponse(items=items, total=total)
 
