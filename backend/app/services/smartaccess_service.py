@@ -384,6 +384,31 @@ class SmartAccessService:
             raise HTTPException(status_code=404, detail="数据文件不存在")
         return _project_data_file(record)
 
+    def unbind_data_file(self, run_id: str, file_id: str) -> dict:
+        """解除数据文件与任务运行的绑定。
+
+        Args:
+            run_id: 平台运行 ID。
+            file_id: 数据文件 ID。
+
+        Returns:
+            解绑后的文件投影。
+
+        Raises:
+            HTTPException: 运行或文件不存在、文件未绑定该运行时抛出。
+        """
+        if self._repository.get_run(run_id) is None:
+            raise HTTPException(status_code=404, detail="SmartAccess 运行不存在")
+        if self._data_repository is None:
+            raise HTTPException(status_code=503, detail="数据资产服务不可用")
+        record = self._data_repository.unbind_file_from_run(file_id, run_id)
+        if record is None:
+            raise HTTPException(
+                status_code=404,
+                detail="数据文件不存在或未绑定到该运行",
+            )
+        return _project_data_file(record)
+
     def _resolve_data_results(
         self,
         run_record: dict,

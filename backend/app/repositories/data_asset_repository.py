@@ -293,6 +293,33 @@ class DataAssetRepository:
         updated["device_run_id"] = run_id
         return updated
 
+    def unbind_file_from_run(self, file_id: str, run_id: str) -> dict | None:
+        """解除数据文件与任务运行的绑定。
+
+        仅当文件当前绑定的是指定运行时才解除，避免误解除其他任务的绑定。
+
+        Args:
+            file_id: 数据文件 ID。
+            run_id: SmartAccess 运行 ID。
+
+        Returns:
+            解绑后的文件记录；文件不存在或未绑定该运行时返回 None。
+        """
+        file_doc = self._files.find_one({"file_id": file_id, "device_run_id": run_id})
+        if file_doc is None:
+            return None
+        self._files.update_one(
+            {"file_id": file_id},
+            {"$set": {"device_run_id": ""}},
+        )
+        self._assets.update_one(
+            {"asset_id": file_doc.get("asset_id", "")},
+            {"$set": {"device_run_id": ""}},
+        )
+        updated = dict(file_doc)
+        updated["device_run_id"] = ""
+        return updated
+
     def _normalize_asset(self, item: dict[str, Any]) -> dict[str, Any]:
         """补齐旧资产缺失的目录和关系字段。"""
         normalized = dict(item)

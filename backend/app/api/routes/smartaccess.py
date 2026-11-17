@@ -361,6 +361,18 @@ def bind_run_data_file(run_id: str, payload: dict) -> dict:
     }
 
 
+@router.delete("/runs/{run_id}/data-bindings/{file_id}")
+def unbind_run_data_file(run_id: str, file_id: str) -> dict:
+    """解除数据文件与 SmartAccess 运行的绑定。"""
+    record = get_smartaccess_service().unbind_data_file(run_id, file_id)
+    return {
+        "run_id": run_id,
+        "file_id": record.get("file_id", ""),
+        "bound": record.get("bound", False),
+        "detail": "数据文件已解除绑定",
+    }
+
+
 @router.post("/nodes/heartbeat")
 def receive_node_heartbeat(payload: SmartAccessNodeHeartbeatRequest) -> dict:
     """接收 SmartAccess 执行端心跳上报。"""

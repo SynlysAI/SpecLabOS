@@ -138,3 +138,20 @@ export async function bindSmartAccessDataFile(runId, fileId) {
   );
   return response.data;
 }
+
+/**
+ * 解除数据文件与 SmartAccess 运行的绑定。
+ *
+ * Args:
+ *     runId: 运行编号。
+ *     fileId: 数据文件 ID。
+ *
+ * Returns:
+ *     解绑结果。
+ */
+export async function unbindSmartAccessDataFile(runId, fileId) {
+  const response = await http.delete(
+    `/api/smartaccess/runs/${runId}/data-bindings/${fileId}`
+  );
+  return response.data;
+}

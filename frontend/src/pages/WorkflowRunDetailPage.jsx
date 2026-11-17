@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, Card, Col, Descriptions, Drawer, Empty, List, message, Modal, Row, Space, Table, Tag, Tooltip, Typography } from "antd";
 import {
   ArrowLeftOutlined,
+  DisconnectOutlined,
   LinkOutlined,
   ProfileOutlined,
   ReloadOutlined,
@@ -11,7 +12,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import PageToolbar from "../components/PageToolbar";
 import RunStepTimeline from "../components/RunStepTimeline";
 import StatusTag from "../components/StatusTag";
-import { bindSmartAccessDataFile } from "../services/smartaccessApi";
+import {
+  bindSmartAccessDataFile,
+  unbindSmartAccessDataFile,
+} from "../services/smartaccessApi";
 import { fetchWorkflowRunDetail } from "../services/workflowApi";
 
 const { Text } = Typography;
@@ -41,11 +45,12 @@ function formatFileSize(size) {
  *
  * Args:
  *     onBind: 建议关联条目的确认绑定回调；为空时不渲染操作列。
+ *     onUnbind: 已绑定条目的取消关联回调；为空时不渲染操作列。
  *
  * Returns:
  *     antd Table 列配置数组。
  */
-function buildDataFileColumns(onBind) {
+function buildDataFileColumns(onBind, onUnbind) {
   const columns = [
     {
       title: "文件名",
@@ -94,6 +99,24 @@ function buildDataFileColumns(onBind) {
           onClick={() => onBind(record)}
         >
           关联
+        </Button>
+      ),
+    });
+  }
+  if (onUnbind) {
+    columns.push({
+      title: "操作",
+      key: "actions",
+      width: 100,
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          danger
+          icon={<DisconnectOutlined />}
+          onClick={() => onUnbind(record)}
+        >
+          取消关联
         </Button>
       ),
     });
@@ -276,6 +299,22 @@ export default function WorkflowRunDetailPage() {
     }
   }
 
+  /**
+   * 解除数据文件与当前运行的绑定。
+   *
+   * Args:
+   *     record: 数据文件记录。
+   */
+  async function handleUnbindFile(record) {
+    try {
+      await unbindSmartAccessDataFile(runId, record.file_id);
+      message.success(`已取消关联：${record.filename}`);
+      await loadDetail();
+    } catch (error) {
+      message.error("取消关联失败，请稍后重试");
+    }
+  }
+
   return (
     <section className="page-section">
       <PageToolbar />
@@ -379,7 +418,7 @@ export default function WorkflowRunDetailPage() {
           <Table
             size="small"
             rowKey="file_id"
-            columns={buildDataFileColumns()}
+            columns={buildDataFileColumns(null, handleUnbindFile)}
             dataSource={detail?.data_files || []}
             pagination={false}
             locale={{ emptyText: <Empty description="暂无已绑定的数据文件" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}

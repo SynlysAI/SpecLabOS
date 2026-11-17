@@ -390,6 +390,45 @@ def test_bind_data_file_confirms_suggestion(fake_database) -> None:
     assert detail["data_suggestions"] == []
 
 
+def test_unbind_data_file_returns_file_to_suggestions(fake_database) -> None:
+    """验证取消关联后文件回到建议关联列表。"""
+    data_repository = DataAssetRepository(fake_database)
+    publisher = FakePublisher()
+    run = _publish_and_run(fake_database, publisher)
+    service = SmartAccessService(
+        repository=SmartAccessRepository(fake_database),
+        publisher=publisher,
+        data_repository=data_repository,
+    )
+    record = _ingest_file(data_repository, filename="undo.csv")
+    service.bind_data_file(run["run_id"], record["file_id"])
+
+    unbound = service.unbind_data_file(run["run_id"], record["file_id"])
+
+    assert unbound["bound"] is False
+    detail = service.get_run(run["run_id"])
+    assert detail["data_files"] == []
+    assert {item["filename"] for item in detail["data_suggestions"]} == {"undo.csv"}
+
+
+def test_unbind_data_file_of_other_run_raises_404(fake_database) -> None:
+    """验证未绑定到该运行的文件不能解除关联。"""
+    data_repository = DataAssetRepository(fake_database)
+    publisher = FakePublisher()
+    run = _publish_and_run(fake_database, publisher)
+    service = SmartAccessService(
+        repository=SmartAccessRepository(fake_database),
+        publisher=publisher,
+        data_repository=data_repository,
+    )
+    record = _ingest_file(data_repository, filename="other.csv", device_run_id="other_run")
+
+    with pytest.raises(HTTPException) as exc_info:
+        service.unbind_data_file(run["run_id"], record["file_id"])
+
+    assert getattr(exc_info.value, "status_code", None) == 404
+
+
 def test_bind_data_file_missing_file_raises_404(fake_database) -> None:
     """验证绑定不存在的文件返回 404。"""
     publisher = FakePublisher()
