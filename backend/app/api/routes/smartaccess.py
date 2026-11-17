@@ -1,16 +1,28 @@
 """SmartAccess 集成接口。"""
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 
 from app.core.auth import parse_access_token
 from app.core.config import get_settings
 from app.repositories.identity_repository import UserRepository
 from app.runtime import (
     get_device_permission_service,
+    get_smartaccess_image_service,
     get_smartaccess_node_service,
     get_smartaccess_service,
 )
 from app.schemas.smartaccess import (
+    SmartAccessDeviceImageResponse,
     SmartAccessNodeHeartbeatRequest,
     SmartAccessNodeItem,
     SmartAccessNodeListResponse,
@@ -25,6 +37,7 @@ from app.schemas.smartaccess import (
     SmartAccessTemplatePublishRequest,
 )
 from app.services.device_permission_service import DevicePermissionService
+from app.services.smartaccess_image_service import MAX_IMAGE_BYTES
 
 
 SMARTACCESS_DEVICE_PREFIX = "smartaccess:"
@@ -242,6 +255,35 @@ def delete_template(
         source_device_id,
     )
     return {"detail": "模板已删除"}
+
+
+@router.post("/device-images", response_model=SmartAccessDeviceImageResponse)
+def upload_device_image(
+    file: UploadFile = File(...),
+    source_device_id: str = Form(...),
+) -> SmartAccessDeviceImageResponse:
+    """接收执行端上传的设备图片。
+
+    Args:
+        file: 设备图片文件。
+        source_device_id: 上传图片的执行端 ID。
+
+    Returns:
+        设备图片记录及访问地址。
+    """
+    content = file.file.read(MAX_IMAGE_BYTES + 1)
+    record = get_smartaccess_image_service().save_image(
+        source_device_id,
+        file.filename or "",
+        file.content_type or "",
+        content,
+    )
+    return SmartAccessDeviceImageResponse(
+        source_device_id=record.get("source_device_id", ""),
+        image_url=record.get("image_url", ""),
+        updated_at=record.get("updated_at", ""),
+        sha256=record.get("sha256", ""),
+    )
 
 
 @router.post("/runs", response_model=SmartAccessRunCreateResponse)

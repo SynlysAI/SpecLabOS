@@ -7,6 +7,7 @@ from pymongo.errors import PyMongoError
 
 from app.domain.capability import DeviceCapability
 from app.domain.device import DeviceResource
+from app.services.smartaccess_image_service import SmartAccessImageService
 from app.services.smartaccess_node_service import SmartAccessNodeService
 from app.services.smartaccess_service import SmartAccessService
 
@@ -22,15 +23,18 @@ class SmartAccessDeviceService:
         self,
         smartaccess_service: SmartAccessService,
         node_service: SmartAccessNodeService | None = None,
+        image_service: SmartAccessImageService | None = None,
     ) -> None:
         """初始化 SmartAccess 虚拟设备服务。
 
         Args:
             smartaccess_service: SmartAccess 服务。
             node_service: SmartAccess 节点心跳服务,用于推断执行端在线状态。
+            image_service: SmartAccess 执行端设备图片服务。
         """
         self._smartaccess_service = smartaccess_service
         self._node_service = node_service
+        self._image_service = image_service
 
     def list_devices(self) -> list[DeviceResource]:
         """列出 SmartAccess 虚拟设备。
@@ -81,6 +85,8 @@ class SmartAccessDeviceService:
 
         for resource in device_map.values():
             self._apply_node_status(resource, node_status_map)
+
+        self._apply_image_urls(device_map)
 
         return list(device_map.values())
 
@@ -332,3 +338,26 @@ class SmartAccessDeviceService:
         resource.status_message = (
             f"{resource.status_message};执行端未上报心跳"
         )
+
+    def _apply_image_urls(self, device_map: dict[str, DeviceResource]) -> None:
+        """按执行端 ID 为虚拟设备注入设备图片地址。
+
+        Args:
+            device_map: 执行端 ID 到虚拟设备资源的映射。
+        """
+        if self._image_service is None:
+            return
+        try:
+            image_urls = self._image_service.list_image_urls()
+        except Exception:  # noqa: BLE001 - 图片查询失败不应阻断设备列表
+            return
+        prefix = "smartaccess:"
+        for resource in device_map.values():
+            device_id = (
+                resource.device_id[len(prefix):]
+                if resource.device_id.startswith(prefix)
+                else resource.device_id
+            )
+            image_url = image_urls.get(device_id, "")
+            if image_url:
+                resource.image_url = image_url

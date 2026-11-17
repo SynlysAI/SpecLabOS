@@ -130,7 +130,9 @@ class DeviceService:
                 "updated_at": updated_at,
             },
         }
-        image_url = DeviceService._get_config_image_url(device.device_id)
+        image_url = device.image_url or DeviceService._get_config_image_url(
+            device.device_id
+        )
         if image_url:
             item["image_url"] = image_url
         return item

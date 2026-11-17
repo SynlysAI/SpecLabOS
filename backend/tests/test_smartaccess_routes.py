@@ -12,8 +12,12 @@ from app.repositories.device_permission_repository import (
     DevicePermissionRepository,
 )
 from app.repositories.identity_repository import UserRepository
+from app.repositories.smartaccess_image_repository import (
+    SmartAccessImageRepository,
+)
 from app.schemas.smartaccess import SmartAccessTemplatePublishRequest
 from app.services.device_permission_service import DevicePermissionService
+from app.services.smartaccess_image_service import SmartAccessImageService
 from main import app
 
 
@@ -452,3 +456,28 @@ def test_unified_workflow_runs_include_smartaccess_source(
     assert "items" in data
     assert all("source" in item for item in data["items"])
     assert any(item["source"] == "smartaccess" for item in data["items"])
+
+
+def test_upload_device_image_route_stores_image(
+    fake_database,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    """验证设备图片上传接口保存文件并返回访问地址。"""
+    service = SmartAccessImageService(SmartAccessImageRepository(fake_database))
+    monkeypatch.setattr(smartaccess, "get_smartaccess_image_service", lambda: service)
+    monkeypatch.setattr(get_settings().device_images, "image_dir", str(tmp_path))
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/smartaccess/device-images",
+        data={"source_device_id": "pc-workstation"},
+        files={"file": ("device.png", b"fake-png-content", "image/png")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["source_device_id"] == "pc-workstation"
+    assert data["image_url"].startswith("/api/device-images/smartaccess-device-")
+    assert "?v=" in data["image_url"]
+    assert list(tmp_path.glob("smartaccess-device-*.png"))
