@@ -142,6 +142,15 @@ class SmartAccessNodeListResponse(BaseModel):
     items: list[SmartAccessNodeItem] = Field(default_factory=list)
 
 
+class SmartAccessDeviceSyncRequest(BaseModel):
+    """设备接入页同步到平台的仪器档案。"""
+
+    device_id: str
+    node_id: str
+    name: str = ""
+    window_title: str = ""
+
+
 class SmartAccessDeviceImageResponse(BaseModel):
     """SmartAccess 执行端设备图片上传响应。"""
 

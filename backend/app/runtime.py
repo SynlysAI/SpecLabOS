@@ -16,6 +16,9 @@ from app.repositories.event_repository import EventRepository
 from app.repositories.external_experiment_dispatch_repository import (
     ExternalExperimentDispatchRepository,
 )
+from app.repositories.smartaccess_device_repository import (
+    SmartAccessDeviceRepository,
+)
 from app.repositories.smartaccess_image_repository import (
     SmartAccessImageRepository,
 )
@@ -74,6 +77,7 @@ def get_smartaccess_device_service() -> SmartAccessDeviceService:
         smartaccess_service=get_smartaccess_service(),
         node_service=get_smartaccess_node_service(),
         image_service=get_smartaccess_image_service(),
+        device_repository=SmartAccessDeviceRepository(get_database()),
     )
 
 
