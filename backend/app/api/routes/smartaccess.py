@@ -14,7 +14,9 @@ from fastapi import (
 
 from app.core.auth import parse_access_token
 from app.core.config import get_settings
+from app.core.mongo import get_database
 from app.repositories.identity_repository import UserRepository
+from app.repositories.smartaccess_device_repository import SmartAccessDeviceRepository
 from app.runtime import (
     get_device_permission_service,
     get_smartaccess_image_service,
@@ -23,6 +25,7 @@ from app.runtime import (
 )
 from app.schemas.smartaccess import (
     SmartAccessDeviceImageResponse,
+    SmartAccessDeviceSyncRequest,
     SmartAccessNodeHeartbeatRequest,
     SmartAccessNodeItem,
     SmartAccessNodeListResponse,
@@ -255,6 +258,30 @@ def delete_template(
         source_device_id,
     )
     return {"detail": "模板已删除"}
+
+
+@router.post("/devices/sync")
+def sync_device(payload: SmartAccessDeviceSyncRequest) -> dict:
+    """接收设备接入页同步的仪器档案。
+
+    Args:
+        payload: 仪器设备 ID、所属执行端和窗口标题。
+
+    Returns:
+        已保存的设备记录。
+    """
+    device_id = payload.device_id.strip()
+    node_id = payload.node_id.strip()
+    if not device_id or not node_id:
+        raise HTTPException(status_code=400, detail="device_id 和 node_id 不能为空")
+    repository = SmartAccessDeviceRepository(get_database())
+    record = repository.upsert_device(
+        device_id,
+        node_id,
+        name=payload.name.strip(),
+        window_title=payload.window_title.strip(),
+    )
+    return record
 
 
 @router.post("/device-images", response_model=SmartAccessDeviceImageResponse)
