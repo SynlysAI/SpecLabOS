@@ -251,6 +251,31 @@ class DataAssetService:
             return True
         return filename.lower().endswith((".log", ".txt", ".csv", ".json", ".xml"))
 
+    def list_files_in_window(
+        self,
+        device_id: str,
+        start_at: datetime,
+        end_at: datetime,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """查询设备在入库时间窗内的数据文件。
+
+        Args:
+            device_id: 采集设备 ID。
+            start_at: 入库时间下界（含）。
+            end_at: 入库时间上界（含）。
+            limit: 最大返回数量。
+
+        Returns:
+            文件记录列表。
+        """
+        return self._repository.find_files_in_window(
+            device_id,
+            start_at.astimezone(timezone.utc).isoformat(),
+            end_at.astimezone(timezone.utc).isoformat(),
+            limit,
+        )
+
     def list_files(self, asset_id: str, limit: int = 200) -> list[dict[str, Any]]:
         """查询指定资产的文件明细。
 

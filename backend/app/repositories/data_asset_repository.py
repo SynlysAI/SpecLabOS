@@ -381,6 +381,37 @@ class DataAssetRepository:
             ]
         return query
 
+    def find_files_in_window(
+        self,
+        device_id: str,
+        start_iso: str,
+        end_iso: str,
+        limit: int = 200,
+    ) -> list[dict]:
+        """查询时间窗内指定设备入库的数据文件。
+
+        Args:
+            device_id: 采集设备 ID。
+            start_iso: 窗口开始时间（UTC ISO 文本，含）。
+            end_iso: 窗口结束时间（UTC ISO 文本，含）。
+            limit: 最大返回数量。
+
+        Returns:
+            按入库时间倒序的数据文件列表。
+        """
+        if not device_id or not start_iso or not end_iso:
+            return []
+        return list(
+            self._files.find(
+                {
+                    "device_id": device_id,
+                    "ingested_at": {"$gte": start_iso, "$lte": end_iso},
+                }
+            )
+            .sort("ingested_at", -1)
+            .limit(limit)
+        )
+
     def find_files_by_run(self, run_id: str, limit: int = 200) -> list[dict]:
         """查询绑定到指定任务运行的数据文件。
 

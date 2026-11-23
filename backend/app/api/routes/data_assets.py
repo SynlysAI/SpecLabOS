@@ -147,6 +147,23 @@ def get_device_stats() -> DataAssetDeviceStatsResponse:
     return DataAssetDeviceStatsResponse(**DataAssetService().get_device_stats())
 
 
+@router.get("/files", response_model=DataAssetFileListResponse)
+def list_files_in_window(
+    device_id: str = Query(min_length=1),
+    ingested_start: str = Query(min_length=1),
+    ingested_end: str = Query(min_length=1),
+    limit: int = Query(default=200, ge=1, le=2000),
+) -> DataAssetFileListResponse:
+    """查询设备在入库时间窗内的数据文件。"""
+    items = DataAssetService().list_files_in_window(
+        device_id=device_id,
+        start_at=_parse_ingested_bound(ingested_start, "ingested_start"),
+        end_at=_parse_ingested_bound(ingested_end, "ingested_end"),
+        limit=limit,
+    )
+    return DataAssetFileListResponse(items=items)
+
+
 @router.get("/assets/{asset_id}/files", response_model=DataAssetFileListResponse)
 def list_asset_files(
     asset_id: str,
