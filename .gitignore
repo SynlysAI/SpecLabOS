@@ -8,6 +8,7 @@ frontend/node_modules/
 frontend/dist/
 .agents
 config.yaml
+config/devices.yaml
 .conda
 .playwright
 .playwright-cli
