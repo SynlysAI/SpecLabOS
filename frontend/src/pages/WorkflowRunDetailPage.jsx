@@ -12,6 +12,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import PageToolbar from "../components/PageToolbar";
 import RunStepTimeline from "../components/RunStepTimeline";
 import StatusTag from "../components/StatusTag";
+import { formatDateTime } from "../utils/datetime";
 import {
   bindSmartAccessDataFile,
   unbindSmartAccessDataFile,
@@ -83,7 +84,7 @@ function buildDataFileColumns(onBind, onUnbind) {
       dataIndex: "ingested_at",
       key: "ingested_at",
       width: 170,
-      render: (value) => value || "--",
+      render: (value) => formatDateTime(value),
     },
   ];
   if (onBind) {
