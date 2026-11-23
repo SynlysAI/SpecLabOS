@@ -27,8 +27,10 @@ def require_datahub_auth(authorization: str | None = Header(default=None)) -> No
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供认证信息。")
 
     api_token = get_settings().datahub.api_token
-    if api_token and authorization == f"Bearer {api_token}":
-        return
+    unified_token = get_settings().external_api.api_token
+    for accepted_token in (api_token, unified_token):
+        if accepted_token and authorization == f"Bearer {accepted_token}":
+            return
 
     token = authorization[7:] if authorization.startswith("Bearer ") else None
     if token and parse_access_token(token):
