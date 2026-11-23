@@ -112,6 +112,8 @@ class DataAssetService:
         collector_id: str | None = None,
         data_type: str | None = None,
         asset_kind: str | None = None,
+        ingested_start: datetime | None = None,
+        ingested_end: datetime | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """查询数据资产列表。
 
@@ -122,6 +124,8 @@ class DataAssetService:
             collector_id: 采集器 ID。
             data_type: 数据类型。
             asset_kind: 资产类型，文件或目录。
+            ingested_start: 入库时间下界（含）。
+            ingested_end: 入库时间上界（含）。
 
         Returns:
             资产记录列表和匹配总数。
@@ -133,6 +137,8 @@ class DataAssetService:
             collector_id=collector_id,
             data_type=data_type,
             asset_kind=asset_kind,
+            ingested_start=ingested_start,
+            ingested_end=ingested_end,
         )
 
     def get_overview(self) -> dict[str, Any]:
@@ -178,6 +184,45 @@ class DataAssetService:
             start_at=start_at,
             end_at=end_at,
             limit=limit,
+        )
+
+    def open_file_stream(self, file_id: str) -> tuple[Any, str, str, int]:
+        """打开数据文件的二进制下载流。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            (字节流迭代器, 文件名, MIME 类型, 文件大小)；文件不存在时抛 404。
+
+        Raises:
+            HTTPException: 文件不存在或对象存储不可达。
+        """
+        record = self._repository.get_file(file_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="数据文件不存在")
+        bucket_name = str(record.get("storage_bucket") or get_minio_bucket())
+        storage_key = str(record.get("storage_key") or "")
+        if not storage_key:
+            raise HTTPException(status_code=404, detail="数据文件缺少存储键")
+        try:
+            response = self._minio_client.get_object(bucket_name, storage_key)
+        except S3Error as exc:
+            raise HTTPException(status_code=502, detail=f"读取数据文件失败: {exc}") from exc
+
+        def _iterator():
+            try:
+                for block in response.stream(1024 * 1024):
+                    yield block
+            finally:
+                response.close()
+                response.release_conn()
+
+        return (
+            _iterator(),
+            str(record.get("filename") or file_id),
+            str(record.get("content_type") or "application/octet-stream"),
+            int(record.get("file_size") or 0),
         )
 
     def read_text_file(self, file_id: str, *, max_bytes: int = 200_000) -> dict[str, Any]:
@@ -244,6 +289,31 @@ class DataAssetService:
         if normalized_type.startswith("text/") or "json" in normalized_type or "xml" in normalized_type:
             return True
         return filename.lower().endswith((".log", ".txt", ".csv", ".json", ".xml"))
+
+    def list_files_in_window(
+        self,
+        device_id: str,
+        start_at: datetime,
+        end_at: datetime,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        """查询设备在入库时间窗内的数据文件。
+
+        Args:
+            device_id: 采集设备 ID。
+            start_at: 入库时间下界（含）。
+            end_at: 入库时间上界（含）。
+            limit: 最大返回数量。
+
+        Returns:
+            文件记录列表。
+        """
+        return self._repository.find_files_in_window(
+            device_id,
+            start_at.astimezone(timezone.utc).isoformat(),
+            end_at.astimezone(timezone.utc).isoformat(),
+            limit,
+        )
 
     def list_files(self, asset_id: str, limit: int = 200) -> list[dict[str, Any]]:
         """查询指定资产的文件明细。

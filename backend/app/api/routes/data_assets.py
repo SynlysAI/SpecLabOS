@@ -1,5 +1,7 @@
 """SmartDataHub 数据资产接口。"""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
 
 from app.core.auth import parse_access_token
@@ -27,8 +29,10 @@ def require_datahub_auth(authorization: str | None = Header(default=None)) -> No
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未提供认证信息。")
 
     api_token = get_settings().datahub.api_token
-    if api_token and authorization == f"Bearer {api_token}":
-        return
+    unified_token = get_settings().external_api.api_token
+    for accepted_token in (api_token, unified_token):
+        if accepted_token and authorization == f"Bearer {accepted_token}":
+            return
 
     token = authorization[7:] if authorization.startswith("Bearer ") else None
     if token and parse_access_token(token):
@@ -71,6 +75,33 @@ def get_overview() -> DataAssetOverviewResponse:
     return DataAssetOverviewResponse(**DataAssetService().get_overview())
 
 
+def _parse_ingested_bound(value: str | None, field: str) -> datetime | None:
+    """解析入库时间边界参数为规范化 UTC 时间。
+
+    Args:
+        value: ISO 8601 时间字符串，可为空。
+        field: 参数名，用于错误提示。
+
+    Returns:
+        UTC 时间对象；参数为空时返回 None。
+
+    Raises:
+        HTTPException: 时间格式不合法时抛出 400。
+    """
+    if value is None or value == "":
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field} 不是合法的 ISO 8601 时间。",
+        ) from error
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 @router.get("/assets", response_model=DataAssetListResponse)
 def list_assets(
     limit: int = Query(default=50, ge=1, le=500),
@@ -79,6 +110,8 @@ def list_assets(
     collector_id: str | None = Query(default=None),
     data_type: str | None = Query(default=None),
     asset_kind: str | None = Query(default=None),
+    ingested_start: str | None = Query(default=None),
+    ingested_end: str | None = Query(default=None),
 ) -> DataAssetListResponse:
     """查询数据资产列表。
 
@@ -89,6 +122,8 @@ def list_assets(
         collector_id: 采集器 ID。
         data_type: 数据类型。
         asset_kind: 资产类型，文件或目录。
+        ingested_start: 入库时间下界（ISO 8601，含）。
+        ingested_end: 入库时间上界（ISO 8601，含）。
 
     Returns:
         数据资产列表和匹配总数。
@@ -100,6 +135,8 @@ def list_assets(
         collector_id=collector_id,
         data_type=data_type,
         asset_kind=asset_kind,
+        ingested_start=_parse_ingested_bound(ingested_start, "ingested_start"),
+        ingested_end=_parse_ingested_bound(ingested_end, "ingested_end"),
     )
     return DataAssetListResponse(items=items, total=total)
 
@@ -108,6 +145,43 @@ def list_assets(
 def get_device_stats() -> DataAssetDeviceStatsResponse:
     """查询 SmartDataHub 按设备聚合的数据资产统计。"""
     return DataAssetDeviceStatsResponse(**DataAssetService().get_device_stats())
+
+
+@router.get("/files", response_model=DataAssetFileListResponse)
+def list_files_in_window(
+    device_id: str = Query(min_length=1),
+    ingested_start: str = Query(min_length=1),
+    ingested_end: str = Query(min_length=1),
+    limit: int = Query(default=200, ge=1, le=2000),
+) -> DataAssetFileListResponse:
+    """查询设备在入库时间窗内的数据文件。"""
+    items = DataAssetService().list_files_in_window(
+        device_id=device_id,
+        start_at=_parse_ingested_bound(ingested_start, "ingested_start"),
+        end_at=_parse_ingested_bound(ingested_end, "ingested_end"),
+        limit=limit,
+    )
+    return DataAssetFileListResponse(items=items)
+
+
+@router.get("/files/{file_id}/download")
+def download_file(file_id: str):
+    """以附件形式下载指定数据文件。"""
+    from urllib.parse import quote
+
+    from fastapi.responses import StreamingResponse
+
+    stream, filename, content_type, file_size = DataAssetService().open_file_stream(file_id)
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
+    }
+    if file_size > 0:
+        headers["Content-Length"] = str(file_size)
+    return StreamingResponse(
+        stream,
+        media_type=content_type,
+        headers=headers,
+    )
 
 
 @router.get("/assets/{asset_id}/files", response_model=DataAssetFileListResponse)

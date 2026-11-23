@@ -17,6 +17,7 @@ import dayjs from "dayjs";
 
 import PageToolbar from "../components/PageToolbar";
 import { fetchLogContent, fetchSystemLogs } from "../services/logApi";
+import { formatDateTime } from "../utils/datetime";
 
 const { Paragraph, Text } = Typography;
 
@@ -68,14 +69,6 @@ function formatBytes(value) {
  * Returns:
  *     去掉时区和微秒后的短时间文本。
  */
-function formatDateTime(value) {
-  if (!value) return "--";
-  return String(value)
-    .replace(/([+-]\d{2}:?\d{2}|Z)$/u, "")
-    .replace("T", " ")
-    .split(".")[0];
-}
-
 /**
  * 提取接口请求失败原因。
  *
