@@ -186,6 +186,45 @@ class DataAssetService:
             limit=limit,
         )
 
+    def open_file_stream(self, file_id: str) -> tuple[Any, str, str, int]:
+        """打开数据文件的二进制下载流。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            (字节流迭代器, 文件名, MIME 类型, 文件大小)；文件不存在时抛 404。
+
+        Raises:
+            HTTPException: 文件不存在或对象存储不可达。
+        """
+        record = self._repository.get_file(file_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="数据文件不存在")
+        bucket_name = str(record.get("storage_bucket") or get_minio_bucket())
+        storage_key = str(record.get("storage_key") or "")
+        if not storage_key:
+            raise HTTPException(status_code=404, detail="数据文件缺少存储键")
+        try:
+            response = self._minio_client.get_object(bucket_name, storage_key)
+        except S3Error as exc:
+            raise HTTPException(status_code=502, detail=f"读取数据文件失败: {exc}") from exc
+
+        def _iterator():
+            try:
+                for block in response.stream(1024 * 1024):
+                    yield block
+            finally:
+                response.close()
+                response.release_conn()
+
+        return (
+            _iterator(),
+            str(record.get("filename") or file_id),
+            str(record.get("content_type") or "application/octet-stream"),
+            int(record.get("file_size") or 0),
+        )
+
     def read_text_file(self, file_id: str, *, max_bytes: int = 200_000) -> dict[str, Any]:
         """读取文本文件尾部内容。
 

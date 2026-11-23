@@ -164,6 +164,26 @@ def list_files_in_window(
     return DataAssetFileListResponse(items=items)
 
 
+@router.get("/files/{file_id}/download")
+def download_file(file_id: str):
+    """以附件形式下载指定数据文件。"""
+    from urllib.parse import quote
+
+    from fastapi.responses import StreamingResponse
+
+    stream, filename, content_type, file_size = DataAssetService().open_file_stream(file_id)
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}",
+    }
+    if file_size > 0:
+        headers["Content-Length"] = str(file_size)
+    return StreamingResponse(
+        stream,
+        media_type=content_type,
+        headers=headers,
+    )
+
+
 @router.get("/assets/{asset_id}/files", response_model=DataAssetFileListResponse)
 def list_asset_files(
     asset_id: str,
