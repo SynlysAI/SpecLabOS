@@ -6,7 +6,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
-from app.core.auth import get_current_user_optional, get_current_user_required
+from app.api.external_auth import caller_user
+from app.core.auth import get_current_user_required
 from app.core.config import get_settings
 from app.devices.raman_device import _get_raman_endpoint, _request_raman
 from app.runtime import (
@@ -77,7 +78,7 @@ def _resolve_permission(
 def list_devices(
     refresh_status: bool = Query(default=False),
     include_smartaccess: bool = Query(default=True),
-    user: Optional[dict] = Depends(get_current_user_optional),
+    user: Optional[dict] = Depends(caller_user),
     permission_service: DevicePermissionService = Depends(_get_permission_service),
 ) -> DeviceListResponse:
     """返回设备列表数据(含当前用户对每台设备的权限标记)。"""
@@ -102,7 +103,7 @@ def list_devices(
 @router.get("/{device_key}", response_model=DeviceItem)
 def get_device_detail(
     device_key: str,
-    user: Optional[dict] = Depends(get_current_user_optional),
+    user: Optional[dict] = Depends(caller_user),
     permission_service: DevicePermissionService = Depends(_get_permission_service),
 ) -> DeviceItem:
     """返回单个设备详情(含权限标记)。"""

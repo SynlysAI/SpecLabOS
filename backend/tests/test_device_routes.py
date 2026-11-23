@@ -14,7 +14,8 @@ def test_list_devices_returns_items():
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
-    assert len(data["items"]) == 12
+    # devices.yaml 已停止跟踪,环境可能包含额外设备,只约束核心集合下界。
+    assert len(data["items"]) >= 12
     device_keys = {item["key"] for item in data["items"]}
     assert {
         "nmr_2278",

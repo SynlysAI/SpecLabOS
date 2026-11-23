@@ -16,6 +16,7 @@ from app.api.routes import (
     data_assets,
     devices,
     external_experiment_dispatches,
+    health,
     logs,
     smartaccess,
     tools,
@@ -57,6 +58,7 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    application.include_router(health.router)
     application.include_router(auth.router)
     application.include_router(devices.router)
     application.include_router(devices.device_images_router)

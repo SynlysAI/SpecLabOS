@@ -1,6 +1,6 @@
 """外部服务调用 SpecLabOS 的统一鉴权依赖。"""
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 
 from app.core.auth import parse_access_token
 from app.core.config import get_settings
@@ -55,3 +55,38 @@ def require_external_api_auth(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="认证信息无效。",
     )
+
+
+def optional_external_api_auth(
+    authorization: str | None = Header(default=None),
+) -> dict | None:
+    """可选外部认证：提供凭证时必须有效，未提供时匿名放行。
+
+    Args:
+        authorization: HTTP Authorization 请求头。
+
+    Returns:
+        认证上下文；未提供认证信息时返回 None。
+
+    Raises:
+        HTTPException: 提供了无法识别的凭证时抛出 401。
+    """
+    if not authorization:
+        return None
+    return require_external_api_auth(authorization=authorization)
+
+
+def caller_user(
+    auth: dict | None = Depends(optional_external_api_auth),
+) -> dict | None:
+    """把可选外部认证上下文解析为平台用户文档。
+
+    外部 API Token 命中时返回 None(服务主体，按匿名只读处理)。
+
+    Args:
+        auth: 可选外部认证返回的上下文。
+
+    Returns:
+        平台用户文档；匿名或服务主体时为 None。
+    """
+    return (auth or {}).get("user")
