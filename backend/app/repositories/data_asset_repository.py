@@ -142,6 +142,8 @@ class DataAssetRepository:
         collector_id: str | None = None,
         data_type: str | None = None,
         asset_kind: str | None = None,
+        ingested_start: datetime | None = None,
+        ingested_end: datetime | None = None,
     ) -> tuple[list[dict], int]:
         """查询 SmartDataHub 数据资产列表。
 
@@ -152,6 +154,8 @@ class DataAssetRepository:
             collector_id: 采集器 ID。
             data_type: 数据类型。
             asset_kind: 资产类型，文件或目录。
+            ingested_start: 入库时间下界（含），按入库时间筛选。
+            ingested_end: 入库时间上界（含），按入库时间筛选。
 
         Returns:
             资产记录列表和匹配总数。
@@ -162,6 +166,8 @@ class DataAssetRepository:
             collector_id=collector_id,
             data_type=data_type,
             asset_kind=asset_kind,
+            ingested_start=ingested_start,
+            ingested_end=ingested_end,
         )
         total = int(self._assets.count_documents(query))
         items = list(self._assets.find(query).sort("ingested_at", -1).limit(limit))
@@ -175,6 +181,8 @@ class DataAssetRepository:
         collector_id: str | None = None,
         data_type: str | None = None,
         asset_kind: str | None = None,
+        ingested_start: datetime | None = None,
+        ingested_end: datetime | None = None,
     ) -> dict[str, Any]:
         """构造资产列表查询条件。
 
@@ -184,6 +192,8 @@ class DataAssetRepository:
             collector_id: 采集器 ID。
             data_type: 数据类型。
             asset_kind: 资产类型，文件或目录。
+            ingested_start: 入库时间下界（含）。
+            ingested_end: 入库时间上界（含）。
 
         Returns:
             MongoDB 查询条件。
@@ -197,6 +207,14 @@ class DataAssetRepository:
             query["data_type"] = data_type
         if asset_kind:
             query["asset_kind"] = asset_kind
+        if ingested_start is not None or ingested_end is not None:
+            # 入库时间以 isoformat 文本存储并按字典序排序，边界需归一化为 UTC isoformat。
+            time_filter: dict[str, Any] = {}
+            if ingested_start is not None:
+                time_filter["$gte"] = ingested_start.astimezone(timezone.utc).isoformat()
+            if ingested_end is not None:
+                time_filter["$lte"] = ingested_end.astimezone(timezone.utc).isoformat()
+            query["ingested_at"] = time_filter
         if keyword:
             keyword_filter = {"$regex": keyword, "$options": "i"}
             query["$or"] = [

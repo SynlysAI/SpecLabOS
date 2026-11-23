@@ -112,6 +112,8 @@ class DataAssetService:
         collector_id: str | None = None,
         data_type: str | None = None,
         asset_kind: str | None = None,
+        ingested_start: datetime | None = None,
+        ingested_end: datetime | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """查询数据资产列表。
 
@@ -122,6 +124,8 @@ class DataAssetService:
             collector_id: 采集器 ID。
             data_type: 数据类型。
             asset_kind: 资产类型，文件或目录。
+            ingested_start: 入库时间下界（含）。
+            ingested_end: 入库时间上界（含）。
 
         Returns:
             资产记录列表和匹配总数。
@@ -133,6 +137,8 @@ class DataAssetService:
             collector_id=collector_id,
             data_type=data_type,
             asset_kind=asset_kind,
+            ingested_start=ingested_start,
+            ingested_end=ingested_end,
         )
 
     def get_overview(self) -> dict[str, Any]:

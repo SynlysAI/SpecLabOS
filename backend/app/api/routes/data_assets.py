@@ -1,5 +1,7 @@
 """SmartDataHub 数据资产接口。"""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status
 
 from app.core.auth import parse_access_token
@@ -73,6 +75,33 @@ def get_overview() -> DataAssetOverviewResponse:
     return DataAssetOverviewResponse(**DataAssetService().get_overview())
 
 
+def _parse_ingested_bound(value: str | None, field: str) -> datetime | None:
+    """解析入库时间边界参数为规范化 UTC 时间。
+
+    Args:
+        value: ISO 8601 时间字符串，可为空。
+        field: 参数名，用于错误提示。
+
+    Returns:
+        UTC 时间对象；参数为空时返回 None。
+
+    Raises:
+        HTTPException: 时间格式不合法时抛出 400。
+    """
+    if value is None or value == "":
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{field} 不是合法的 ISO 8601 时间。",
+        ) from error
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 @router.get("/assets", response_model=DataAssetListResponse)
 def list_assets(
     limit: int = Query(default=50, ge=1, le=500),
@@ -81,6 +110,8 @@ def list_assets(
     collector_id: str | None = Query(default=None),
     data_type: str | None = Query(default=None),
     asset_kind: str | None = Query(default=None),
+    ingested_start: str | None = Query(default=None),
+    ingested_end: str | None = Query(default=None),
 ) -> DataAssetListResponse:
     """查询数据资产列表。
 
@@ -91,6 +122,8 @@ def list_assets(
         collector_id: 采集器 ID。
         data_type: 数据类型。
         asset_kind: 资产类型，文件或目录。
+        ingested_start: 入库时间下界（ISO 8601，含）。
+        ingested_end: 入库时间上界（ISO 8601，含）。
 
     Returns:
         数据资产列表和匹配总数。
@@ -102,6 +135,8 @@ def list_assets(
         collector_id=collector_id,
         data_type=data_type,
         asset_kind=asset_kind,
+        ingested_start=_parse_ingested_bound(ingested_start, "ingested_start"),
+        ingested_end=_parse_ingested_bound(ingested_end, "ingested_end"),
     )
     return DataAssetListResponse(items=items, total=total)
 
