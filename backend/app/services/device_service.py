@@ -122,6 +122,7 @@ class DeviceService:
             "location": device.location,
             "connection": device.connection,
             "adapter_type": device.adapter_type or "",
+            "published_by": device.published_by or "",
             "status_snapshot": {
                 "state": state,
                 "message": device.status_message or (

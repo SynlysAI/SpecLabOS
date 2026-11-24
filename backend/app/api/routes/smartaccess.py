@@ -280,6 +280,7 @@ def sync_device(payload: SmartAccessDeviceSyncRequest) -> dict:
         node_id,
         name=payload.name.strip(),
         window_title=payload.window_title.strip(),
+        published_by=payload.published_by.strip() or "smartaccess",
     )
     return record
 

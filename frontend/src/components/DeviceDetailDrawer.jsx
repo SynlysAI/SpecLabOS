@@ -41,6 +41,9 @@ export default function DeviceDetailDrawer({ open, device, onClose, onCancelAcce
             <Descriptions.Item label="接入模式">
               {formatDeviceAccessMode(device.adapter_type)}
             </Descriptions.Item>
+            {device.published_by ? (
+              <Descriptions.Item label="发布人">{device.published_by}</Descriptions.Item>
+            ) : null}
             <Descriptions.Item label="当前状态">
               <StatusTag status={device.status_snapshot?.state} />
             </Descriptions.Item>
