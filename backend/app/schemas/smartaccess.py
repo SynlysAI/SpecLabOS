@@ -30,6 +30,7 @@ class SmartAccessTemplateItem(BaseModel):
     source_device_id: str = ""
     status: str = "published"
     step_count: int = 0
+    published_by: str = ""
     published_at: str = ""
     updated_at: str = ""
 
@@ -149,6 +150,7 @@ class SmartAccessDeviceSyncRequest(BaseModel):
     node_id: str
     name: str = ""
     window_title: str = ""
+    published_by: str = "smartaccess"
 
 
 class SmartAccessDeviceImageResponse(BaseModel):

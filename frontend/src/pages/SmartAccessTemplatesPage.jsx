@@ -493,6 +493,9 @@ export default function SmartAccessTemplatesPage() {
             <Descriptions.Item label="发布执行端">
               {detail?.source_device_id || "--"}
             </Descriptions.Item>
+            <Descriptions.Item label="发布人">
+              {detail?.published_by || "--"}
+            </Descriptions.Item>
             <Descriptions.Item label="步骤数">
               {detail?.step_count ?? detail?.workflow?.steps?.length ?? "--"}
             </Descriptions.Item>

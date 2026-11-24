@@ -24,6 +24,7 @@ class DeviceItem(BaseModel):
     image_url: str | None = None
     connection: dict = Field(default_factory=dict)
     adapter_type: str = ""
+    published_by: str = ""
     status_snapshot: DeviceStatusSnapshot = Field(default_factory=DeviceStatusSnapshot)
     permission: str = "read"
 

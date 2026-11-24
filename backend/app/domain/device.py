@@ -31,6 +31,8 @@ class DeviceResource(BaseModel):
     adapter_type: str | None = None
     # 设备图片访问地址;为空时由配置或设备类型兜底解析
     image_url: str = ""
+    # 发布人;SmartAccess 接入设备为执行端点击发布的登录用户名
+    published_by: str = ""
     status_sources: list[str] = Field(default_factory=list)
     status_updated_at: datetime | None = None
     status_message: str = ""

@@ -30,6 +30,7 @@ class SmartAccessDeviceRepository:
         *,
         name: str = "",
         window_title: str = "",
+        published_by: str = "",
     ) -> dict:
         """保存或更新一台已同步设备。
 
@@ -38,6 +39,7 @@ class SmartAccessDeviceRepository:
             node_id: 所属执行端 ID。
             name: 展示名称。
             window_title: 绑定的窗口标题。
+            published_by: 执行端点击发布的登录用户名。
 
         Returns:
             设备记录。
@@ -47,6 +49,7 @@ class SmartAccessDeviceRepository:
             "node_id": node_id,
             "name": name or device_id,
             "window_title": window_title,
+            "published_by": published_by or "smartaccess",
             "updated_at": _now_text(),
         }
         self._devices.update_one({"device_id": device_id}, {"$set": record}, upsert=True)
