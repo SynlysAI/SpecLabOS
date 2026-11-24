@@ -238,6 +238,17 @@ class SmartAccessService:
         ):
             raise HTTPException(status_code=404, detail="SmartAccess 模板不存在")
 
+    def unpublish_device(self, device_id: str) -> int:
+        """下线挂在指定仪器上的已发布模板。
+
+        Args:
+            device_id: 仪器设备 ID。
+
+        Returns:
+            下线的模板数量。
+        """
+        return self._repository.delete_templates_by_device(device_id)
+
     def create_run(self, payload: SmartAccessRunCreateRequest) -> dict:
         """创建 SmartAccess 远程运行并发布 MQ 消息。
 

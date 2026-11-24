@@ -55,3 +55,15 @@ class SmartAccessDeviceRepository:
     def list_devices(self) -> list[dict]:
         """列出已同步设备。"""
         return list(self._devices.find({}))
+
+    def delete_device(self, device_id: str) -> bool:
+        """删除已同步的仪器档案。
+
+        Args:
+            device_id: 仪器设备 ID。
+
+        Returns:
+            是否删除到记录。
+        """
+        result = self._devices.delete_one({"device_id": device_id})
+        return result.deleted_count > 0

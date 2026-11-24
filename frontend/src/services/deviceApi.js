@@ -32,6 +32,20 @@ export async function fetchDeviceDetail(deviceKey) {
 }
 
 /**
+ * 取消 SmartAccess 设备接入。
+ *
+ * Args:
+ *     deviceKey: 带 smartaccess: 前缀的设备标识。
+ *
+ * Returns:
+ *     取消结果。
+ */
+export async function cancelDeviceAccess(deviceKey) {
+  const response = await http.delete(`/api/devices/${encodeURIComponent(deviceKey)}/access`);
+  return response.data;
+}
+
+/**
  * 解析设备图片 URL。
  *
  * Args:

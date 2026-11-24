@@ -10,10 +10,13 @@ from app.api.external_auth import caller_user
 from app.core.auth import get_current_user_required
 from app.core.config import get_settings
 from app.devices.raman_device import _get_raman_endpoint, _request_raman
+from app.core.mongo import get_database
+from app.repositories.smartaccess_device_repository import SmartAccessDeviceRepository
 from app.runtime import (
     get_device_permission_service,
     get_device_service,
     get_device_status_service,
+    get_smartaccess_service,
 )
 from app.schemas.device import (
     CameraFocusRequest,
@@ -120,6 +123,37 @@ def get_device_detail(
         user, serialized_device["key"], permission_service
     )
     return DeviceItem(**serialized_device)
+
+
+@router.delete("/{device_key}/access")
+def cancel_device_access(
+    device_key: str,
+    user: dict = Depends(get_current_user_required),
+    permission_service: DevicePermissionService = Depends(_get_permission_service),
+) -> dict:
+    """取消 SmartAccess 设备接入，并下线该设备已发布的流程。
+
+    Args:
+        device_key: 设备标识，SmartAccess 设备带 smartaccess: 前缀。
+        user: 当前登录用户。
+        permission_service: 设备权限服务。
+
+    Returns:
+        取消结果和已下线的流程数量。
+    """
+    permission_service.assert_control(user, [device_key])
+    device_id = device_key.removeprefix("smartaccess:")
+    if not device_id or device_id == device_key:
+        raise HTTPException(status_code=400, detail="只有 SmartAccess 接入设备可以取消接入")
+    removed = SmartAccessDeviceRepository(get_database()).delete_device(device_id)
+    unpublished = get_smartaccess_service().unpublish_device(device_id)
+    if not removed and unpublished == 0:
+        raise HTTPException(status_code=404, detail="设备接入记录不存在")
+    return {
+        "detail": "设备已取消接入",
+        "device_id": device_id,
+        "unpublished_templates": unpublished,
+    }
 
 
 @router.post("/{device_key}/refresh-status", response_model=DeviceItem)

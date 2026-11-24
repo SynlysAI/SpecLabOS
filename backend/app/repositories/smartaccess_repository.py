@@ -182,6 +182,27 @@ class SmartAccessRepository:
         result = self._templates.delete_one(query)
         return result.deleted_count > 0
 
+    def delete_templates_by_device(self, device_id: str) -> int:
+        """下线挂在指定仪器上的已发布模板。
+
+        Args:
+            device_id: 仪器设备 ID 或执行端 ID。
+
+        Returns:
+            删除的模板数量。
+        """
+        if not device_id:
+            return 0
+        result = self._templates.delete_many(
+            {
+                "$or": [
+                    {"anchor_profile": device_id},
+                    {"source_device_id": device_id},
+                ]
+            }
+        )
+        return int(result.deleted_count)
+
     def create_run(
         self,
         template: dict,
