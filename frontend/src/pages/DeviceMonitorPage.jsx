@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Button, Card, Col, Image, Row, Space, Spin, Table, Tabs, Tag } from "antd";
+import { Alert, Button, Card, Col, Image, message, Row, Space, Spin, Table, Tabs, Tag } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 
 import DeviceDetailDrawer from "../components/DeviceDetailDrawer";
 import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
-import { fetchDevices, resolveDeviceImageUrl } from "../services/deviceApi";
+import { cancelDeviceAccess, fetchDevices, resolveDeviceImageUrl } from "../services/deviceApi";
 import { formatDeviceAccessMode } from "../utils/deviceDisplay";
 
 const columns = [
@@ -161,6 +161,28 @@ export default function DeviceMonitorPage() {
     setDrawerOpen(true);
   }
 
+  /**
+   * 取消 SmartAccess 设备接入。
+   *
+   * Args:
+   *     record: 当前设备记录。
+   */
+  async function handleCancelAccess(record) {
+    try {
+      const result = await cancelDeviceAccess(record.key);
+      message.success(
+        result?.unpublished_templates
+          ? `已取消接入，并下线 ${result.unpublished_templates} 个流程`
+          : "已取消接入"
+      );
+      setDrawerOpen(false);
+      setSelectedDevice(null);
+      loadDevices({ refreshStatus: false });
+    } catch (error) {
+      message.error(error?.response?.data?.detail || "取消接入失败");
+    }
+  }
+
   const onlineCount = devices.filter(
     (item) => ["online", "running", "idle"].includes(item.status_snapshot?.state)
   ).length;
@@ -241,6 +263,7 @@ export default function DeviceMonitorPage() {
         open={drawerOpen}
         device={selectedDevice}
         onClose={() => setDrawerOpen(false)}
+        onCancelAccess={handleCancelAccess}
       />
     </section>
   );

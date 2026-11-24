@@ -1,5 +1,5 @@
 import React from "react";
-import { Descriptions, Drawer, Empty, Image, Space } from "antd";
+import { Button, Descriptions, Drawer, Empty, Image, Popconfirm, Space } from "antd";
 
 import StatusTag from "./StatusTag";
 import { resolveDeviceImageUrl } from "../services/deviceApi";
@@ -12,11 +12,12 @@ import { formatDeviceAccessMode } from "../utils/deviceDisplay";
  *     open: 抽屉是否打开。
  *     device: 当前选中的设备。
  *     onClose: 关闭回调。
+ *     onCancelAccess: 取消 SmartAccess 设备接入的回调。
  *
  * Returns:
  *     展示设备基础信息与状态摘要的抽屉。
  */
-export default function DeviceDetailDrawer({ open, device, onClose }) {
+export default function DeviceDetailDrawer({ open, device, onClose, onCancelAccess }) {
   return (
     <Drawer
       title={device ? `${device.name} 详情` : "设备详情"}
@@ -53,6 +54,18 @@ export default function DeviceDetailDrawer({ open, device, onClose }) {
               {device.location || "未登记"}
             </Descriptions.Item>
           </Descriptions>
+          {device.adapter_type === "smartaccess" && device.permission === "control" ? (
+            <Popconfirm
+              title="确认取消接入？"
+              description="设备会从监控页移除，已发布的流程也会下线。"
+              okText="取消接入"
+              cancelText="保留"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => onCancelAccess?.(device)}
+            >
+              <Button danger>取消接入</Button>
+            </Popconfirm>
+          ) : null}
         </Space>
       ) : (
         <Empty description="请选择设备查看详情" />
