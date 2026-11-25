@@ -43,7 +43,11 @@ const TEXT_LOG_EXTENSIONS = [".log", ".txt", ".csv", ".json", ".xml"];
 function isTextLogFile(file) {
   const contentType = String(file?.content_type || "").toLowerCase();
   const filename = String(file?.filename || "").toLowerCase();
-  if (contentType.startsWith("text/") || contentType.includes("json") || contentType.includes("xml")) {
+  if (contentType.startsWith("text/")) {
+    return true;
+  }
+  // 精确匹配常见文本 MIME，避免子串误判（如 openxmlformats 含 "xml"）。
+  if (["application/json", "application/xml", "text/xml"].includes(contentType) || contentType.endsWith("+xml")) {
     return true;
   }
   return TEXT_LOG_EXTENSIONS.some((extension) => filename.endsWith(extension));

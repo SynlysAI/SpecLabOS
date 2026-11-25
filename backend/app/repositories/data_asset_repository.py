@@ -341,6 +341,69 @@ class DataAssetRepository:
         """
         return self._files.find_one({"file_id": file_id})
 
+    def get_asset(self, asset_id: str) -> dict | None:
+        """按资产 ID 查询资产记录。
+
+        Args:
+            asset_id: 数据资产 ID。
+
+        Returns:
+            资产记录；不存在时返回 None。
+        """
+        return self._assets.find_one({"asset_id": asset_id})
+
+    def delete_file(self, file_id: str) -> dict | None:
+        """删除文件记录并同步所属资产的统计信息。
+
+        资产下已无文件时一并删除资产记录。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            被删除的文件记录；文件不存在时返回 None。
+        """
+        file_doc = self._files.find_one({"file_id": file_id})
+        if file_doc is None:
+            return None
+        self._files.delete_one({"_id": file_doc["_id"]})
+        self._refresh_asset_stats(str(file_doc.get("asset_id") or ""))
+        return file_doc
+
+    def delete_asset(self, asset_id: str) -> list[dict]:
+        """删除资产记录及其全部文件明细记录。
+
+        Args:
+            asset_id: 数据资产 ID。
+
+        Returns:
+            被删除的文件记录列表，供调用方清理存储对象。
+        """
+        file_docs = list(self._files.find({"asset_id": asset_id}))
+        self._files.delete_many({"asset_id": asset_id})
+        self._assets.delete_one({"asset_id": asset_id})
+        return file_docs
+
+    def _refresh_asset_stats(self, asset_id: str) -> None:
+        """重算资产的文件数和总大小，资产下无文件时删除资产记录。
+
+        Args:
+            asset_id: 数据资产 ID。
+        """
+        if not asset_id:
+            return
+        remaining = list(self._files.find({"asset_id": asset_id}, {"file_size": 1}))
+        if remaining:
+            self._assets.update_one(
+                {"asset_id": asset_id},
+                {"$set": {
+                    "file_count": len(remaining),
+                    "total_size": sum(int(item.get("file_size") or 0) for item in remaining),
+                }},
+            )
+        else:
+            self._assets.delete_one({"asset_id": asset_id})
+
     @staticmethod
     def _build_file_query(
         *,

@@ -75,6 +75,15 @@ SpecLabOS 当前也集成了 SmartDataHub 的数据接收能力，用于接收�
 - 文件上传：`POST /api/data/ingest/files`
 - 资产列表：`GET /api/data/assets`
 - 资产文件列表：`GET /api/data/assets/{asset_id}/files`
+- 文件下载：`GET /api/data/files/{file_id}/download`
+- 资产下载：`GET /api/data/assets/{asset_id}/download`（资产下只有一个文件时直接返回原文件，多个文件打包 zip）
+- 文件删除：`DELETE /api/data/files/{file_id}`
+- 资产删除：`DELETE /api/data/assets/{asset_id}`
+
+### 下载与删除权限
+
+- 下载：登录用户均可下载资产和文件。
+- 删除：管理员或对文件/资产所属设备有编辑（control）权限的用户可删除，为物理删除，删除后不可恢复；列表接口返回 `can_delete` 标记供前端控制按钮显隐。
 
 ### 存储结构
 

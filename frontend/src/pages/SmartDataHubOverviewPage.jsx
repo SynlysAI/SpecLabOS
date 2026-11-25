@@ -9,6 +9,7 @@ import {
   Empty,
   Form,
   Input,
+  Modal,
   Row,
   Select,
   Space,
@@ -16,10 +17,13 @@ import {
   Table,
   Tag,
   Tooltip,
-  Typography
+  Typography,
+  message
 } from "antd";
 import {
   DatabaseOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
   FileSearchOutlined,
   HddOutlined,
   ReloadOutlined
@@ -29,6 +33,10 @@ import PageToolbar from "../components/PageToolbar";
 import StatusTag from "../components/StatusTag";
 import { formatDateTime } from "../utils/datetime";
 import {
+  deleteDataAsset,
+  deleteDataAssetFile,
+  downloadDataAssetFile,
+  downloadDataAssetZip,
   fetchDataAssetFiles,
   fetchDataAssetOverview,
   fetchDataAssets
@@ -355,6 +363,7 @@ export default function SmartDataHubOverviewPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [downloadingKey, setDownloadingKey] = useState("");
 
   const dataTypeOptions = useMemo(() => {
     const knownKeys = new Set(Object.keys(DATA_TYPE_LABELS));
@@ -428,6 +437,41 @@ export default function SmartDataHubOverviewPage() {
           <span>{formatDateTime(value)}</span>
         </Tooltip>
       )
+    },
+    {
+      title: "操作",
+      key: "actions",
+      width: 110,
+      render: (_, record) => (
+        <Space size={0}>
+          <Tooltip title="下载资产文件">
+            <Button
+              type="text"
+              size="small"
+              icon={<DownloadOutlined />}
+              loading={downloadingKey === `asset-${record.asset_id}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                handleDownloadAsset(record);
+              }}
+            />
+          </Tooltip>
+          {record.can_delete ? (
+            <Tooltip title="删除资产及全部文件">
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  confirmDeleteAsset(record);
+                }}
+              />
+            </Tooltip>
+          ) : null}
+        </Space>
+      )
     }
   ];
 
@@ -442,7 +486,36 @@ export default function SmartDataHubOverviewPage() {
       render: (value) => formatBytes(value)
     },
     { title: "类型", dataIndex: "content_type", key: "content_type", width: 170 },
-    { title: "状态", dataIndex: "upload_status", key: "upload_status", width: 110 }
+    { title: "状态", dataIndex: "upload_status", key: "upload_status", width: 110 },
+    {
+      title: "操作",
+      key: "actions",
+      width: 100,
+      render: (_, record) => (
+        <Space size={0}>
+          <Tooltip title="下载文件">
+            <Button
+              type="text"
+              size="small"
+              icon={<DownloadOutlined />}
+              loading={downloadingKey === `file-${record.file_id}`}
+              onClick={() => handleDownloadFile(record)}
+            />
+          </Tooltip>
+          {record.can_delete ? (
+            <Tooltip title="删除文件">
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => confirmDeleteFile(record)}
+              />
+            </Tooltip>
+          ) : null}
+        </Space>
+      )
+    }
   ];
 
   /**
@@ -516,6 +589,116 @@ export default function SmartDataHubOverviewPage() {
     } finally {
       setFilesLoading(false);
     }
+  }
+
+  /**
+   * 下载资产：单文件资产直接下载原文件，多文件资产打包 zip 下载。
+   *
+   * Args:
+   *     asset: 目标数据资产。
+   */
+  async function handleDownloadAsset(asset) {
+    setDownloadingKey(`asset-${asset.asset_id}`);
+    try {
+      if (Number(asset.file_count) === 1) {
+        const files = await fetchDataAssetFiles(asset.asset_id);
+        const target = files[0];
+        if (!target) {
+          message.warning("该资产下没有可下载的文件");
+          return;
+        }
+        await downloadDataAssetFile(target);
+        message.success("文件已开始下载");
+      } else {
+        const zipName = `${asset.display_name || asset.asset_group_id || asset.asset_id}.zip`;
+        await downloadDataAssetZip(asset, zipName);
+        message.success("资产压缩包已开始下载");
+      }
+    } catch (error) {
+      console.error("下载资产失败", error);
+      message.error(buildRequestErrorMessage(error));
+    } finally {
+      setDownloadingKey("");
+    }
+  }
+
+  /**
+   * 弹出确认后删除整个数据资产及其全部文件。
+   *
+   * Args:
+   *     asset: 目标数据资产。
+   */
+  function confirmDeleteAsset(asset) {
+    Modal.confirm({
+      title: "删除数据资产",
+      content: `将永久删除资产「${asset.display_name}」及其 ${asset.file_count} 个文件，该操作不可恢复。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await deleteDataAsset(asset.asset_id);
+          message.success("数据资产已删除");
+          if (selectedAsset?.asset_id === asset.asset_id) {
+            setDrawerOpen(false);
+            setSelectedAsset(null);
+          }
+          refreshAll();
+        } catch (error) {
+          console.error("删除数据资产失败", error);
+          message.error(buildRequestErrorMessage(error));
+        }
+      }
+    });
+  }
+
+  /**
+   * 下载单个数据文件到本地。
+   *
+   * Args:
+   *     file: 目标数据文件。
+   */
+  async function handleDownloadFile(file) {
+    setDownloadingKey(`file-${file.file_id}`);
+    try {
+      await downloadDataAssetFile(file);
+      message.success("文件已开始下载");
+    } catch (error) {
+      console.error("下载数据文件失败", error);
+      message.error(buildRequestErrorMessage(error));
+    } finally {
+      setDownloadingKey("");
+    }
+  }
+
+  /**
+   * 弹出确认后删除单个数据文件。
+   *
+   * Args:
+   *     file: 目标数据文件。
+   */
+  function confirmDeleteFile(file) {
+    Modal.confirm({
+      title: "删除数据文件",
+      content: `将永久删除文件「${file.filename || file.relative_path}」，该操作不可恢复。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await deleteDataAssetFile(file.file_id);
+          message.success("数据文件已删除");
+          if (selectedAsset) {
+            await openAssetDetail(selectedAsset);
+          }
+          loadAssets(form.getFieldsValue());
+          loadOverview();
+        } catch (error) {
+          console.error("删除数据文件失败", error);
+          message.error(buildRequestErrorMessage(error));
+        }
+      }
+    });
   }
 
   useEffect(() => {
