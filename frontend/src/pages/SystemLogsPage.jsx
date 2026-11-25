@@ -28,6 +28,27 @@ const DEFAULT_FILTERS = {
   days: 7
 };
 
+/** 可按文本日志预览的文件扩展名。 */
+const TEXT_LOG_EXTENSIONS = [".log", ".txt", ".csv", ".json", ".xml"];
+
+/**
+ * 判断日志文件是否为可预览的文本类文件。
+ *
+ * Args:
+ *     file: 日志文件记录。
+ *
+ * Returns:
+ *     文本类文件返回 true。
+ */
+function isTextLogFile(file) {
+  const contentType = String(file?.content_type || "").toLowerCase();
+  const filename = String(file?.filename || "").toLowerCase();
+  if (contentType.startsWith("text/") || contentType.includes("json") || contentType.includes("xml")) {
+    return true;
+  }
+  return TEXT_LOG_EXTENSIONS.some((extension) => filename.endsWith(extension));
+}
+
 /**
  * 从常见日志行首提取时间。
  *
@@ -174,6 +195,12 @@ export default function SystemLogsPage() {
    */
   async function openFile(file) {
     setSelectedFile(file);
+    if (!isTextLogFile(file)) {
+      setContent("");
+      setTruncated(false);
+      setErrorMessage("");
+      return;
+    }
     setContentLoading(true);
     try {
       const response = await fetchLogContent(file.file_id);
@@ -259,7 +286,7 @@ export default function SystemLogsPage() {
             className="device-log-viewer"
             loading={contentLoading}
             title={selectedFile ? selectedFile.filename : "日志内容"}
-            extra={(
+            extra={selectedFile && isTextLogFile(selectedFile) ? (
               <Input
                 allowClear
                 value={contentKeyword}
@@ -267,32 +294,36 @@ export default function SystemLogsPage() {
                 style={{ width: 180 }}
                 onChange={(event) => setContentKeyword(event.target.value)}
               />
-            )}
+            ) : undefined}
           >
             {selectedFile ? (
-              <>
-                <Paragraph type="secondary" className="device-log-path">
-                  {selectedFile.device_id} / {selectedFile.relative_path || selectedFile.filename}
-                  {truncated ? " · 仅显示文件尾部" : ""}
-                </Paragraph>
-                <div className="device-log-content">
-                  {visibleLines.map((line, index) => {
-                    const lineTime = extractLineTime(line);
-                    return (
-                      <div className="device-log-line" key={`${index}-${line.slice(0, 24)}`}>
-                        <span className="device-log-time">{lineTime || "--"}</span>
-                        <span>
-                          {splitByKeyword(line, contentKeyword).map((part, partIndex) => (
-                            part.toLowerCase() === contentKeyword.trim().toLowerCase() && contentKeyword.trim()
-                              ? <mark key={partIndex}>{part}</mark>
-                              : <span key={partIndex}>{part || " "}</span>
-                          ))}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+              isTextLogFile(selectedFile) ? (
+                <>
+                  <Paragraph type="secondary" className="device-log-path">
+                    {selectedFile.device_id} / {selectedFile.relative_path || selectedFile.filename}
+                    {truncated ? " · 仅显示文件尾部" : ""}
+                  </Paragraph>
+                  <div className="device-log-content">
+                    {visibleLines.map((line, index) => {
+                      const lineTime = extractLineTime(line);
+                      return (
+                        <div className="device-log-line" key={`${index}-${line.slice(0, 24)}`}>
+                          <span className="device-log-time">{lineTime || "--"}</span>
+                          <span>
+                            {splitByKeyword(line, contentKeyword).map((part, partIndex) => (
+                              part.toLowerCase() === contentKeyword.trim().toLowerCase() && contentKeyword.trim()
+                                ? <mark key={partIndex}>{part}</mark>
+                                : <span key={partIndex}>{part || " "}</span>
+                            ))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <Empty description="不支持该格式日志预览" />
+              )
             ) : (
               <Empty description="选择左侧日志文件查看内容" />
             )}
