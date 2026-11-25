@@ -38,6 +38,7 @@ class DataAssetFileItem(BaseModel):
     sample_id: str = ""
     operator: str = ""
     tags: list[str] = Field(default_factory=list)
+    can_delete: bool = False
 
 
 class DataAssetItem(BaseModel):
@@ -72,6 +73,7 @@ class DataAssetItem(BaseModel):
     sample_id: str = ""
     operator: str = ""
     tags: list[str] = Field(default_factory=list)
+    can_delete: bool = False
 
 
 class DataAssetDistributionItem(BaseModel):

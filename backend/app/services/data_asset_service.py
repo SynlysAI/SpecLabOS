@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
+import zipfile
 from datetime import datetime, timezone
 from typing import Any
 
@@ -201,6 +204,127 @@ class DataAssetService:
         record = self._repository.get_file(file_id)
         if record is None:
             raise HTTPException(status_code=404, detail="数据文件不存在")
+        stream = self._open_object_stream(record)
+        return (
+            stream,
+            str(record.get("filename") or file_id),
+            str(record.get("content_type") or "application/octet-stream"),
+            int(record.get("file_size") or 0),
+        )
+
+    def get_file_record(self, file_id: str) -> dict[str, Any] | None:
+        """按 ID 获取文件记录，供路由层判定权限。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            文件记录；不存在时返回 None。
+        """
+        return self._repository.get_file(file_id)
+
+    def get_asset_record(self, asset_id: str) -> dict[str, Any] | None:
+        """按 ID 获取资产记录，供路由层判定权限。
+
+        Args:
+            asset_id: 数据资产 ID。
+
+        Returns:
+            资产记录；不存在时返回 None。
+        """
+        return self._repository.get_asset(asset_id)
+
+    def delete_file(self, file_id: str) -> dict[str, Any]:
+        """删除数据文件及其 MinIO 存储对象。
+
+        Args:
+            file_id: 数据文件 ID。
+
+        Returns:
+            被删除文件的摘要信息。
+
+        Raises:
+            HTTPException: 文件不存在或存储对象删除失败。
+        """
+        record = self._repository.get_file(file_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="数据文件不存在")
+        self._remove_storage_object(record)
+        self._repository.delete_file(file_id)
+        return {
+            "file_id": file_id,
+            "filename": str(record.get("filename") or ""),
+            "asset_id": str(record.get("asset_id") or ""),
+        }
+
+    def delete_asset(self, asset_id: str) -> dict[str, Any]:
+        """删除资产及其全部文件记录与 MinIO 存储对象。
+
+        先清理存储对象再删除数据库记录，失败时可安全重试。
+
+        Args:
+            asset_id: 数据资产 ID。
+
+        Returns:
+            删除摘要信息。
+
+        Raises:
+            HTTPException: 存储对象删除失败，此时数据库记录保持不变。
+        """
+        file_docs = self._repository.list_files(asset_id, limit=2000)
+        for record in file_docs:
+            self._remove_storage_object(record)
+        self._repository.delete_asset(asset_id)
+        return {
+            "asset_id": asset_id,
+            "deleted_file_count": len(file_docs),
+        }
+
+    def pack_asset_to_zip(self, asset_id: str) -> str:
+        """把资产下全部文件打包为 zip 临时文件。
+
+        Args:
+            asset_id: 数据资产 ID。
+
+        Returns:
+            临时压缩包路径，由调用方负责清理。
+
+        Raises:
+            HTTPException: 资产下没有文件或对象读取失败。
+        """
+        files = self._repository.list_files(asset_id, limit=2000)
+        if not files:
+            raise HTTPException(status_code=404, detail="资产下没有可下载的文件")
+        fd, temp_path = tempfile.mkstemp(suffix=".zip")
+        os.close(fd)
+        try:
+            with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as archive:
+                for record in files:
+                    entry_name = str(
+                        record.get("relative_path") or record.get("filename") or record.get("file_id")
+                    )
+                    info = zipfile.ZipInfo(entry_name, date_time=datetime.now().timetuple()[:6])
+                    info.compress_type = zipfile.ZIP_DEFLATED
+                    with archive.open(info, "w") as target:
+                        for block in self._open_object_stream(record):
+                            target.write(block)
+        except Exception:
+            _safe_remove(temp_path)
+            raise
+        return temp_path
+
+    def _open_object_stream(self, record: dict[str, Any]) -> Any:
+        """打开文件记录对应的 MinIO 对象字节流。
+
+        Args:
+            record: 数据文件记录。
+
+        Returns:
+            字节块迭代器。
+
+        Raises:
+            HTTPException: 记录缺少存储键或对象读取失败。
+        """
         bucket_name = str(record.get("storage_bucket") or get_minio_bucket())
         storage_key = str(record.get("storage_key") or "")
         if not storage_key:
@@ -218,12 +342,25 @@ class DataAssetService:
                 response.close()
                 response.release_conn()
 
-        return (
-            _iterator(),
-            str(record.get("filename") or file_id),
-            str(record.get("content_type") or "application/octet-stream"),
-            int(record.get("file_size") or 0),
-        )
+        return _iterator()
+
+    def _remove_storage_object(self, record: dict[str, Any]) -> None:
+        """删除文件记录对应的 MinIO 存储对象。
+
+        Args:
+            record: 数据文件记录。
+
+        Raises:
+            HTTPException: 存储对象删除失败。
+        """
+        bucket_name = str(record.get("storage_bucket") or get_minio_bucket())
+        storage_key = str(record.get("storage_key") or "")
+        if not storage_key:
+            return
+        try:
+            self._minio_client.remove_object(bucket_name, storage_key)
+        except S3Error as exc:
+            raise HTTPException(status_code=502, detail=f"删除存储对象失败: {exc}") from exc
 
     def read_text_file(self, file_id: str, *, max_bytes: int = 200_000) -> dict[str, Any]:
         """读取文本文件尾部内容。
@@ -286,7 +423,10 @@ class DataAssetService:
             文本文件返回 True。
         """
         normalized_type = content_type.lower()
-        if normalized_type.startswith("text/") or "json" in normalized_type or "xml" in normalized_type:
+        if normalized_type.startswith("text/"):
+            return True
+        # 精确匹配常见文本 MIME，避免子串误判（如 openxmlformats 含 "xml"）。
+        if normalized_type in ("application/json", "application/xml", "text/xml") or normalized_type.endswith("+xml"):
             return True
         return filename.lower().endswith((".log", ".txt", ".csv", ".json", ".xml"))
 
@@ -440,3 +580,15 @@ class DataAssetService:
                 self._minio_client.make_bucket(bucket_name)
         except S3Error as exc:
             raise HTTPException(status_code=502, detail=f"MinIO bucket 初始化失败: {exc}") from exc
+
+
+def _safe_remove(path: str) -> None:
+    """静默清理临时打包文件。
+
+    Args:
+        path: 临时文件路径。
+    """
+    try:
+        os.remove(path)
+    except OSError:
+        pass

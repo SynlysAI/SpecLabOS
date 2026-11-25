@@ -66,3 +66,79 @@ export async function fetchDataAssetFiles(assetId) {
   });
   return response.data?.items || [];
 }
+
+/**
+ * 删除单个数据文件及其存储对象。
+ *
+ * Args:
+ *     fileId: 数据文件 ID。
+ *
+ * Returns:
+ *     删除摘要信息。
+ */
+export async function deleteDataAssetFile(fileId) {
+  const response = await http.delete(`/api/data/files/${fileId}`);
+  return response.data || {};
+}
+
+/**
+ * 删除整个数据资产及其全部文件。
+ *
+ * Args:
+ *     assetId: 数据资产 ID。
+ *
+ * Returns:
+ *     删除摘要信息。
+ */
+export async function deleteDataAsset(assetId) {
+  const response = await http.delete(`/api/data/assets/${assetId}`);
+  return response.data || {};
+}
+
+/**
+ * 下载单个数据文件到本地。
+ *
+ * Args:
+ *     file: 含 file_id 和 filename 的文件记录。
+ */
+export async function downloadDataAssetFile(file) {
+  const response = await http.get(`/api/data/files/${file.file_id}/download`, {
+    responseType: "blob",
+    timeout: 0
+  });
+  saveBlobAsFile(response.data, file.filename || file.file_id);
+}
+
+/**
+ * 下载资产压缩包（zip）到本地。
+ *
+ * Args:
+ *     asset: 含 asset_id 的资产记录。
+ *     zipName: 保存使用的压缩包文件名。
+ */
+export async function downloadDataAssetZip(asset, zipName) {
+  const response = await http.get(`/api/data/assets/${asset.asset_id}/download`, {
+    responseType: "blob",
+    timeout: 0
+  });
+  saveBlobAsFile(response.data, zipName);
+}
+
+/**
+ * 把 Blob 内容保存为本地文件。
+ *
+ * Args:
+ *     blob: 响应二进制内容。
+ *     filename: 保存使用的文件名。
+ */
+function saveBlobAsFile(blob, filename) {
+  const SAFE_FILENAME_PATTERN = /[\\/:*?"<>|]/g;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename.replace(SAFE_FILENAME_PATTERN, "_") || "download";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
