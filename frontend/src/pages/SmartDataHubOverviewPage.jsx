@@ -855,6 +855,7 @@ export default function SmartDataHubOverviewPage() {
               </Descriptions.Item>
               <Descriptions.Item label="设备 ID">{selectedAsset.device_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="Collector ID">{selectedAsset.collector_id || "--"}</Descriptions.Item>
+              <Descriptions.Item label="采集人">{selectedAsset.operator || "--"}</Descriptions.Item>
               <Descriptions.Item label="文件数">{selectedAsset.file_count}</Descriptions.Item>
               <Descriptions.Item label="总大小">{formatBytes(selectedAsset.total_size)}</Descriptions.Item>
               <Descriptions.Item label="数据集">{selectedAsset.dataset_id || "--"}</Descriptions.Item>
