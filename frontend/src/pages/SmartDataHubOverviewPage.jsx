@@ -848,8 +848,7 @@ export default function SmartDataHubOverviewPage() {
         {selectedAsset ? (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Descriptions bordered column={2} size="small" title="资产信息">
-              <Descriptions.Item label="资产 ID">{selectedAsset.asset_id}</Descriptions.Item>
-              <Descriptions.Item label="采集人">{selectedAsset.operator || "--"}</Descriptions.Item>
+              <Descriptions.Item label="资产 ID" span={2}>{selectedAsset.asset_id}</Descriptions.Item>
               <Descriptions.Item label="资产组">{selectedAsset.asset_group_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="数据类型">
                 {formatDataTypeLabel(selectedAsset.data_type)}
@@ -864,7 +863,7 @@ export default function SmartDataHubOverviewPage() {
                 {selectedAsset.workflow_run_id || selectedAsset.device_run_id || "--"}
               </Descriptions.Item>
               <Descriptions.Item label="关联实验">{selectedAsset.experiment_id || "--"}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{formatDateTime(selectedAsset.created_at)}</Descriptions.Item>
+              <Descriptions.Item label="采集人">{selectedAsset.operator || "--"}</Descriptions.Item>
               <Descriptions.Item label="入库时间">{formatDateTime(selectedAsset.ingested_at)}</Descriptions.Item>
             </Descriptions>
 
