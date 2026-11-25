@@ -848,14 +848,14 @@ export default function SmartDataHubOverviewPage() {
         {selectedAsset ? (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Descriptions bordered column={2} size="small" title="资产信息">
-              <Descriptions.Item label="资产 ID" span={2}>{selectedAsset.asset_id}</Descriptions.Item>
+              <Descriptions.Item label="资产 ID">{selectedAsset.asset_id}</Descriptions.Item>
+              <Descriptions.Item label="采集人">{selectedAsset.operator || "--"}</Descriptions.Item>
               <Descriptions.Item label="资产组">{selectedAsset.asset_group_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="数据类型">
                 {formatDataTypeLabel(selectedAsset.data_type)}
               </Descriptions.Item>
               <Descriptions.Item label="设备 ID">{selectedAsset.device_id || "--"}</Descriptions.Item>
               <Descriptions.Item label="Collector ID">{selectedAsset.collector_id || "--"}</Descriptions.Item>
-              <Descriptions.Item label="采集人">{selectedAsset.operator || "--"}</Descriptions.Item>
               <Descriptions.Item label="文件数">{selectedAsset.file_count}</Descriptions.Item>
               <Descriptions.Item label="总大小">{formatBytes(selectedAsset.total_size)}</Descriptions.Item>
               <Descriptions.Item label="数据集">{selectedAsset.dataset_id || "--"}</Descriptions.Item>
